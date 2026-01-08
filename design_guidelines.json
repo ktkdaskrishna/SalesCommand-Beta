@@ -1,0 +1,177 @@
+{
+  "identity": {
+    "name": "SalesCommand Enterprise",
+    "archetype": "Swiss & High-Contrast",
+    "vibe": "Authoritative, Clear, Data-Driven, Executive",
+    "principles": [
+      "Fusion over Imitation: Mix Swiss precision with SaaS utility",
+      "Emotion First: Confidence and Clarity",
+      "Content is King: Data tells the story",
+      "Zoom In: Focus on the metric that matters",
+      "Negative Space: De-clutter the dashboard"
+    ]
+  },
+  "typography": {
+    "strategy": "Soft Utility",
+    "fonts": {
+      "heading": {
+        "family": "Manrope",
+        "weights": ["600", "700", "800"],
+        "usage": "Page titles, widget headers, KPI values"
+      },
+      "body": {
+        "family": "Inter",
+        "weights": ["400", "500"],
+        "usage": "Table data, labels, descriptions"
+      },
+      "mono": {
+        "family": "JetBrains Mono",
+        "weights": ["400"],
+        "usage": "IDs, API keys, code snippets"
+      }
+    },
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight",
+      "h2": "text-3xl font-bold tracking-tight",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "kpi_value": "text-5xl font-extrabold tracking-tighter tabular-nums",
+      "label": "text-xs font-medium uppercase tracking-wider text-muted-foreground"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0F172A",
+        "foreground": "#F8FAFC",
+        "hover": "#1E293B"
+      },
+      "secondary": {
+        "DEFAULT": "#F1F5F9",
+        "foreground": "#0F172A",
+        "hover": "#E2E8F0"
+      },
+      "accent": {
+        "DEFAULT": "#2563EB",
+        "foreground": "#FFFFFF",
+        "hover": "#1D4ED8"
+      },
+      "destructive": {
+        "DEFAULT": "#EF4444",
+        "foreground": "#FFFFFF"
+      },
+      "success": {
+        "DEFAULT": "#10B981",
+        "foreground": "#FFFFFF"
+      },
+      "warning": {
+        "DEFAULT": "#F59E0B",
+        "foreground": "#FFFFFF"
+      },
+      "background": "#FFFFFF",
+      "surface": "#F8FAFC",
+      "border": "#E2E8F0",
+      "muted": "#64748B"
+    },
+    "gradients": {
+      "primary": "bg-gradient-to-br from-slate-900 to-slate-800",
+      "subtle": "bg-gradient-to-b from-white to-slate-50"
+    }
+  },
+  "layout": {
+    "grid_system": {
+      "dashboard": "grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6",
+      "widget_hero": "col-span-full lg:col-span-8 row-span-2",
+      "widget_standard": "col-span-full md:col-span-2 lg:col-span-4 row-span-1",
+      "widget_tall": "col-span-full md:col-span-2 lg:col-span-4 row-span-2"
+    },
+    "spacing": {
+      "page_padding": "p-6 md:p-8 lg:p-12",
+      "card_padding": "p-6",
+      "section_gap": "gap-8"
+    },
+    "containers": {
+      "card": "bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200",
+      "sidebar": "bg-slate-900 text-slate-300 w-64 flex-shrink-0 h-screen sticky top-0 border-r border-slate-800",
+      "header": "bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 h-16 flex items-center px-6"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-md px-4 py-2 font-medium transition-all active:scale-95",
+      "secondary": "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-md px-4 py-2 font-medium transition-all",
+      "ghost": "text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 transition-all"
+    },
+    "inputs": {
+      "default": "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "cards": {
+      "kpi": "flex flex-col justify-between p-6 bg-white rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-colors"
+    },
+    "badges": {
+      "success": "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700",
+      "warning": "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700",
+      "error": "inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700",
+      "neutral": "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+    }
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "soft": "shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+      "hover": "shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+    },
+    "borders": {
+      "subtle": "border border-slate-100",
+      "default": "border border-slate-200",
+      "active": "border-slate-400"
+    },
+    "glass": "bg-white/70 backdrop-blur-xl border border-white/20 shadow-sm"
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width={1.5} className='w-5 h-5'"
+    },
+    "images": {
+      "login_bg": "https://images.unsplash.com/photo-1694702702714-a48c5fabdaf3?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "avatars": [
+        "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1655249481446-25d575f1c054?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1762522927402-f390672558d8?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ],
+      "team_meeting": "https://images.unsplash.com/photo-1760346546771-a81d986459ff?crop=entropy&cs=srgb&fm=jpg&q=85"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-200 ease-in-out",
+    "hover_lift": "hover:-translate-y-1 hover:shadow-md",
+    "page_enter": {
+      "initial": { "opacity": 0, "y": 10 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -10 },
+      "transition": { "duration": 0.3 }
+    }
+  },
+  "accessibility": {
+    "contrast_check": "Ensure all text meets APCA standards. Use slate-600+ on white.",
+    "focus_states": "focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2",
+    "reduced_motion": "motion-reduce:transition-none motion-reduce:transform-none"
+  },
+  "instructions_to_main_agent": [
+    "Use 'Manrope' for all headings and 'Inter' for body text. Import them in index.css.",
+    "Implement a 'Layout' component that handles the Sidebar (left) and Header (top).",
+    "Use the 'Bento' grid system for dashboards: mix standard (1x1), wide (2x1), and tall (1x2) widgets.",
+    "For charts, use 'recharts' with the defined color palette. Do not use default colors.",
+    "Ensure all interactive elements have 'data-testid' attributes.",
+    "Use 'sonner' for notifications.",
+    "The 'AI Insights' panel should be a collapsible sidebar on the right.",
+    "Login page should use the 'login_bg' image with a glassmorphism card for the form.",
+    "Strictly follow the color palette. Do not use random hex codes."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI slop' - no generic gradients or centered layouts.",
+    "Use 2-3x more spacing than typical (p-6, p-8).",
+    "Micro-interactions on every button and card.",
+    "Dark mode support is optional but structure should allow it (use slate-900 for dark bg)."
+  ]
+}
