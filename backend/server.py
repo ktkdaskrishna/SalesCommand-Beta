@@ -1042,11 +1042,23 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     stats["pending_activities"] = len([a for a in activities if a.get("status") in ["pending", "in_progress"]])
     
     now = datetime.now(timezone.utc)
+    
+    def is_overdue(due_date):
+        if not due_date:
+            return False
+        if isinstance(due_date, str):
+            try:
+                due_date = datetime.fromisoformat(due_date.replace("Z", "+00:00"))
+            except:
+                return False
+        if due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        return due_date < now
+    
     stats["overdue_activities"] = len([
         a for a in activities 
         if a.get("status") not in ["completed", "cancelled"] 
-        and a.get("due_date") 
-        and a["due_date"] < now
+        and is_overdue(a.get("due_date"))
     ])
     
     completed = len([a for a in activities if a.get("status") == "completed"])
