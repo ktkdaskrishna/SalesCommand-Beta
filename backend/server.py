@@ -1142,7 +1142,12 @@ async def get_revenue_trend(user: dict = Depends(get_current_user)):
     for opp in opps:
         created = opp.get("created_at", now)
         if isinstance(created, str):
-            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            try:
+                created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            except:
+                created = now
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
         month_idx = min(5, max(0, 5 - (now - created).days // 30))
         if 0 <= month_idx < len(months):
             months[month_idx]["actual"] += opp.get("value", 0)
