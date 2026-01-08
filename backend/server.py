@@ -27,8 +27,8 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'salescommand-secret-key-2025')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - use sha256_crypt as fallback for compatibility
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # Security
 security = HTTPBearer()
