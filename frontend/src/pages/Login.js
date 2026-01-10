@@ -53,10 +53,12 @@ const Login = () => {
   };
 
   const demoAccounts = [
+    { email: "superadmin@salescommand.com", role: "Super Admin" },
     { email: "ceo@salescommand.com", role: "CEO" },
-    { email: "pd.mssp@salescommand.com", role: "Product Director (MSSP)" },
+    { email: "sales.director@salescommand.com", role: "Sales Director" },
     { email: "am1@salescommand.com", role: "Account Manager" },
-    { email: "strategy@salescommand.com", role: "Strategy Team" },
+    { email: "finance@salescommand.com", role: "Finance Manager" },
+    { email: "referrer@salescommand.com", role: "Referrer" },
   ];
 
   return (
