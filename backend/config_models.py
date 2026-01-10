@@ -435,8 +435,8 @@ class BlueSheetConfig(BaseModel):
 
 # ===================== LLM CONFIGURATION =====================
 
-class LLMProviderConfig(BaseModel):
-    """LLM provider configuration"""
+class LLMProviderBasicConfig(BaseModel):
+    """Basic LLM provider configuration for prompt templates"""
     provider: str  # openai, anthropic, gemini
     model: str
     api_key_env: str  # Environment variable name for API key
@@ -458,7 +458,7 @@ class PromptTemplate(BaseModel):
 class LLMConfig(BaseModel):
     """Complete LLM configuration"""
     default_provider: str = "openai"
-    providers: List[LLMProviderConfig] = []
+    providers: List[LLMProviderBasicConfig] = []
     prompt_templates: List[PromptTemplate] = []
     enable_caching: bool = True
     cache_ttl_minutes: int = 60
