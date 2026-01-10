@@ -2,10 +2,127 @@
 # This file contains all configuration models and logic for the metadata-driven
 # enterprise configuration framework.
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
+
+# ===================== ORGANIZATION CONFIGURATION =====================
+
+class OrganizationSettings(BaseModel):
+    """Organization-level settings"""
+    id: str = "org_config"
+    name: str = "SalesCommand Enterprise"
+    domain: Optional[str] = None
+    industry: Optional[str] = None
+    timezone: str = "UTC"
+    date_format: str = "YYYY-MM-DD"
+    currency: str = "USD"
+    currency_symbol: str = "$"
+    fiscal_year_start_month: int = 1  # January
+    working_days: List[str] = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    working_hours_start: str = "09:00"
+    working_hours_end: str = "18:00"
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    address: Optional[str] = None
+    logo_url: Optional[str] = None
+    primary_color: str = "#2563EB"
+    quota_period: str = "quarterly"  # monthly, quarterly, yearly
+    default_commission_rate: float = 0.05
+    enable_referrals: bool = True
+    enable_ai_features: bool = True
+    data_retention_days: int = 365
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+# ===================== USER MANAGEMENT MODELS =====================
+
+class UserCreateByAdmin(BaseModel):
+    """Model for admin creating a user"""
+    email: EmailStr
+    name: str
+    role: str
+    password: Optional[str] = None  # If not provided, generate random
+    department: Optional[str] = None
+    product_line: Optional[str] = None
+    manager_id: Optional[str] = None
+    quota: float = 500000
+    commission_template_id: Optional[str] = None
+    is_active: bool = True
+
+class UserUpdateByAdmin(BaseModel):
+    """Model for admin updating a user"""
+    name: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    product_line: Optional[str] = None
+    manager_id: Optional[str] = None
+    quota: Optional[float] = None
+    commission_template_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class UserFullResponse(BaseModel):
+    """Full user response for admin"""
+    id: str
+    email: str
+    name: str
+    role: str
+    department: Optional[str] = None
+    product_line: Optional[str] = None
+    manager_id: Optional[str] = None
+    manager_name: Optional[str] = None
+    quota: float = 500000
+    commission_template_id: Optional[str] = None
+    commission_template_name: Optional[str] = None
+    is_active: bool = True
+    avatar_url: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None
+
+# ===================== AI AGENT CONFIGURATION =====================
+
+class AIAgentType(str, Enum):
+    PROBABILITY_ANALYZER = "probability_analyzer"
+    SALES_INSIGHTS = "sales_insights"
+    EMAIL_ANALYZER = "email_analyzer"
+    DEAL_COACH = "deal_coach"
+    FORECAST_PREDICTOR = "forecast_predictor"
+    ACTIVITY_SUGGESTER = "activity_suggester"
+
+class AIAgentConfig(BaseModel):
+    """Individual AI agent configuration"""
+    id: str
+    name: str
+    agent_type: AIAgentType
+    description: Optional[str] = None
+    is_enabled: bool = True
+    llm_provider: str = "openai"
+    model: str = "gpt-4o"
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    system_prompt: str
+    user_prompt_template: str
+    input_variables: List[str] = []
+    output_format: str = "text"  # text, json, structured
+    output_schema: Optional[Dict] = None  # JSON schema for structured output
+    trigger_type: str = "manual"  # manual, automatic, scheduled
+    trigger_conditions: Optional[Dict] = None
+    allowed_roles: List[str] = []  # Empty means all roles
+    rate_limit_per_user: int = 100  # Per day
+    cache_enabled: bool = True
+    cache_ttl_minutes: int = 60
+
+class AIAgentsConfig(BaseModel):
+    """Complete AI agents configuration"""
+    agents: List[AIAgentConfig] = []
+    global_rate_limit: int = 10000  # Per day for organization
+    enable_usage_tracking: bool = True
+    enable_feedback_collection: bool = True
+    fallback_provider: Optional[str] = None
+    cost_tracking_enabled: bool = True
+    max_cost_per_day: Optional[float] = None
 
 # ===================== CORE CONFIGURATION MODELS =====================
 
