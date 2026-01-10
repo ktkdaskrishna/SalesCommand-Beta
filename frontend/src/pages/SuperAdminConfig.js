@@ -21,14 +21,23 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Building2,
+  Bot,
+  UserPlus,
+  Key,
+  Play,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
 // Sidebar navigation items
 const navItems = [
+  { id: "organization", label: "Organization", icon: Building2 },
+  { id: "users", label: "User Management", icon: Users },
   { id: "roles", label: "Roles & Permissions", icon: Shield },
+  { id: "ai-agents", label: "AI Agents", icon: Bot },
+  { id: "llm", label: "LLM Providers", icon: Sparkles },
   { id: "blue-sheet", label: "Blue Sheet Config", icon: FileText },
-  { id: "llm", label: "AI / LLM Settings", icon: Sparkles },
   { id: "ui", label: "UI & Branding", icon: Palette },
   { id: "integrations", label: "Integrations", icon: Link },
 ];
