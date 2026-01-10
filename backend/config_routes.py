@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
+import secrets
+import string
 
 from config_models import (
     ModuleDefinition, ModuleFeature, ModuleFeatureAction,
@@ -15,8 +17,10 @@ from config_models import (
     IntegrationConfig,
     UIConfig, ThemeColors, ThemeTypography, BrandingConfig,
     SystemConfig,
+    OrganizationSettings, UserCreateByAdmin, UserUpdateByAdmin, UserFullResponse,
+    AIAgentsConfig, AIAgentConfig, AIAgentType,
     get_default_modules, get_default_roles, get_default_blue_sheet_config,
-    get_default_llm_config, get_default_ui_config
+    get_default_llm_config, get_default_ui_config, get_default_organization, get_default_ai_agents
 )
 
 config_router = APIRouter(prefix="/config", tags=["Configuration"])
