@@ -614,10 +614,28 @@ def main():
         # 9. Test integrations
         tester.test_integrations_endpoints()
         
-        # 10. Test dashboard
+        # 10. Test Kanban board
+        tester.test_kanban_endpoints()
+        
+        # 11. Test pipeline stages
+        tester.test_pipeline_stages()
+        
+        # 12. Test commission templates
+        tester.test_commission_templates()
+        
+        # 13. Test incentive calculator
+        tester.test_incentive_calculator()
+        
+        # 14. Test sales metrics
+        tester.test_sales_metrics()
+        
+        # 15. Test Blue Sheet probability
+        tester.test_blue_sheet_probability(opp_id)
+        
+        # 16. Test dashboard
         tester.test_dashboard_endpoints()
         
-        # 11. Test AI insights
+        # 17. Test AI insights
         tester.test_ai_insights()
         
     except KeyboardInterrupt:
