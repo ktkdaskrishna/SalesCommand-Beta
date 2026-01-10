@@ -1735,18 +1735,28 @@ const SuperAdminConfig = () => {
     switch (activeTab) {
       case "organization":
         return <OrganizationTab config={config} onConfigUpdate={fetchConfig} />;
+      case "departments":
+        return <DepartmentsTab config={config} onConfigUpdate={fetchConfig} />;
       case "users":
         return <UserManagementTab config={config} onConfigUpdate={fetchConfig} />;
       case "roles":
         return <RolesTab config={config} onConfigUpdate={fetchConfig} />;
+      case "contact-roles":
+        return <ContactRolesTab config={config} onConfigUpdate={fetchConfig} />;
       case "ai-agents":
         return <AIAgentsTab config={config} onConfigUpdate={fetchConfig} />;
+      case "ai-chatbot":
+        return <AIChatbotTab config={config} onConfigUpdate={fetchConfig} />;
+      case "llm-providers":
+        return <LLMProvidersTab config={config} onConfigUpdate={fetchConfig} />;
       case "blue-sheet":
         return <BlueSheetTab config={config} onConfigUpdate={fetchConfig} />;
       case "llm":
         return <LLMTab config={config} onConfigUpdate={fetchConfig} />;
       case "ui":
         return <UITab config={config} onConfigUpdate={fetchConfig} />;
+      case "email":
+        return <EmailConfigTab config={config} onConfigUpdate={fetchConfig} />;
       case "integrations":
         return <IntegrationsTab config={config} onConfigUpdate={fetchConfig} />;
       default:
@@ -1759,11 +1769,11 @@ const SuperAdminConfig = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-          <Settings className="w-8 h-8 text-blue-600" />
-          System Configuration
+          <Settings className="w-8 h-8" style={{ color: "#800000" }} />
+          Securado System Configuration
         </h1>
         <p className="text-slate-600 mt-1">
-          Configure roles, permissions, AI settings, and system branding
+          Configure roles, departments, AI settings, and system branding
         </p>
       </div>
 
