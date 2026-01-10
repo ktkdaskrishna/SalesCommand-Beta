@@ -170,6 +170,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/config"
+        element={
+          <ProtectedRoute>
+            <SuperAdminConfig />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
