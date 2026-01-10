@@ -1115,16 +1115,48 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
     
     # ===================== LLM PROVIDERS MANAGEMENT =====================
     
+    def mask_api_key(key: str) -> str:
+        """Mask API key for display"""
+        if not key or len(key) < 8:
+            return "****"
+        return key[:4] + "*" * (len(key) - 8) + key[-4:]
+    
     @api_router.get("/config/llm-providers")
     async def get_llm_providers(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
-        """Get LLM providers configuration"""
+        """Get LLM providers configuration - masks API keys"""
         config = await get_system_config(db)
-        return config.get("llm_providers", get_default_llm_providers().model_dump())
+        llm_providers = config.get("llm_providers", get_default_llm_providers().model_dump())
+        
+        # Mask API keys in response and check if configured
+        for provider in llm_providers.get("providers", []):
+            if provider.get("api_key"):
+                provider["api_key_masked"] = mask_api_key(provider["api_key"])
+                provider["api_key"] = None  # Don't send actual key
+                provider["api_key_configured"] = True
+            elif provider.get("api_key_env"):
+                # Check if env var is set
+                env_key = os.environ.get(provider["api_key_env"], "")
+                provider["api_key_configured"] = bool(env_key)
+                provider["api_key_masked"] = mask_api_key(env_key) if env_key else None
+            else:
+                provider["api_key_configured"] = False
+                provider["api_key_masked"] = None
+        
+        return llm_providers
     
     @api_router.put("/config/llm-providers")
     async def update_llm_providers(providers_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
         """Update LLM providers configuration"""
         config = await get_system_config(db)
+        
+        # Preserve existing API keys if not provided in update
+        existing_providers = {p["id"]: p for p in config.get("llm_providers", {}).get("providers", [])}
+        
+        for provider in providers_data.get("providers", []):
+            # If api_key is None, keep existing key
+            if provider.get("api_key") is None and provider["id"] in existing_providers:
+                provider["api_key"] = existing_providers[provider["id"]].get("api_key")
+        
         config["llm_providers"] = providers_data
         await save_system_config(db, config, user["id"])
         return {"message": "LLM providers updated"}
