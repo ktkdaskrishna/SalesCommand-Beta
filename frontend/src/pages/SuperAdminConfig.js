@@ -340,6 +340,521 @@ const OrganizationTab = ({ config, onConfigUpdate }) => {
   );
 };
 
+// Field Type Icons and Labels
+const fieldTypeConfig = {
+  text: { icon: Type, label: "Text", color: "bg-blue-100 text-blue-600" },
+  textarea: { icon: FileText, label: "Text Area", color: "bg-blue-100 text-blue-600" },
+  number: { icon: Hash, label: "Number", color: "bg-green-100 text-green-600" },
+  currency: { icon: DollarSign, label: "Currency", color: "bg-emerald-100 text-emerald-600" },
+  percentage: { icon: Hash, label: "Percentage", color: "bg-teal-100 text-teal-600" },
+  date: { icon: Calendar, label: "Date", color: "bg-purple-100 text-purple-600" },
+  datetime: { icon: Calendar, label: "Date Time", color: "bg-purple-100 text-purple-600" },
+  dropdown: { icon: List, label: "Dropdown", color: "bg-amber-100 text-amber-600" },
+  multi_select: { icon: List, label: "Multi Select", color: "bg-amber-100 text-amber-600" },
+  checkbox: { icon: ToggleLeft, label: "Checkbox", color: "bg-slate-100 text-slate-600" },
+  url: { icon: LinkIcon, label: "URL", color: "bg-indigo-100 text-indigo-600" },
+  email: { icon: Mail, label: "Email", color: "bg-rose-100 text-rose-600" },
+  phone: { icon: Contact2, label: "Phone", color: "bg-pink-100 text-pink-600" },
+  file: { icon: FileUp, label: "File Upload", color: "bg-orange-100 text-orange-600" },
+  image: { icon: FileUp, label: "Image", color: "bg-orange-100 text-orange-600" },
+  rich_text: { icon: FileText, label: "Rich Text", color: "bg-cyan-100 text-cyan-600" },
+  relationship: { icon: Users, label: "Relationship", color: "bg-violet-100 text-violet-600" },
+  computed: { icon: Sparkles, label: "Computed", color: "bg-yellow-100 text-yellow-600" },
+};
+
+// Account Fields Tab - ERP Style Field Configuration
+const AccountFieldsTab = ({ config, onConfigUpdate }) => {
+  const [fieldsConfig, setFieldsConfig] = useState(config?.account_fields || { fields: [], layout: { sections: [] } });
+  const [saving, setSaving] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+  const [showNewField, setShowNewField] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
+  const [showNewSection, setShowNewSection] = useState(false);
+  const [activeView, setActiveView] = useState("fields"); // "fields" or "layout"
+
+  useEffect(() => {
+    setFieldsConfig(config?.account_fields || { fields: [], layout: { sections: [] } });
+  }, [config]);
+
+  const handleSaveFields = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/account-fields", fieldsConfig);
+      toast.success("Account fields saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save account fields");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddField = async (newField) => {
+    try {
+      const res = await api.post("/config/account-fields/field", newField);
+      toast.success("Field added");
+      onConfigUpdate();
+      setShowNewField(false);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to add field");
+    }
+  };
+
+  const handleUpdateField = async (fieldId, fieldData) => {
+    try {
+      await api.put(`/config/account-fields/field/${fieldId}`, fieldData);
+      toast.success("Field updated");
+      onConfigUpdate();
+      setEditingField(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update field");
+    }
+  };
+
+  const handleDeleteField = async (fieldId) => {
+    if (!window.confirm("Delete this field? Data in existing accounts will be preserved but not displayed.")) return;
+    try {
+      await api.delete(`/config/account-fields/field/${fieldId}`);
+      toast.success("Field deleted");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete field");
+    }
+  };
+
+  const handleAddSection = async (newSection) => {
+    try {
+      const res = await api.post("/config/account-fields/section", newSection);
+      toast.success("Section added");
+      onConfigUpdate();
+      setShowNewSection(false);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to add section");
+    }
+  };
+
+  const fields = fieldsConfig?.fields || [];
+  const sections = fieldsConfig?.layout?.sections || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Account Field Definitions</h3>
+          <p className="text-sm text-slate-500">Configure fields and layout for account/organization records</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex bg-slate-100 rounded-lg p-1">
+            <button onClick={() => setActiveView("fields")} className={cn("px-3 py-1.5 text-sm rounded-md transition", activeView === "fields" ? "bg-white shadow text-slate-900" : "text-slate-500")}>
+              Fields
+            </button>
+            <button onClick={() => setActiveView("layout")} className={cn("px-3 py-1.5 text-sm rounded-md transition", activeView === "layout" ? "bg-white shadow text-slate-900" : "text-slate-500")}>
+              Layout
+            </button>
+          </div>
+          <button onClick={handleSaveFields} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save All
+          </button>
+        </div>
+      </div>
+
+      {/* Fields View */}
+      {activeView === "fields" && (
+        <div className="space-y-4">
+          {/* Add Field Button */}
+          <div className="flex justify-end">
+            <button onClick={() => setShowNewField(true)} className="btn-secondary text-sm flex items-center gap-2" data-testid="add-field-btn">
+              <Plus className="w-4 h-4" /> Add Custom Field
+            </button>
+          </div>
+
+          {/* New Field Form */}
+          {showNewField && (
+            <FieldEditForm
+              field={null}
+              sections={sections}
+              onSave={handleAddField}
+              onCancel={() => setShowNewField(false)}
+            />
+          )}
+
+          {/* Edit Field Form */}
+          {editingField && (
+            <FieldEditForm
+              field={editingField}
+              sections={sections}
+              onSave={(data) => handleUpdateField(editingField.id, data)}
+              onCancel={() => setEditingField(null)}
+            />
+          )}
+
+          {/* Fields List by Section */}
+          {sections.map((section) => {
+            const sectionFields = fields.filter(f => f.section_id === section.id);
+            return (
+              <div key={section.id} className="card overflow-hidden" data-testid={`section-${section.id}`}>
+                <div className="bg-slate-50 px-4 py-3 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="w-4 h-4 text-slate-400" />
+                    <h4 className="font-medium text-slate-900">{section.name}</h4>
+                    <span className="text-xs text-slate-500">({sectionFields.length} fields)</span>
+                  </div>
+                  <span className="text-xs bg-slate-200 px-2 py-1 rounded">{section.columns} columns</span>
+                </div>
+                <div className="divide-y">
+                  {sectionFields.map((field) => {
+                    const typeConfig = fieldTypeConfig[field.field_type] || fieldTypeConfig.text;
+                    const TypeIcon = typeConfig.icon;
+                    return (
+                      <div key={field.id} className="p-4 flex items-center justify-between hover:bg-slate-50" data-testid={`field-${field.id}`}>
+                        <div className="flex items-center gap-4">
+                          <GripVertical className="w-4 h-4 text-slate-300 cursor-move" />
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", typeConfig.color)}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-900">{field.name}</span>
+                              {field.is_system && <span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded">System</span>}
+                              {field.validation?.required && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Required</span>}
+                              {field.show_in_list && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">In List</span>}
+                              {field.show_in_card && <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded">In Card</span>}
+                            </div>
+                            <p className="text-xs text-slate-500">{typeConfig.label} • ID: {field.id}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setEditingField(field)} className="p-1.5 hover:bg-slate-100 rounded" title="Edit" data-testid={`edit-field-${field.id}`}>
+                            <Edit2 className="w-4 h-4 text-slate-500" />
+                          </button>
+                          {!field.is_system && (
+                            <button onClick={() => handleDeleteField(field.id)} className="p-1.5 hover:bg-red-50 rounded" title="Delete">
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {sectionFields.length === 0 && (
+                    <div className="p-4 text-center text-sm text-slate-400">No fields in this section</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Unassigned Fields */}
+          {(() => {
+            const unassignedFields = fields.filter(f => !f.section_id || !sections.find(s => s.id === f.section_id));
+            if (unassignedFields.length === 0) return null;
+            return (
+              <div className="card overflow-hidden border-dashed border-2 border-slate-200">
+                <div className="bg-slate-50 px-4 py-3 border-b">
+                  <h4 className="font-medium text-slate-700">Unassigned Fields</h4>
+                </div>
+                <div className="divide-y">
+                  {unassignedFields.map((field) => {
+                    const typeConfig = fieldTypeConfig[field.field_type] || fieldTypeConfig.text;
+                    const TypeIcon = typeConfig.icon;
+                    return (
+                      <div key={field.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                        <div className="flex items-center gap-4">
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", typeConfig.color)}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-900">{field.name}</span>
+                            <p className="text-xs text-slate-500">{typeConfig.label}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setEditingField(field)} className="p-1.5 hover:bg-slate-100 rounded">
+                          <Edit2 className="w-4 h-4 text-slate-500" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Layout View */}
+      {activeView === "layout" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => setShowNewSection(true)} className="btn-secondary text-sm flex items-center gap-2" data-testid="add-section-btn">
+              <Plus className="w-4 h-4" /> Add Section
+            </button>
+          </div>
+
+          {/* New Section Form */}
+          {showNewSection && (
+            <div className="card p-4 border-2 border-blue-200 space-y-4">
+              <h4 className="font-medium">New Section</h4>
+              <SectionEditForm
+                section={null}
+                onSave={handleAddSection}
+                onCancel={() => setShowNewSection(false)}
+              />
+            </div>
+          )}
+
+          {/* Sections List */}
+          <div className="space-y-4">
+            {sections.sort((a, b) => a.order - b.order).map((section) => (
+              <div key={section.id} className="card overflow-hidden" data-testid={`layout-section-${section.id}`}>
+                <div className="bg-slate-50 px-4 py-3 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <GripVertical className="w-4 h-4 text-slate-400 cursor-move" />
+                    <span className="text-xl">{section.icon || "📋"}</span>
+                    <div>
+                      <h4 className="font-medium text-slate-900">{section.name}</h4>
+                      <p className="text-xs text-slate-500">{section.columns} columns • Order: {section.order}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingSection(section)} className="p-1.5 hover:bg-slate-100 rounded">
+                      <Edit2 className="w-4 h-4 text-slate-500" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-slate-600 mb-2">Fields in this section:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(section.field_ids || []).map(fieldId => {
+                      const field = fields.find(f => f.id === fieldId);
+                      if (!field) return null;
+                      return (
+                        <span key={fieldId} className="text-xs bg-slate-100 px-2 py-1 rounded">{field.name}</span>
+                      );
+                    })}
+                    {(!section.field_ids || section.field_ids.length === 0) && (
+                      <span className="text-xs text-slate-400 italic">No fields assigned</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Section Edit Modal */}
+          {editingSection && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl w-full max-w-lg m-4 p-6">
+                <h3 className="text-lg font-semibold mb-4">Edit Section: {editingSection.name}</h3>
+                <SectionEditForm
+                  section={editingSection}
+                  fields={fields}
+                  onSave={async (data) => {
+                    const newSections = sections.map(s => s.id === editingSection.id ? { ...s, ...data } : s);
+                    const newLayout = { ...fieldsConfig.layout, sections: newSections };
+                    try {
+                      await api.put("/config/account-fields/layout", newLayout);
+                      toast.success("Section updated");
+                      onConfigUpdate();
+                      setEditingSection(null);
+                    } catch (error) {
+                      toast.error("Failed to update section");
+                    }
+                  }}
+                  onCancel={() => setEditingSection(null)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Field Edit Form Component
+const FieldEditForm = ({ field, sections, onSave, onCancel }) => {
+  const [formData, setFormData] = useState(field || {
+    name: "",
+    field_type: "text",
+    description: "",
+    placeholder: "",
+    section_id: sections[0]?.id || "",
+    validation: { required: false },
+    visible: true,
+    editable: true,
+    show_in_list: false,
+    show_in_card: false,
+    options: [],
+  });
+  const [newOption, setNewOption] = useState({ value: "", label: "" });
+
+  const handleSave = () => {
+    if (!formData.name) {
+      toast.error("Field name is required");
+      return;
+    }
+    onSave(formData);
+  };
+
+  const addOption = () => {
+    if (!newOption.value || !newOption.label) return;
+    setFormData({
+      ...formData,
+      options: [...(formData.options || []), newOption]
+    });
+    setNewOption({ value: "", label: "" });
+  };
+
+  const removeOption = (idx) => {
+    setFormData({
+      ...formData,
+      options: formData.options.filter((_, i) => i !== idx)
+    });
+  };
+
+  return (
+    <div className="card p-4 border-2 border-blue-200 space-y-4" data-testid="field-edit-form">
+      <h4 className="font-medium">{field ? `Edit: ${field.name}` : "New Field"}</h4>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs text-slate-500">Field Name *</label>
+          <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input w-full" placeholder="e.g., Contract Renewal Date" />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Field Type</label>
+          <select value={formData.field_type} onChange={(e) => setFormData({ ...formData, field_type: e.target.value })} className="input w-full" disabled={field?.is_system}>
+            {Object.entries(fieldTypeConfig).map(([type, config]) => (
+              <option key={type} value={type}>{config.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Section</label>
+          <select value={formData.section_id || ""} onChange={(e) => setFormData({ ...formData, section_id: e.target.value })} className="input w-full">
+            <option value="">Unassigned</option>
+            {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Placeholder</label>
+          <input type="text" value={formData.placeholder || ""} onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })} className="input w-full" />
+        </div>
+        <div className="col-span-2">
+          <label className="text-xs text-slate-500">Description</label>
+          <input type="text" value={formData.description || ""} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="input w-full" />
+        </div>
+      </div>
+
+      {/* Options for Dropdown/Multi-select */}
+      {(formData.field_type === "dropdown" || formData.field_type === "multi_select") && (
+        <div>
+          <label className="text-xs text-slate-500 mb-2 block">Options</label>
+          <div className="space-y-2">
+            {(formData.options || []).map((opt, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded">
+                <span className="text-sm flex-1">{opt.label} ({opt.value})</span>
+                <button onClick={() => removeOption(idx)} className="text-red-500 hover:text-red-700">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <input type="text" value={newOption.value} onChange={(e) => setNewOption({ ...newOption, value: e.target.value })} className="input flex-1" placeholder="Value" />
+              <input type="text" value={newOption.label} onChange={(e) => setNewOption({ ...newOption, label: e.target.value })} className="input flex-1" placeholder="Label" />
+              <button onClick={addOption} className="btn-secondary text-sm">Add</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Display Options */}
+      <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={formData.validation?.required || false} onChange={(e) => setFormData({ ...formData, validation: { ...formData.validation, required: e.target.checked } })} className="rounded border-slate-300" />
+          Required
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={formData.show_in_list || false} onChange={(e) => setFormData({ ...formData, show_in_list: e.target.checked })} className="rounded border-slate-300" />
+          Show in List
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={formData.show_in_card || false} onChange={(e) => setFormData({ ...formData, show_in_card: e.target.checked })} className="rounded border-slate-300" />
+          Show in Card
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={formData.editable !== false} onChange={(e) => setFormData({ ...formData, editable: e.target.checked })} className="rounded border-slate-300" />
+          Editable
+        </label>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button onClick={handleSave} className="btn-primary text-sm" data-testid="save-field-btn">
+          {field ? "Update Field" : "Add Field"}
+        </button>
+        <button onClick={onCancel} className="btn-secondary text-sm">Cancel</button>
+      </div>
+    </div>
+  );
+};
+
+// Section Edit Form Component
+const SectionEditForm = ({ section, fields = [], onSave, onCancel }) => {
+  const [formData, setFormData] = useState(section || {
+    name: "",
+    icon: "📋",
+    columns: 2,
+    order: 1,
+    collapsed_by_default: false,
+    field_ids: [],
+  });
+
+  const handleSave = () => {
+    if (!formData.name) {
+      toast.error("Section name is required");
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs text-slate-500">Section Name *</label>
+          <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input w-full" />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Icon (emoji)</label>
+          <input type="text" value={formData.icon || ""} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} className="input w-full" placeholder="📋" />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Columns</label>
+          <select value={formData.columns} onChange={(e) => setFormData({ ...formData, columns: parseInt(e.target.value) })} className="input w-full">
+            <option value={1}>1 Column</option>
+            <option value={2}>2 Columns</option>
+            <option value={3}>3 Columns</option>
+            <option value={4}>4 Columns</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Order</label>
+          <input type="number" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="input w-full" />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={formData.collapsed_by_default || false} onChange={(e) => setFormData({ ...formData, collapsed_by_default: e.target.checked })} className="rounded border-slate-300" />
+        Collapsed by default
+      </label>
+      <div className="flex gap-2 pt-2">
+        <button onClick={handleSave} className="btn-primary text-sm">{section ? "Update" : "Add"} Section</button>
+        <button onClick={onCancel} className="btn-secondary text-sm">Cancel</button>
+      </div>
+    </div>
+  );
+};
+
 // User Management Tab
 const UserManagementTab = ({ config, onConfigUpdate }) => {
   const [users, setUsers] = useState([]);
