@@ -722,7 +722,19 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
             if user_data.role not in role_ids:
                 raise HTTPException(status_code=400, detail=f"Invalid role. Valid roles: {role_ids}")
         
-        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
+        # Get fields that were explicitly set (exclude unset fields but include None values for nullable fields)
+        update_data = user_data.model_dump(exclude_unset=True)
+        
+        # Handle nullable fields explicitly - allow setting them to None/null
+        nullable_fields = ['department_id', 'department', 'manager_id', 'commission_template_id', 'product_line']
+        for field in nullable_fields:
+            if field in update_data:
+                # Keep the value even if it's None (allowing removal)
+                pass
+            elif hasattr(user_data, field) and getattr(user_data, field) is None:
+                # Field was explicitly set to None in request
+                update_data[field] = None
+        
         if update_data:
             update_data["updated_at"] = datetime.now(timezone.utc)
             await db.users.update_one({"id": user_id}, {"$set": update_data})
