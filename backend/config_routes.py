@@ -640,7 +640,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
             "email": user_data.email,
             "name": user_data.name,
             "role": user_data.role,
-            "hashed_password": pwd_context.hash(password),
+            "password_hash": pwd_context.hash(password),
             "department": user_data.department,
             "product_line": user_data.product_line,
             "manager_id": user_data.manager_id,
@@ -665,7 +665,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
         })
         
         # Return without sensitive data
-        del new_user["hashed_password"]
+        del new_user["password_hash"]
         new_user["_id"] = None
         del new_user["_id"]
         new_user["generated_password"] = password if not user_data.password else None
