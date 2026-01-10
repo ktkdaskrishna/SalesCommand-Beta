@@ -803,6 +803,548 @@ const AIAgentsTab = ({ config, onConfigUpdate }) => {
   );
 };
 
+// Departments Tab
+const DepartmentsTab = ({ config, onConfigUpdate }) => {
+  const [departments, setDepartments] = useState(config?.departments?.departments || []);
+  const [teams, setTeams] = useState(config?.departments?.teams || []);
+  const [showNewDept, setShowNewDept] = useState(false);
+  const [newDept, setNewDept] = useState({ name: "", code: "", description: "", color: "#800000" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDepartments(config?.departments?.departments || []);
+    setTeams(config?.departments?.teams || []);
+  }, [config]);
+
+  const handleCreateDept = async () => {
+    if (!newDept.name || !newDept.code) {
+      toast.error("Name and code are required");
+      return;
+    }
+    try {
+      await api.post("/config/departments", newDept);
+      toast.success("Department created");
+      onConfigUpdate();
+      setShowNewDept(false);
+      setNewDept({ name: "", code: "", description: "", color: "#800000" });
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create department");
+    }
+  };
+
+  const handleDeleteDept = async (deptId) => {
+    if (!confirm("Delete this department?")) return;
+    try {
+      await api.delete(`/config/departments/${deptId}`);
+      toast.success("Department deleted");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to delete department");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Department Management</h3>
+          <p className="text-sm text-slate-500">Configure organizational departments and teams</p>
+        </div>
+        <button onClick={() => setShowNewDept(true)} className="btn-primary text-sm flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Department
+        </button>
+      </div>
+
+      {showNewDept && (
+        <div className="card p-4 border-2 border-blue-200 space-y-4">
+          <h4 className="font-medium text-slate-900">Create New Department</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500">Name *</label>
+              <input type="text" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} className="input w-full" placeholder="Sales" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Code *</label>
+              <input type="text" value={newDept.code} onChange={(e) => setNewDept({ ...newDept, code: e.target.value.toUpperCase() })} className="input w-full" placeholder="SALES" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Color</label>
+              <input type="color" value={newDept.color} onChange={(e) => setNewDept({ ...newDept, color: e.target.value })} className="w-full h-10 rounded cursor-pointer" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Description</label>
+              <input type="text" value={newDept.description} onChange={(e) => setNewDept({ ...newDept, description: e.target.value })} className="input w-full" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleCreateDept} className="btn-primary text-sm">Create</button>
+            <button onClick={() => setShowNewDept(false)} className="btn-secondary text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4">
+        {departments.map((dept) => (
+          <div key={dept.id} className="card p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold" style={{ backgroundColor: dept.color }}>
+                {dept.code?.substring(0, 2)}
+              </div>
+              <div>
+                <h4 className="font-medium text-slate-900">{dept.name}</h4>
+                <p className="text-sm text-slate-500">{dept.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-slate-100 px-2 py-1 rounded">{dept.code}</span>
+              <button onClick={() => handleDeleteDept(dept.id)} className="p-1 hover:bg-red-50 rounded">
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Contact Roles Tab
+const ContactRolesTab = ({ config, onConfigUpdate }) => {
+  const [contactRoles, setContactRoles] = useState(config?.blue_sheet?.contact_roles || {});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setContactRoles(config?.blue_sheet?.contact_roles || {});
+  }, [config]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/contact-roles", contactRoles);
+      toast.success("Contact roles saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateRole = (roleId, field, value) => {
+    const roles = contactRoles.roles?.map((r) => r.id === roleId ? { ...r, [field]: value } : r);
+    setContactRoles({ ...contactRoles, roles });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Blue Sheet Contact Roles</h3>
+          <p className="text-sm text-slate-500">Configure contact roles for opportunity qualification</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Qualification Requirements</h4>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-slate-700">Require Economic Buyer Identification</span>
+            <input type="checkbox" checked={contactRoles.require_economic_buyer ?? true} onChange={(e) => setContactRoles({ ...contactRoles, require_economic_buyer: e.target.checked })} className="rounded border-slate-300" />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-slate-700">Require Coach Engagement</span>
+            <input type="checkbox" checked={contactRoles.require_coach ?? true} onChange={(e) => setContactRoles({ ...contactRoles, require_coach: e.target.checked })} className="rounded border-slate-300" />
+          </label>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-700">Minimum Contacts for Qualification</span>
+            <input type="number" min="1" max="10" value={contactRoles.min_contacts_for_qualification || 3} onChange={(e) => setContactRoles({ ...contactRoles, min_contacts_for_qualification: parseInt(e.target.value) })} className="w-20 input text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {contactRoles.roles?.map((role) => (
+          <div key={role.id} className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: role.color + "20", color: role.color }}>
+                  <Contact2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-slate-900">{role.name}</h4>
+                  <p className="text-xs text-slate-500">{role.role_type}</p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Required</span>
+                <input type="checkbox" checked={role.is_required_for_qualification} onChange={(e) => updateRole(role.id, "is_required_for_qualification", e.target.checked)} className="rounded border-slate-300" />
+              </label>
+            </div>
+            <p className="text-sm text-slate-600 mb-3">{role.description}</p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500">Weight:</label>
+                <input type="number" min="1" max="10" value={role.importance_weight} onChange={(e) => updateRole(role.id, "importance_weight", parseInt(e.target.value))} className="w-16 input text-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500">Color:</label>
+                <input type="color" value={role.color} onChange={(e) => updateRole(role.id, "color", e.target.value)} className="w-8 h-8 rounded cursor-pointer" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// AI Chatbot Tab
+const AIChatbotTab = ({ config, onConfigUpdate }) => {
+  const [chatbot, setChatbot] = useState(config?.ai_chatbot || {});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setChatbot(config?.ai_chatbot || {});
+  }, [config]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/ai-chatbot", chatbot);
+      toast.success("AI Chatbot configuration saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggle = async (enabled) => {
+    try {
+      await api.post(`/config/ai-chatbot/toggle?enable=${enabled}`);
+      toast.success(`AI Chatbot ${enabled ? "enabled" : "disabled"}`);
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to toggle chatbot");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">AI Chatbot Configuration</h3>
+          <p className="text-sm text-slate-500">Configure the AI assistant chatbot</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", chatbot.is_enabled ? "bg-green-100" : "bg-slate-100")}>
+              <MessageSquare className={cn("w-6 h-6", chatbot.is_enabled ? "text-green-600" : "text-slate-400")} />
+            </div>
+            <div>
+              <h4 className="font-medium text-slate-900">{chatbot.name || "AI Chatbot"}</h4>
+              <p className="text-sm text-slate-500">{chatbot.is_enabled ? "Active and available to users" : "Disabled - not visible to users"}</p>
+            </div>
+          </div>
+          <button onClick={() => handleToggle(!chatbot.is_enabled)} className={cn("px-4 py-2 rounded-lg text-sm font-medium", chatbot.is_enabled ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200")}>
+            {chatbot.is_enabled ? "Disable" : "Enable"}
+          </button>
+        </div>
+      </div>
+
+      <div className="card p-4 space-y-4">
+        <h4 className="font-medium text-slate-900">Basic Settings</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Chatbot Name</label>
+            <input type="text" value={chatbot.name || ""} onChange={(e) => setChatbot({ ...chatbot, name: e.target.value })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">LLM Provider</label>
+            <select value={chatbot.llm_provider || "openai"} onChange={(e) => setChatbot({ ...chatbot, llm_provider: e.target.value })} className="input w-full">
+              <option value="openai">OpenAI</option>
+              <option value="google">Google</option>
+              <option value="ollama">Ollama (Local)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Model</label>
+            <select value={chatbot.model || "gpt-4o"} onChange={(e) => setChatbot({ ...chatbot, model: e.target.value })} className="input w-full">
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4o-mini">GPT-4o Mini</option>
+              <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Rate Limit (per user/day)</label>
+            <input type="number" value={chatbot.rate_limit_per_user || 50} onChange={(e) => setChatbot({ ...chatbot, rate_limit_per_user: parseInt(e.target.value) })} className="input w-full" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Welcome Message</label>
+          <textarea value={chatbot.welcome_message || ""} onChange={(e) => setChatbot({ ...chatbot, welcome_message: e.target.value })} className="input w-full h-20" />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">System Prompt</label>
+          <textarea value={chatbot.system_prompt || ""} onChange={(e) => setChatbot({ ...chatbot, system_prompt: e.target.value })} className="input w-full h-32" />
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Advanced Settings</h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Temperature</label>
+            <input type="number" step="0.1" min="0" max="2" value={chatbot.temperature || 0.7} onChange={(e) => setChatbot({ ...chatbot, temperature: parseFloat(e.target.value) })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Max Tokens</label>
+            <input type="number" value={chatbot.max_tokens || 2000} onChange={(e) => setChatbot({ ...chatbot, max_tokens: parseInt(e.target.value) })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Context Window</label>
+            <input type="number" value={chatbot.context_window || 10} onChange={(e) => setChatbot({ ...chatbot, context_window: parseInt(e.target.value) })} className="input w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// LLM Providers Tab
+const LLMProvidersTab = ({ config, onConfigUpdate }) => {
+  const [providers, setProviders] = useState(config?.llm_providers || {});
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(null);
+
+  useEffect(() => {
+    setProviders(config?.llm_providers || {});
+  }, [config]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/llm-providers", providers);
+      toast.success("LLM providers saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async (provider) => {
+    setTesting(provider.id);
+    try {
+      const res = await api.post("/config/llm/test-connection", {
+        provider: provider.provider,
+        api_key_env: provider.api_key_env,
+        model: provider.default_model
+      });
+      if (res.data.success) {
+        toast.success(`${provider.name} connection successful!`);
+      } else {
+        toast.error(res.data.error || "Connection failed");
+      }
+    } catch (error) {
+      toast.error("Test failed");
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  const toggleProvider = (providerId, enabled) => {
+    const providerList = providers.providers?.map((p) => p.id === providerId ? { ...p, is_enabled: enabled } : p);
+    setProviders({ ...providers, providers: providerList });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">LLM Providers</h3>
+          <p className="text-sm text-slate-500">Configure AI language model providers</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {providers.providers?.map((provider) => (
+          <div key={provider.id} className={cn("card p-4 border-2", provider.is_enabled ? "border-green-200" : "border-slate-200")}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold", provider.is_enabled ? "bg-green-500" : "bg-slate-400")}>
+                  {provider.provider?.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="font-medium text-slate-900">{provider.name}</h4>
+                  <p className="text-sm text-slate-500">
+                    Model: {provider.default_model} | Key: {provider.api_key_env}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleTest(provider)} disabled={testing === provider.id || !provider.is_enabled} className="btn-secondary text-xs flex items-center gap-1">
+                  {testing === provider.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                  Test
+                </button>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={provider.is_enabled} onChange={(e) => toggleProvider(provider.id, e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+            </div>
+            {provider.is_enabled && (
+              <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-4 gap-4 text-xs">
+                <div><span className="text-slate-500">Max Tokens:</span> {provider.max_tokens_limit}</div>
+                <div><span className="text-slate-500">Rate Limit:</span> {provider.rate_limit_rpm}/min</div>
+                <div><span className="text-slate-500">Input Cost:</span> ${provider.cost_per_1k_input_tokens}/1K</div>
+                <div><span className="text-slate-500">Output Cost:</span> ${provider.cost_per_1k_output_tokens}/1K</div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Global Settings</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Default Provider</label>
+            <select value={providers.default_provider_id || "openai"} onChange={(e) => setProviders({ ...providers, default_provider_id: e.target.value })} className="input w-full">
+              {providers.providers?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={providers.enable_cost_tracking ?? true} onChange={(e) => setProviders({ ...providers, enable_cost_tracking: e.target.checked })} className="rounded border-slate-300" />
+              <span className="text-sm">Enable Cost Tracking</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Email Configuration Tab
+const EmailConfigTab = ({ config, onConfigUpdate }) => {
+  const [emailConfig, setEmailConfig] = useState(config?.email || {});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEmailConfig(config?.email || {});
+  }, [config]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/email", emailConfig);
+      toast.success("Email configuration saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Email Configuration</h3>
+          <p className="text-sm text-slate-500">Configure email provider for notifications and invitations</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-medium text-slate-900">Email Service</h4>
+          <label className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">Enabled</span>
+            <input type="checkbox" checked={emailConfig.is_enabled ?? false} onChange={(e) => setEmailConfig({ ...emailConfig, is_enabled: e.target.checked })} className="rounded border-slate-300" />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Provider</label>
+            <select value={emailConfig.provider || "office365"} onChange={(e) => setEmailConfig({ ...emailConfig, provider: e.target.value })} className="input w-full">
+              <option value="office365">Microsoft Office 365</option>
+              <option value="sendgrid">SendGrid</option>
+              <option value="resend">Resend</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">From Email</label>
+            <input type="email" value={emailConfig.from_email || ""} onChange={(e) => setEmailConfig({ ...emailConfig, from_email: e.target.value })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">From Name</label>
+            <input type="text" value={emailConfig.from_name || ""} onChange={(e) => setEmailConfig({ ...emailConfig, from_name: e.target.value })} className="input w-full" />
+          </div>
+        </div>
+      </div>
+
+      {emailConfig.provider === "office365" && (
+        <div className="card p-4">
+          <h4 className="font-medium text-slate-900 mb-4">Office 365 Configuration</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500">Tenant ID</label>
+              <input type="text" value={emailConfig.tenant_id || ""} onChange={(e) => setEmailConfig({ ...emailConfig, tenant_id: e.target.value })} className="input w-full" placeholder="your-tenant-id" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Client ID</label>
+              <input type="text" value={emailConfig.client_id || ""} onChange={(e) => setEmailConfig({ ...emailConfig, client_id: e.target.value })} className="input w-full" placeholder="your-client-id" />
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              Client Secret should be set as environment variable: <code className="bg-amber-100 px-1 rounded">{emailConfig.client_secret_env || "OFFICE365_CLIENT_SECRET"}</code>
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Email Templates</h4>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-slate-500">User Invitation Subject</label>
+            <input type="text" value={emailConfig.user_invitation_subject || ""} onChange={(e) => setEmailConfig({ ...emailConfig, user_invitation_subject: e.target.value })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Password Reset Subject</label>
+            <input type="text" value={emailConfig.password_reset_subject || ""} onChange={(e) => setEmailConfig({ ...emailConfig, password_reset_subject: e.target.value })} className="input w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Roles Management Tab
 const RolesTab = ({ config, onConfigUpdate }) => {
   const [selectedRole, setSelectedRole] = useState(null);
