@@ -54,11 +54,15 @@ class UserRole:
     REFERRER = "referrer"
 
 ROLE_HIERARCHY = {
-    UserRole.CEO: 5,
-    UserRole.ADMIN: 4,
+    UserRole.SUPER_ADMIN: 7,
+    UserRole.CEO: 6,
+    UserRole.ADMIN: 5,
+    UserRole.SALES_DIRECTOR: 4,
+    UserRole.FINANCE_MANAGER: 4,
     UserRole.PRODUCT_DIRECTOR: 3,
     UserRole.ACCOUNT_MANAGER: 2,
-    UserRole.STRATEGY: 1
+    UserRole.STRATEGY: 1,
+    UserRole.REFERRER: 0
 }
 
 # User Models
