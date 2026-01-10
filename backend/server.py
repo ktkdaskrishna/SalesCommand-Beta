@@ -323,6 +323,130 @@ class NotificationResponse(BaseModel):
     link: Optional[str] = None
     created_at: datetime
 
+# ===================== PIPELINE STAGE MODELS =====================
+
+class PipelineStageCreate(BaseModel):
+    name: str
+    order: int
+    color: str = "#3B82F6"
+    probability_default: int = 10
+    is_won: bool = False
+    is_lost: bool = False
+
+class PipelineStageResponse(BaseModel):
+    id: str
+    name: str
+    order: int
+    color: str
+    probability_default: int
+    is_won: bool
+    is_lost: bool
+
+# ===================== COMMISSION TEMPLATE MODELS =====================
+
+class CommissionTier(BaseModel):
+    min_attainment: float  # 0-100%
+    max_attainment: float
+    multiplier: float  # e.g., 0.5, 1.0, 1.5
+    rate: Optional[float] = None  # Optional flat rate
+
+class CommissionTemplateCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    template_type: str  # flat, tiered_attainment, tiered_revenue, quota_based
+    base_rate: float = 0.05  # 5% default
+    tiers: List[CommissionTier] = []
+    product_weights: Dict[str, float] = {}  # Product line weights
+    new_logo_multiplier: float = 1.0
+    renewal_rate: float = 0.05
+    cap_multiplier: Optional[float] = 2.5  # Max payout cap
+    is_active: bool = True
+
+class CommissionTemplateResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    template_type: str
+    base_rate: float
+    tiers: List[Dict]
+    product_weights: Dict[str, float]
+    new_logo_multiplier: float
+    renewal_rate: float
+    cap_multiplier: Optional[float]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+# ===================== REFERRAL MODELS =====================
+
+class ReferralCreate(BaseModel):
+    opportunity_id: str
+    referrer_user_id: str
+    incentive_percentage: float = 5.0  # Default 5%
+    notes: Optional[str] = None
+
+class ReferralResponse(BaseModel):
+    id: str
+    opportunity_id: str
+    opportunity_name: Optional[str] = None
+    referrer_user_id: str
+    referrer_name: Optional[str] = None
+    incentive_percentage: float
+    earned_amount: float = 0
+    status: str  # pending, approved, paid
+    notes: Optional[str] = None
+    created_at: datetime
+
+# ===================== BLUE SHEET PROBABILITY MODEL =====================
+
+class BlueSheetAnalysis(BaseModel):
+    opportunity_id: str
+    # Buying Influences (0-25 points each)
+    economic_buyer_identified: bool = False
+    economic_buyer_favorable: bool = False
+    user_buyers_identified: int = 0
+    user_buyers_favorable: int = 0
+    technical_buyers_identified: int = 0
+    technical_buyers_favorable: int = 0
+    coach_identified: bool = False
+    coach_engaged: bool = False
+    # Red Flags (-5 to -15 points each)
+    no_access_to_economic_buyer: bool = False
+    reorganization_pending: bool = False
+    budget_not_confirmed: bool = False
+    competition_preferred: bool = False
+    timeline_unclear: bool = False
+    # Win Results (0-20 points)
+    clear_business_results: bool = False
+    quantifiable_value: bool = False
+    # Action Plan
+    next_steps_defined: bool = False
+    mutual_action_plan: bool = False
+    
+class BlueSheetProbabilityResponse(BaseModel):
+    opportunity_id: str
+    calculated_probability: int
+    confidence_level: str  # low, medium, high
+    analysis_summary: str
+    recommendations: List[str]
+    score_breakdown: Dict[str, int]
+
+# ===================== SALES METRICS MODELS =====================
+
+class SalesMetricsResponse(BaseModel):
+    user_id: str
+    period: str  # monthly, quarterly, ytd
+    period_start: datetime
+    period_end: datetime
+    orders_won: float = 0
+    orders_booked: float = 0
+    orders_invoiced: float = 0
+    orders_collected: float = 0
+    quota: float = 0
+    attainment_percentage: float = 0
+    commission_earned: float = 0
+    commission_projected: float = 0
+
 # ===================== AUTH HELPERS =====================
 
 def hash_password(password: str) -> str:
