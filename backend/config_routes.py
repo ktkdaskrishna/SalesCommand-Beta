@@ -984,7 +984,6 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
     @api_router.post("/config/llm/test-connection")
     async def test_llm_connection(provider_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
         """Test LLM provider connection"""
-        import os
         
         provider = provider_data.get("provider", "openai")
         api_key_env = provider_data.get("api_key_env", "EMERGENT_LLM_KEY")
@@ -1009,5 +1008,432 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
                 return {"success": False, "error": f"Provider {provider} not supported"}
         except Exception as e:
             return {"success": False, "error": str(e)}
+    
+    # ===================== DEPARTMENTS MANAGEMENT =====================
+    
+    @api_router.get("/config/departments")
+    async def get_departments(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get all departments and teams"""
+        config = await get_system_config(db)
+        return config.get("departments", get_default_departments().model_dump())
+    
+    @api_router.put("/config/departments")
+    async def update_departments(departments_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update departments configuration"""
+        config = await get_system_config(db)
+        config["departments"] = departments_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "Departments updated"}
+    
+    @api_router.post("/config/departments")
+    async def create_department(dept_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Create a new department"""
+        config = await get_system_config(db)
+        departments = config.get("departments", {"departments": [], "teams": []})
+        
+        # Generate ID if not provided
+        if not dept_data.get("id"):
+            dept_data["id"] = dept_data["name"].lower().replace(" ", "_")
+        
+        # Check for duplicate
+        existing_ids = [d["id"] for d in departments.get("departments", [])]
+        if dept_data["id"] in existing_ids:
+            raise HTTPException(status_code=400, detail="Department with this ID already exists")
+        
+        dept_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        departments["departments"].append(dept_data)
+        config["departments"] = departments
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Department created", "department": dept_data}
+    
+    @api_router.put("/config/departments/{dept_id}")
+    async def update_department(dept_id: str, dept_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update a department"""
+        config = await get_system_config(db)
+        departments = config.get("departments", {"departments": [], "teams": []})
+        
+        dept_list = departments.get("departments", [])
+        dept_idx = next((i for i, d in enumerate(dept_list) if d["id"] == dept_id), None)
+        
+        if dept_idx is None:
+            raise HTTPException(status_code=404, detail="Department not found")
+        
+        dept_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        for key, value in dept_data.items():
+            if key != "id":
+                dept_list[dept_idx][key] = value
+        
+        departments["departments"] = dept_list
+        config["departments"] = departments
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Department updated"}
+    
+    @api_router.delete("/config/departments/{dept_id}")
+    async def delete_department(dept_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Delete a department"""
+        config = await get_system_config(db)
+        departments = config.get("departments", {"departments": [], "teams": []})
+        
+        original_len = len(departments.get("departments", []))
+        departments["departments"] = [d for d in departments.get("departments", []) if d["id"] != dept_id]
+        
+        if len(departments["departments"]) == original_len:
+            raise HTTPException(status_code=404, detail="Department not found")
+        
+        config["departments"] = departments
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Department deleted"}
+    
+    @api_router.post("/config/departments/{dept_id}/teams")
+    async def create_team(dept_id: str, team_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Create a team within a department"""
+        config = await get_system_config(db)
+        departments = config.get("departments", {"departments": [], "teams": []})
+        
+        # Verify department exists
+        dept_exists = any(d["id"] == dept_id for d in departments.get("departments", []))
+        if not dept_exists:
+            raise HTTPException(status_code=404, detail="Department not found")
+        
+        if not team_data.get("id"):
+            team_data["id"] = f"{dept_id}_{team_data['name'].lower().replace(' ', '_')}"
+        
+        team_data["department_id"] = dept_id
+        team_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        
+        if "teams" not in departments:
+            departments["teams"] = []
+        departments["teams"].append(team_data)
+        
+        config["departments"] = departments
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Team created", "team": team_data}
+    
+    # ===================== LLM PROVIDERS MANAGEMENT =====================
+    
+    @api_router.get("/config/llm-providers")
+    async def get_llm_providers(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get LLM providers configuration"""
+        config = await get_system_config(db)
+        return config.get("llm_providers", get_default_llm_providers().model_dump())
+    
+    @api_router.put("/config/llm-providers")
+    async def update_llm_providers(providers_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update LLM providers configuration"""
+        config = await get_system_config(db)
+        config["llm_providers"] = providers_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "LLM providers updated"}
+    
+    @api_router.post("/config/llm-providers")
+    async def add_llm_provider(provider_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Add a new LLM provider"""
+        config = await get_system_config(db)
+        llm_providers = config.get("llm_providers", {"providers": []})
+        
+        if not provider_data.get("id"):
+            provider_data["id"] = provider_data["provider"].lower()
+        
+        # Check for duplicate
+        existing_ids = [p["id"] for p in llm_providers.get("providers", [])]
+        if provider_data["id"] in existing_ids:
+            raise HTTPException(status_code=400, detail="Provider with this ID already exists")
+        
+        llm_providers["providers"].append(provider_data)
+        config["llm_providers"] = llm_providers
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "LLM provider added", "provider": provider_data}
+    
+    @api_router.put("/config/llm-providers/{provider_id}")
+    async def update_llm_provider(provider_id: str, provider_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update an LLM provider"""
+        config = await get_system_config(db)
+        llm_providers = config.get("llm_providers", {"providers": []})
+        
+        providers = llm_providers.get("providers", [])
+        provider_idx = next((i for i, p in enumerate(providers) if p["id"] == provider_id), None)
+        
+        if provider_idx is None:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        
+        for key, value in provider_data.items():
+            if key != "id":
+                providers[provider_idx][key] = value
+        
+        llm_providers["providers"] = providers
+        config["llm_providers"] = llm_providers
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Provider updated"}
+    
+    @api_router.delete("/config/llm-providers/{provider_id}")
+    async def delete_llm_provider(provider_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Delete an LLM provider"""
+        config = await get_system_config(db)
+        llm_providers = config.get("llm_providers", {"providers": []})
+        
+        original_len = len(llm_providers.get("providers", []))
+        llm_providers["providers"] = [p for p in llm_providers.get("providers", []) if p["id"] != provider_id]
+        
+        if len(llm_providers["providers"]) == original_len:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        
+        config["llm_providers"] = llm_providers
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Provider deleted"}
+    
+    # ===================== AI CHATBOT CONFIGURATION =====================
+    
+    @api_router.get("/config/ai-chatbot")
+    async def get_ai_chatbot(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get AI chatbot configuration"""
+        config = await get_system_config(db)
+        return config.get("ai_chatbot", get_default_chatbot_config().model_dump())
+    
+    @api_router.put("/config/ai-chatbot")
+    async def update_ai_chatbot(chatbot_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update AI chatbot configuration"""
+        config = await get_system_config(db)
+        config["ai_chatbot"] = chatbot_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "AI chatbot configuration updated"}
+    
+    @api_router.post("/config/ai-chatbot/toggle")
+    async def toggle_ai_chatbot(enable: bool, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Enable or disable AI chatbot"""
+        config = await get_system_config(db)
+        chatbot = config.get("ai_chatbot", {})
+        chatbot["is_enabled"] = enable
+        config["ai_chatbot"] = chatbot
+        await save_system_config(db, config, user["id"])
+        return {"message": f"AI chatbot {'enabled' if enable else 'disabled'}", "is_enabled": enable}
+    
+    # ===================== BLUE SHEET CONTACT ROLES =====================
+    
+    @api_router.get("/config/contact-roles")
+    async def get_contact_roles(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get Blue Sheet contact roles configuration"""
+        config = await get_system_config(db)
+        blue_sheet = config.get("blue_sheet", {})
+        return blue_sheet.get("contact_roles", get_default_contact_roles().model_dump())
+    
+    @api_router.put("/config/contact-roles")
+    async def update_contact_roles(roles_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update Blue Sheet contact roles configuration"""
+        config = await get_system_config(db)
+        blue_sheet = config.get("blue_sheet", {})
+        blue_sheet["contact_roles"] = roles_data
+        config["blue_sheet"] = blue_sheet
+        await save_system_config(db, config, user["id"])
+        return {"message": "Contact roles updated"}
+    
+    # ===================== USER INVITATIONS =====================
+    
+    @api_router.post("/config/users/invite")
+    async def invite_user(invitation_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Send invitation to a new user"""
+        # Check if email already exists
+        existing = await db.users.find_one({"email": invitation_data["email"]})
+        if existing:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+        
+        # Check for pending invitation
+        pending = await db.user_invitations.find_one({
+            "email": invitation_data["email"],
+            "is_used": False,
+            "expires_at": {"$gt": datetime.now(timezone.utc)}
+        })
+        if pending:
+            raise HTTPException(status_code=400, detail="Pending invitation already exists for this email")
+        
+        # Generate invitation token
+        token = secrets.token_urlsafe(32)
+        
+        invitation = {
+            "id": str(uuid.uuid4()),
+            "email": invitation_data["email"],
+            "name": invitation_data["name"],
+            "role": invitation_data.get("role", "account_manager"),
+            "department_id": invitation_data.get("department_id"),
+            "team_id": invitation_data.get("team_id"),
+            "invited_by": user["id"],
+            "invitation_token": token,
+            "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
+            "is_used": False,
+            "created_at": datetime.now(timezone.utc)
+        }
+        
+        await db.user_invitations.insert_one(invitation)
+        
+        # TODO: Send email via Office 365 when configured
+        # For now, return the invitation link
+        
+        return {
+            "message": "Invitation created",
+            "invitation_id": invitation["id"],
+            "invitation_token": token,
+            "expires_at": invitation["expires_at"].isoformat()
+        }
+    
+    @api_router.get("/config/users/invitations")
+    async def get_invitations(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get all pending invitations"""
+        invitations = await db.user_invitations.find(
+            {"is_used": False},
+            {"_id": 0, "invitation_token": 0}
+        ).to_list(100)
+        return invitations
+    
+    @api_router.delete("/config/users/invitations/{invitation_id}")
+    async def cancel_invitation(invitation_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Cancel a pending invitation"""
+        result = await db.user_invitations.delete_one({"id": invitation_id, "is_used": False})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Invitation not found or already used")
+        return {"message": "Invitation cancelled"}
+    
+    # ===================== ORGANIZATION CONTACTS =====================
+    
+    @api_router.post("/organizations/{org_id}/contacts")
+    async def create_org_contact(org_id: str, contact_data: dict, user: dict = Depends(get_current_user)):
+        """Create a contact for an organization"""
+        # Verify organization exists
+        org = await db.accounts.find_one({"id": org_id})
+        if not org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        contact = {
+            "id": str(uuid.uuid4()),
+            "organization_id": org_id,
+            "name": contact_data["name"],
+            "title": contact_data.get("title"),
+            "email": contact_data.get("email"),
+            "phone": contact_data.get("phone"),
+            "linkedin_url": contact_data.get("linkedin_url"),
+            "roles": contact_data.get("roles", []),
+            "influence_level": contact_data.get("influence_level", "medium"),
+            "relationship_status": contact_data.get("relationship_status", "neutral"),
+            "notes": contact_data.get("notes"),
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc),
+            "created_by": user["id"]
+        }
+        
+        await db.organization_contacts.insert_one(contact)
+        del contact["_id"] if "_id" in contact else None
+        
+        return {"message": "Contact created", "contact": contact}
+    
+    @api_router.get("/organizations/{org_id}/contacts")
+    async def get_org_contacts(org_id: str, user: dict = Depends(get_current_user)):
+        """Get all contacts for an organization"""
+        contacts = await db.organization_contacts.find(
+            {"organization_id": org_id, "is_active": True},
+            {"_id": 0}
+        ).to_list(100)
+        return contacts
+    
+    @api_router.put("/organizations/{org_id}/contacts/{contact_id}")
+    async def update_org_contact(org_id: str, contact_id: str, contact_data: dict, user: dict = Depends(get_current_user)):
+        """Update an organization contact"""
+        contact = await db.organization_contacts.find_one({"id": contact_id, "organization_id": org_id})
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        
+        update_data = {k: v for k, v in contact_data.items() if k not in ["id", "organization_id", "created_at"]}
+        update_data["updated_at"] = datetime.now(timezone.utc)
+        
+        await db.organization_contacts.update_one({"id": contact_id}, {"$set": update_data})
+        return {"message": "Contact updated"}
+    
+    @api_router.delete("/organizations/{org_id}/contacts/{contact_id}")
+    async def delete_org_contact(org_id: str, contact_id: str, user: dict = Depends(get_current_user)):
+        """Soft delete an organization contact"""
+        result = await db.organization_contacts.update_one(
+            {"id": contact_id, "organization_id": org_id},
+            {"$set": {"is_active": False, "deleted_at": datetime.now(timezone.utc)}}
+        )
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        return {"message": "Contact deleted"}
+    
+    # ===================== EMAIL CONFIGURATION =====================
+    
+    @api_router.get("/config/email")
+    async def get_email_config(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get email configuration"""
+        config = await get_system_config(db)
+        email_config = config.get("email", get_default_email_config().model_dump())
+        # Don't expose secrets
+        if "client_secret_env" in email_config:
+            email_config["has_client_secret"] = bool(os.environ.get(email_config.get("client_secret_env", "")))
+        return email_config
+    
+    @api_router.put("/config/email")
+    async def update_email_config(email_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update email configuration"""
+        config = await get_system_config(db)
+        config["email"] = email_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "Email configuration updated"}
+    
+    @api_router.post("/config/email/test")
+    async def test_email_config(test_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Test email configuration by sending a test email"""
+        config = await get_system_config(db)
+        email_config = config.get("email", {})
+        
+        if not email_config.get("is_enabled"):
+            return {"success": False, "error": "Email is not enabled"}
+        
+        # TODO: Implement actual email sending via Office 365
+        return {
+            "success": True, 
+            "message": "Email configuration test - Office 365 integration pending",
+            "provider": email_config.get("provider")
+        }
+    
+    # ===================== DATA ACCESS HELPER =====================
+    
+    @api_router.get("/config/data-access/{role_id}")
+    async def get_role_data_access(role_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get data access configuration for a role"""
+        config = await get_system_config(db)
+        roles = config.get("roles", [])
+        role = next((r for r in roles if r["id"] == role_id), None)
+        
+        if not role:
+            raise HTTPException(status_code=404, detail="Role not found")
+        
+        return role.get("data_access", {
+            "opportunities": "self",
+            "accounts": "self",
+            "activities": "self",
+            "incentives": "self",
+            "reports": "self",
+            "users": "self"
+        })
+    
+    @api_router.put("/config/data-access/{role_id}")
+    async def update_role_data_access(role_id: str, access_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update data access configuration for a role"""
+        config = await get_system_config(db)
+        roles = config.get("roles", [])
+        role_idx = next((i for i, r in enumerate(roles) if r["id"] == role_id), None)
+        
+        if role_idx is None:
+            raise HTTPException(status_code=404, detail="Role not found")
+        
+        roles[role_idx]["data_access"] = access_data
+        config["roles"] = roles
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Data access updated"}
     
     return api_router
