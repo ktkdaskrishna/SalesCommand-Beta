@@ -355,10 +355,12 @@ class UIConfig(BaseModel):
 class SystemConfig(BaseModel):
     """Master system configuration"""
     id: str = "system_config"
+    organization: OrganizationSettings = OrganizationSettings()
     modules: List[ModuleDefinition] = []
     roles: List[RoleDefinition] = []
     blue_sheet: BlueSheetConfig = BlueSheetConfig()
     llm: LLMConfig = LLMConfig()
+    ai_agents: AIAgentsConfig = AIAgentsConfig()
     incentives: IncentiveConfig = IncentiveConfig()
     integrations: List[IntegrationConfig] = []
     ui: UIConfig = UIConfig()
