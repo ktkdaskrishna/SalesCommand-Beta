@@ -564,8 +564,415 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
             config["llm"] = get_default_llm_config().model_dump()
         if section == "ui" or section is None:
             config["ui"] = get_default_ui_config().model_dump()
+        if section == "ai_agents" or section is None:
+            config["ai_agents"] = get_default_ai_agents().model_dump()
+        if section == "organization" or section is None:
+            config["organization"] = get_default_organization().model_dump()
         
         await save_system_config(db, config, user["id"])
         return {"message": f"Configuration reset to defaults{f' for {section}' if section else ''}"}
+    
+    # ===================== ORGANIZATION MANAGEMENT =====================
+    
+    @api_router.get("/config/organization")
+    async def get_organization(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get organization settings"""
+        config = await get_system_config(db)
+        return config.get("organization", get_default_organization().model_dump())
+    
+    @api_router.put("/config/organization")
+    async def update_organization(org_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update organization settings"""
+        config = await get_system_config(db)
+        org = config.get("organization", {})
+        
+        # Update only provided fields
+        for key, value in org_data.items():
+            if key not in ["id", "created_at"]:  # Protect immutable fields
+                org[key] = value
+        
+        org["updated_at"] = datetime.now(timezone.utc).isoformat()
+        config["organization"] = org
+        await save_system_config(db, config, user["id"])
+        return {"message": "Organization settings updated", "organization": org}
+    
+    # ===================== USER MANAGEMENT (ADMIN) =====================
+    
+    @api_router.get("/config/users")
+    async def get_all_users_admin(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get all users with full details for admin"""
+        users_cursor = db.users.find({}, {"_id": 0, "hashed_password": 0})
+        users = await users_cursor.to_list(1000)
+        
+        # Enrich with manager names and commission template names
+        for u in users:
+            if u.get("manager_id"):
+                manager = await db.users.find_one({"id": u["manager_id"]}, {"_id": 0, "name": 1})
+                u["manager_name"] = manager.get("name") if manager else None
+            if u.get("commission_template_id"):
+                template = await db.commission_templates.find_one({"id": u["commission_template_id"]}, {"_id": 0, "name": 1})
+                u["commission_template_name"] = template.get("name") if template else None
+        
+        return users
+    
+    @api_router.post("/config/users")
+    async def create_user_admin(user_data: UserCreateByAdmin, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Create a new user (admin only)"""
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        # Check if email already exists
+        existing = await db.users.find_one({"email": user_data.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+        
+        # Validate role exists
+        config = await get_system_config(db)
+        role_ids = [r["id"] for r in config.get("roles", [])]
+        if user_data.role not in role_ids:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Valid roles: {role_ids}")
+        
+        # Generate password if not provided
+        password = user_data.password or ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+        
+        new_user = {
+            "id": str(uuid.uuid4()),
+            "email": user_data.email,
+            "name": user_data.name,
+            "role": user_data.role,
+            "hashed_password": pwd_context.hash(password),
+            "department": user_data.department,
+            "product_line": user_data.product_line,
+            "manager_id": user_data.manager_id,
+            "quota": user_data.quota,
+            "commission_template_id": user_data.commission_template_id,
+            "is_active": user_data.is_active,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        await db.users.insert_one(new_user)
+        
+        # Log the action
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "entity_type": "user",
+            "entity_id": new_user["id"],
+            "action": "create",
+            "user_id": user["id"],
+            "changes": {"email": user_data.email, "role": user_data.role},
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        # Return without sensitive data
+        del new_user["hashed_password"]
+        new_user["_id"] = None
+        del new_user["_id"]
+        new_user["generated_password"] = password if not user_data.password else None
+        
+        return {"message": "User created successfully", "user": new_user}
+    
+    @api_router.put("/config/users/{user_id}")
+    async def update_user_admin(user_id: str, user_data: UserUpdateByAdmin, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update a user (admin only)"""
+        target_user = await db.users.find_one({"id": user_id})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Validate role if provided
+        if user_data.role:
+            config = await get_system_config(db)
+            role_ids = [r["id"] for r in config.get("roles", [])]
+            if user_data.role not in role_ids:
+                raise HTTPException(status_code=400, detail=f"Invalid role. Valid roles: {role_ids}")
+        
+        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
+        if update_data:
+            update_data["updated_at"] = datetime.now(timezone.utc)
+            await db.users.update_one({"id": user_id}, {"$set": update_data})
+            
+            # Log the action
+            await db.audit_log.insert_one({
+                "id": str(uuid.uuid4()),
+                "entity_type": "user",
+                "entity_id": user_id,
+                "action": "update",
+                "user_id": user["id"],
+                "changes": update_data,
+                "created_at": datetime.now(timezone.utc)
+            })
+        
+        return {"message": "User updated successfully"}
+    
+    @api_router.delete("/config/users/{user_id}")
+    async def delete_user_admin(user_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Delete a user (admin only) - soft delete by setting is_active=False"""
+        target_user = await db.users.find_one({"id": user_id})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Prevent self-deletion
+        if user_id == user["id"]:
+            raise HTTPException(status_code=400, detail="Cannot delete your own account")
+        
+        # Soft delete
+        await db.users.update_one({"id": user_id}, {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc)}})
+        
+        # Log the action
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "entity_type": "user",
+            "entity_id": user_id,
+            "action": "delete",
+            "user_id": user["id"],
+            "changes": {"is_active": False},
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        return {"message": "User deactivated successfully"}
+    
+    @api_router.post("/config/users/{user_id}/reset-password")
+    async def reset_user_password(user_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Reset a user's password (admin only)"""
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        target_user = await db.users.find_one({"id": user_id})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Generate new password
+        new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+        hashed = pwd_context.hash(new_password)
+        
+        await db.users.update_one({"id": user_id}, {"$set": {"hashed_password": hashed, "updated_at": datetime.now(timezone.utc)}})
+        
+        # Log the action
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "entity_type": "user",
+            "entity_id": user_id,
+            "action": "password_reset",
+            "user_id": user["id"],
+            "changes": {"password_reset": True},
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        return {"message": "Password reset successfully", "new_password": new_password}
+    
+    @api_router.put("/config/users/{user_id}/role")
+    async def assign_role(user_id: str, role_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Assign a role to a user"""
+        target_user = await db.users.find_one({"id": user_id})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        new_role = role_data.get("role")
+        if not new_role:
+            raise HTTPException(status_code=400, detail="Role is required")
+        
+        # Validate role exists
+        config = await get_system_config(db)
+        role_ids = [r["id"] for r in config.get("roles", [])]
+        if new_role not in role_ids:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Valid roles: {role_ids}")
+        
+        old_role = target_user.get("role")
+        await db.users.update_one({"id": user_id}, {"$set": {"role": new_role, "updated_at": datetime.now(timezone.utc)}})
+        
+        # Log the action
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "entity_type": "user",
+            "entity_id": user_id,
+            "action": "role_change",
+            "user_id": user["id"],
+            "changes": {"old_role": old_role, "new_role": new_role},
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        return {"message": f"Role changed from {old_role} to {new_role}"}
+    
+    # ===================== AI AGENTS CONFIGURATION =====================
+    
+    @api_router.get("/config/ai-agents")
+    async def get_ai_agents(user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get AI agents configuration"""
+        config = await get_system_config(db)
+        return config.get("ai_agents", get_default_ai_agents().model_dump())
+    
+    @api_router.put("/config/ai-agents")
+    async def update_ai_agents(agents_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update AI agents configuration"""
+        config = await get_system_config(db)
+        config["ai_agents"] = agents_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "AI agents configuration updated"}
+    
+    @api_router.get("/config/ai-agents/{agent_id}")
+    async def get_ai_agent(agent_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Get a specific AI agent configuration"""
+        config = await get_system_config(db)
+        agents = config.get("ai_agents", {}).get("agents", [])
+        agent = next((a for a in agents if a["id"] == agent_id), None)
+        if not agent:
+            raise HTTPException(status_code=404, detail="AI agent not found")
+        return agent
+    
+    @api_router.post("/config/ai-agents")
+    async def create_ai_agent(agent_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Create a new AI agent"""
+        config = await get_system_config(db)
+        ai_agents = config.get("ai_agents", get_default_ai_agents().model_dump())
+        
+        # Validate required fields
+        required_fields = ["name", "agent_type", "system_prompt", "user_prompt_template"]
+        for field in required_fields:
+            if not agent_data.get(field):
+                raise HTTPException(status_code=400, detail=f"{field} is required")
+        
+        # Generate ID if not provided
+        if not agent_data.get("id"):
+            agent_data["id"] = agent_data["name"].lower().replace(" ", "_")
+        
+        # Check for duplicate ID
+        existing_ids = [a["id"] for a in ai_agents.get("agents", [])]
+        if agent_data["id"] in existing_ids:
+            raise HTTPException(status_code=400, detail="Agent with this ID already exists")
+        
+        # Set defaults
+        agent_data.setdefault("is_enabled", True)
+        agent_data.setdefault("llm_provider", "openai")
+        agent_data.setdefault("model", "gpt-4o")
+        agent_data.setdefault("temperature", 0.7)
+        agent_data.setdefault("max_tokens", 1000)
+        agent_data.setdefault("trigger_type", "manual")
+        agent_data.setdefault("rate_limit_per_user", 50)
+        agent_data.setdefault("cache_enabled", True)
+        agent_data.setdefault("cache_ttl_minutes", 60)
+        
+        ai_agents["agents"].append(agent_data)
+        config["ai_agents"] = ai_agents
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "AI agent created", "agent": agent_data}
+    
+    @api_router.put("/config/ai-agents/{agent_id}")
+    async def update_ai_agent(agent_id: str, agent_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update an AI agent"""
+        config = await get_system_config(db)
+        ai_agents = config.get("ai_agents", {})
+        agents = ai_agents.get("agents", [])
+        
+        agent_idx = next((i for i, a in enumerate(agents) if a["id"] == agent_id), None)
+        if agent_idx is None:
+            raise HTTPException(status_code=404, detail="AI agent not found")
+        
+        # Update agent
+        for key, value in agent_data.items():
+            if key != "id":  # Don't allow ID change
+                agents[agent_idx][key] = value
+        
+        ai_agents["agents"] = agents
+        config["ai_agents"] = ai_agents
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "AI agent updated", "agent": agents[agent_idx]}
+    
+    @api_router.delete("/config/ai-agents/{agent_id}")
+    async def delete_ai_agent(agent_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Delete an AI agent"""
+        config = await get_system_config(db)
+        ai_agents = config.get("ai_agents", {})
+        agents = ai_agents.get("agents", [])
+        
+        original_len = len(agents)
+        agents = [a for a in agents if a["id"] != agent_id]
+        
+        if len(agents) == original_len:
+            raise HTTPException(status_code=404, detail="AI agent not found")
+        
+        ai_agents["agents"] = agents
+        config["ai_agents"] = ai_agents
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "AI agent deleted"}
+    
+    @api_router.post("/config/ai-agents/{agent_id}/test")
+    async def test_ai_agent(agent_id: str, test_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Test an AI agent with sample data"""
+        import os
+        
+        config = await get_system_config(db)
+        agents = config.get("ai_agents", {}).get("agents", [])
+        agent = next((a for a in agents if a["id"] == agent_id), None)
+        if not agent:
+            raise HTTPException(status_code=404, detail="AI agent not found")
+        
+        # Get LLM config
+        llm_config = config.get("llm", {})
+        providers = llm_config.get("providers", [])
+        provider = next((p for p in providers if p.get("provider") == agent.get("llm_provider") and p.get("is_enabled")), None)
+        
+        if not provider:
+            return {"success": False, "error": "LLM provider not configured or disabled"}
+        
+        try:
+            # Get API key from environment
+            api_key = os.environ.get(provider.get("api_key_env", "EMERGENT_LLM_KEY"))
+            if not api_key:
+                return {"success": False, "error": f"API key not found in environment variable: {provider.get('api_key_env')}"}
+            
+            # Format the prompt with test data
+            user_prompt = agent.get("user_prompt_template", "")
+            for key, value in test_data.items():
+                user_prompt = user_prompt.replace("{" + key + "}", str(value))
+            
+            # Make API call based on provider
+            if provider.get("provider") == "openai":
+                from emergentintegrations.llm.openai import chat as openai_chat
+                response = await openai_chat(
+                    api_key=api_key,
+                    user_prompt=user_prompt,
+                    system_prompt=agent.get("system_prompt", ""),
+                    model=agent.get("model", "gpt-4o"),
+                    temperature=agent.get("temperature", 0.7),
+                    max_tokens=agent.get("max_tokens", 1000)
+                )
+                return {"success": True, "response": response, "agent": agent["name"]}
+            else:
+                return {"success": False, "error": f"Provider {provider.get('provider')} not supported for testing"}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    @api_router.post("/config/llm/test-connection")
+    async def test_llm_connection(provider_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Test LLM provider connection"""
+        import os
+        
+        provider = provider_data.get("provider", "openai")
+        api_key_env = provider_data.get("api_key_env", "EMERGENT_LLM_KEY")
+        model = provider_data.get("model", "gpt-4o")
+        
+        api_key = os.environ.get(api_key_env)
+        if not api_key:
+            return {"success": False, "error": f"API key not found: {api_key_env}"}
+        
+        try:
+            if provider == "openai":
+                from emergentintegrations.llm.openai import chat as openai_chat
+                response = await openai_chat(
+                    api_key=api_key,
+                    user_prompt="Say 'Connection successful!' in exactly 3 words.",
+                    system_prompt="You are a test assistant. Be concise.",
+                    model=model,
+                    max_tokens=20
+                )
+                return {"success": True, "response": response, "provider": provider, "model": model}
+            else:
+                return {"success": False, "error": f"Provider {provider} not supported"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     return api_router
