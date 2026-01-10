@@ -2,151 +2,117 @@
 
 ## Project Overview
 **Name:** Securado Enterprise Sales Platform  
-**Version:** 3.1 (Configuration-Driven Enterprise Architecture)  
+**Version:** 3.2 (ERP-Style Account Management)  
 **Last Updated:** January 10, 2026  
 **Tech Stack:** FastAPI (Python) + React + MongoDB
 
 ## Original Problem Statement
-Build an Enterprise Sales KPI, Incentive & Activity Management Platform with:
-- Role-based dashboards (CEO, Product Directors, Account Managers, Strategy Team)
-- Account & Opportunity Management with Blue Sheet methodology
-- Activity Management and KPI tracking
-- Configurable integrations for Odoo ERP and Office 365
-- AI-powered sales insights
-- **Phase 3: CEO-Grade configuration-driven architecture where only Super Admin is hardcoded**
+Build an Enterprise Sales KPI, Incentive & Activity Management Platform with configuration-driven architecture where only Super Admin is hardcoded.
 
-## Core Principle (Phase 3)
+## Core Principle
 - **Only Super Admin login is hardcoded**
 - All other user experiences are 100% driven by configuration
-- When Super Admin assigns a role, all features, data visibility, AI access auto-activate
-- System functions as a real enterprise SaaS product
-
-## Brand Identity (Securado)
-- **Primary Colors:** Maroon (#800000), Dark Gray (#333333)
-- **Accent Colors:** Asparagus (#86c881), Orange Soda (#ee6543), Grayish Yellow (#e0dfd4)
-- **Typography:** Proxima Nova
-- **Tagline:** "Digital Vaccine for Cyber Immunity"
+- Account/Organization uses single data model - managed by Admin only
+- Sales users can only view accounts assigned to them
 
 ---
 
 ## What's Been Implemented
 
-### Version 3.1 - Latest Updates (January 10, 2026)
+### Version 3.2 - ERP-Style Account Management (January 10, 2026) ✅ NEW
 
-#### User-Department Assignment ✅ NEW
-- Department column added to User Management table
-- Department dropdown in Create/Edit User forms
-- Department color-coded badges in user list
-- Backend support for `department_id` field on users
-- Nullable field handling for removing department assignments
+#### Phase 1: Account Field Definitions ✅
+- **22 configurable fields** across 6 sections
+- Field types: text, textarea, number, currency, date, dropdown, multi-select, checkbox, URL, email, phone, file, rich_text, relationship, computed
+- System fields (non-deletable): Company Name, Industry, Relationship Status, Account Manager
+- Custom field creation with validation rules
+- Show in List / Show in Card toggles
 
-#### AI Agent → LLM Provider Mapping ✅ NEW
-- AI Agents tab shows which LLM provider each agent uses
-- Edit Agent modal includes LLM Provider dropdown
-- Provider selection from configured LLM providers (OpenAI, Google, Ollama)
-- Visual indicators for API key status (configured/not configured)
-- Warning when provider API key not configured
-- Test button disabled when API key missing
-- Model dropdown organized by provider (OpenAI, Google Gemini, Ollama)
+#### Phase 2: Account Layout Builder ✅
+- 6 default sections: Basic Info, Financial, ERP Summary, Primary Contact, Address, Notes
+- Configurable column layouts (1-4 columns per section)
+- Drag-ready interface for field arrangement
+- Add/edit sections with icons
+
+#### Phase 3: Account Management (Admin Only) ✅
+- **"Create Account" button only visible to super_admin and ceo**
+- Sales users cannot create accounts
+- Account creation with all configurable fields
+- Account assignment to Account Managers
+
+#### Phase 4: Enrich Button (Odoo Integration) ✅ MOCKED
+- **"Enrich" button** on each account row
+- Fetches mock data from Odoo (orders, invoices)
+- Auto-calculates: Total Orders, Total Invoiced, Total Paid, Outstanding
+- Stores enrichment data on account record
+- Separate API endpoints for /accounts/{id}/orders and /accounts/{id}/invoices
+
+#### Summary Cards ✅
+- Total Accounts count
+- Total Budget (aggregated)
+- Total Orders (from Odoo enrichment)
+- Outstanding Amount (calculated)
 
 ---
 
-### Version 3.0 - CEO-Grade Enterprise Architecture (COMPLETED)
+### Previous Implementations
 
-#### 1. Organization Configuration ✅
-- Company-wide settings management
-- Timezone, currency, fiscal year configuration
-- Quota period settings (monthly/quarterly/yearly)
-- Default commission rate configuration
-- Feature toggles (AI features, referral program)
+#### User-Department Assignment ✅
+- Department column in User Management table
+- Department dropdown in Create/Edit User modals
 
-#### 2. Department Management ✅
-- Create/edit/delete departments
-- Department hierarchy support
-- Team structure within departments
-- HOD assignment capability
-- Department-based data access control
+#### AI Agent → LLM Provider Mapping ✅
+- Edit Agent modal includes LLM Provider dropdown
+- Visual indicators for API key status
 
-**Default Departments:**
-- Sales (SALES)
-- Strategy (STRATEGY)
-- Product (PRODUCT)
-- Finance (FINANCE)
-
-#### 3. Hierarchical Data Access ✅
-- CEO → All data across all departments
-- HOD → Department-level data only
-- Team Members → Self-owned data only
-- Configurable per role via data_access settings
-
-#### 4. User Management ✅
-- Full CRUD operations for users
-- Role assignment
-- Department/team mapping
-- Quota configuration per user
-- Password reset functionality
-- User invitation system (token-based)
-
-#### 5. Blue Sheet Contact Roles ✅
-- Economic Buyer, User Buyer, Technical Buyer
-- Coach, Champion, Influencer, Decision Maker
-- Configurable importance weights (1-10)
-- Qualification requirements
-
-#### 6. Multi-Provider LLM Configuration ✅
-- **OpenAI** (default, enabled)
-- **Google Gemini** (configurable)
-- **Ollama** (for local/private models)
-- Cost tracking and rate limiting
-- Test connection functionality
-
-#### 7. AI Chatbot ✅
-- Disabled by default
-- Configurable per role access
-- Name: "Securado Assistant"
-- LLM provider selection
-- System prompt customization
-
-#### 8. AI Agents ✅
-- Opportunity Probability Analyzer
-- Sales Pipeline Insights
-- Deal Coach
-- Activity Suggester
-- Configurable prompts and models
-- **LLM Provider assignment per agent** ✅ NEW
-
-#### 9. Email Configuration ✅
-- Office 365 as primary provider
-- User invitation emails
-- Password reset emails
-- Template customization
-
-#### 10. UI & Branding (Securado) ✅
-- Securado brand colors as default
-- Proxima Nova typography
-- Dark sidebar theme
-- Logo upload support
+#### Phase 2 Super Admin Configuration ✅
+- Organization settings
+- Department management
+- Multi-provider LLM configuration
+- AI Agents and Chatbot
+- Blue Sheet contact roles
+- Securado branding
 
 ---
 
 ## API Endpoints
 
-### Configuration APIs
+### Account Fields Configuration
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/config/system` | GET | Full system configuration |
-| `/api/config/organization` | GET/PUT | Organization settings |
-| `/api/config/departments` | GET/POST | Department management |
-| `/api/config/departments/{id}` | PUT/DELETE | Department CRUD |
-| `/api/config/users` | GET/POST | User management |
-| `/api/config/users/{id}` | PUT/DELETE | User CRUD with department_id |
-| `/api/config/users/{id}/reset-password` | POST | Reset password |
-| `/api/config/contact-roles` | GET/PUT | Blue Sheet contact roles |
-| `/api/config/llm-providers` | GET/PUT | LLM providers |
-| `/api/config/ai-agents` | GET/PUT/POST | AI agents |
-| `/api/config/ai-agents/{id}` | PUT/DELETE | Agent CRUD |
-| `/api/config/ai-agents/{id}/test` | POST | Test agent |
-| `/api/config/ai-chatbot` | GET/PUT | Chatbot config |
+| `/api/config/account-fields` | GET | Get field definitions |
+| `/api/config/account-fields` | PUT | Update all fields |
+| `/api/config/account-fields/field` | POST | Add custom field |
+| `/api/config/account-fields/field/{id}` | PUT | Update field |
+| `/api/config/account-fields/field/{id}` | DELETE | Delete field |
+| `/api/config/account-fields/layout` | PUT | Update layout |
+| `/api/config/account-fields/section` | POST | Add section |
+
+### Account Enrich (Odoo)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/accounts/{id}/enrich` | POST | Fetch Odoo data (MOCKED) |
+| `/api/accounts/{id}/orders` | GET | Get orders |
+| `/api/accounts/{id}/invoices` | GET | Get invoices |
+
+### Accounts (Permission Protected)
+| Endpoint | Method | Permission |
+|----------|--------|------------|
+| `/api/accounts` | POST | super_admin, ceo only |
+| `/api/accounts` | GET | All (filtered by assignment) |
+
+---
+
+## Default Account Field Sections
+
+| Section | Fields | Columns |
+|---------|--------|---------|
+| Basic Information | Company Name, Industry, Website, Employee Count, Relationship Status, Account Manager | 2 |
+| Financial | Total Budget, Annual Revenue, Contract Value, Renewal Date | 2 |
+| ERP Summary | Total Orders, Total Invoiced, Total Paid, Outstanding (computed) | 4 |
+| Primary Contact | Name, Email, Phone | 3 |
+| Address | Address, City, Country | 3 |
+| Notes | Business Overview, Strategic Notes | 1 |
 
 ---
 
@@ -159,92 +125,87 @@ Build an Enterprise Sales KPI, Incentive & Activity Management Platform with:
 
 ## Prioritized Backlog
 
-### P0 - Critical (COMPLETED) ✅
-- [x] Organization settings
-- [x] Department management
-- [x] User management with department assignment
-- [x] Multi-provider LLM configuration
-- [x] AI Agent → LLM Provider mapping
-- [x] Blue Sheet contact roles
-- [x] Securado branding
+### P0 - Completed ✅
+- [x] Account Field Definitions
+- [x] Account Layout Builder
+- [x] Admin-only Account Creation
+- [x] Enrich Button (Mocked Odoo)
+- [x] User-Department Assignment
+- [x] AI Agent-LLM Provider Mapping
 
-### P1 - High Priority (Next Phase)
-- [ ] **Hierarchical Data Visibility** - Frontend filtering based on role's `data_access_level`
-- [ ] **Implement Office 365 email sending** - Complete user invitation flow
-- [ ] **Organization contacts UI** - Visual contact cards linked to accounts
-- [ ] **CEO Dashboard** - Cross-department visibility and AI insights
+### P1 - High Priority (Next)
+- [ ] **Real Odoo Integration** - Replace mock with actual Odoo API calls
+- [ ] **Account Detail Page** - Full ERP view with tabs (Overview, Orders, Invoices, Activities, Blue Sheet, Documents)
+- [ ] **Hierarchical Data Visibility** - Frontend filtering based on role's data_access_level
+- [ ] **User Invitation Flow** - Email-based password setup
 
 ### P2 - Medium Priority
-- [ ] **Odoo ERP Integration** - Orders, invoices, collections sync
+- [ ] **Drag-and-drop field reordering** in layout builder
+- [ ] **Document upload** to accounts
 - [ ] **Microsoft 365 Calendar/Email Integration**
-- [ ] **MFA Support** - Configurable multi-factor authentication
-- [ ] **Active Directory Integration**
+- [ ] **CEO Dashboard** - Cross-department visibility
 
-### P3 - Nice to Have
+### P3 - Future
 - [ ] Dashboard widget customization
 - [ ] Advanced reporting/exports
-- [ ] Mobile responsive improvements
-- [ ] Fix ESLint `react-hooks/exhaustive-deps` warnings
+- [ ] Active Directory Integration
 
 ---
 
 ## Technical Architecture
 
-### Backend
+### Backend Structure
 ```
 /app/backend/
 ├── server.py              # Main FastAPI application
-├── config_models.py       # ~1400 lines - All configuration models
-├── config_routes.py       # ~1400 lines - Configuration API routes
-└── .env                   # Environment variables
+├── config_models.py       # ~1800 lines - All configuration models including AccountFieldsConfig
+├── config_routes.py       # ~1600 lines - Configuration API routes including account fields
+└── .env
 ```
 
-### Frontend
+### Frontend Structure
 ```
 /app/frontend/src/
 ├── pages/
-│   ├── SuperAdminConfig.js  # ~2100 lines - Admin configuration UI
-│   ├── AccountManagerDashboard.js
-│   ├── Dashboard.js
+│   ├── SuperAdminConfig.js  # ~3100 lines - Admin config with AccountFieldsTab
+│   ├── Accounts.js          # Updated with Enrich, permission controls
 │   └── ...
-├── components/
-│   └── Layout.js
-├── context/
-│   └── AuthContext.js
-└── services/
-    └── api.js
+└── ...
 ```
 
 ### Database Collections
-- `users` - User accounts (includes `department_id`)
-- `accounts` - Customer/organization accounts
-- `opportunities` - Sales opportunities
-- `activities` - Tasks and activities
-- `organization_contacts` - Blue Sheet contacts per org
-- `user_invitations` - Pending user invitations
-- `system_config` - Master configuration document
-- `audit_log` - Configuration change history
+- `users` - User accounts with department_id
+- `accounts` - Customer accounts (enriched with orders, invoices from Odoo)
+- `system_config` - Master configuration including account_fields
 
 ---
 
-## MOCKED Integrations (Pending Implementation)
-- **Odoo ERP** - Settings exist, no actual sync
-- **Microsoft 365 Email** - Settings exist, email sending not implemented
-- **Microsoft 365 Calendar** - Not implemented
+## MOCKED Integrations
+- **Odoo ERP** - Enrich endpoint generates random mock orders/invoices
+- **Microsoft 365** - Settings exist, no actual sync
 
 ---
 
-## Test Reports
-- `/app/test_reports/iteration_5.json` - User-Department Assignment testing (92% pass rate)
-- `/app/tests/test_user_department_assignment.py` - Comprehensive test suite
+## Workflow Summary
 
----
+### Account Lifecycle
+```
+1. Super Admin defines fields (System Config → Account Fields)
+2. Super Admin creates account (Accounts → Create Account)
+3. Super Admin assigns Account Manager
+4. AM or Admin clicks "Enrich" to sync from Odoo
+5. Sales users view assigned accounts (read-only)
+6. Orders/Invoices populate from Odoo
+7. Calculated fields auto-update (Outstanding, Totals)
+```
 
-## Recent Changes (January 10, 2026)
-1. Added Department column to User Management table
-2. Added Department dropdown in Create/Edit User modals
-3. Updated backend to handle `department_id` field properly
-4. Fixed nullable field handling for removing department assignments
-5. Added AI Agent → LLM Provider mapping in Edit Agent modal
-6. Added visual indicators for LLM provider API key status
-7. Organized model dropdown by provider type
+### Permission Matrix
+| Action | Super Admin | CEO | HOD | AM | Sales |
+|--------|-------------|-----|-----|----|----|
+| Create Account | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Edit Account | ✅ | ✅ | ❌ | ❌ | ❌ |
+| View Account | ✅ | ✅ | ✅* | ✅* | ✅* |
+| Enrich Account | ✅ | ✅ | ❌ | ✅* | ❌ |
+| Configure Fields | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+*Filtered to assigned accounts only
