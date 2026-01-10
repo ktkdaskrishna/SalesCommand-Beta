@@ -731,42 +731,48 @@ const AIAgentsTab = ({ config, onConfigUpdate }) => {
 
       {/* Agents List */}
       <div className="space-y-4">
-        {agentsConfig.agents?.map((agent) => (
-          <div key={agent.id} className={cn("card p-4 border-2", agent.is_enabled ? "border-slate-200" : "border-slate-100 opacity-60")}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", agent.is_enabled ? "bg-blue-100" : "bg-slate-100")}>
-                  <Bot className={cn("w-6 h-6", agent.is_enabled ? "text-blue-600" : "text-slate-400")} />
-                </div>
-                <div>
-                  <h4 className="font-medium text-slate-900">{agent.name}</h4>
-                  <p className="text-sm text-slate-500 mt-1">{agent.description}</p>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">{agent.llm_provider}</span>
-                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">{agent.model}</span>
-                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">Temp: {agent.temperature}</span>
+        {agentsConfig.agents?.map((agent) => {
+          const provider = llmProviders.find(p => p.id === agent.llm_provider || p.provider === agent.llm_provider);
+          return (
+            <div key={agent.id} className={cn("card p-4 border-2", agent.is_enabled ? "border-slate-200" : "border-slate-100 opacity-60")} data-testid={`ai-agent-${agent.id}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", agent.is_enabled ? "bg-blue-100" : "bg-slate-100")}>
+                    <Bot className={cn("w-6 h-6", agent.is_enabled ? "text-blue-600" : "text-slate-400")} />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-slate-900">{agent.name}</h4>
+                    <p className="text-sm text-slate-500 mt-1">{agent.description}</p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <span className={cn("text-xs px-2 py-1 rounded", provider?.api_key_configured ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
+                        {provider?.name || agent.llm_provider}
+                        {!provider?.api_key_configured && " (No Key)"}
+                      </span>
+                      <span className="text-xs bg-slate-100 px-2 py-1 rounded">{agent.model}</span>
+                      <span className="text-xs bg-slate-100 px-2 py-1 rounded">Temp: {agent.temperature}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => handleTestAgent(agent)} disabled={testing === agent.id} className="btn-secondary text-xs flex items-center gap-1">
-                  {testing === agent.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                  Test
-                </button>
-                <button onClick={() => setEditingAgent(agent)} className="p-1 hover:bg-slate-100 rounded">
-                  <Edit2 className="w-4 h-4 text-slate-500" />
-                </button>
-                <button onClick={() => handleDeleteAgent(agent.id)} className="p-1 hover:bg-red-50 rounded">
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </button>
-                <label className="relative inline-flex items-center cursor-pointer ml-2">
-                  <input type="checkbox" checked={agent.is_enabled} onChange={(e) => handleToggleAgent(agent.id, e.target.checked)} className="sr-only peer" />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleTestAgent(agent)} disabled={testing === agent.id || !provider?.api_key_configured} className="btn-secondary text-xs flex items-center gap-1" title={!provider?.api_key_configured ? "Configure API key first" : "Test agent"}>
+                    {testing === agent.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                    Test
+                  </button>
+                  <button onClick={() => setEditingAgent(agent)} className="p-1 hover:bg-slate-100 rounded" data-testid={`edit-agent-${agent.id}`}>
+                    <Edit2 className="w-4 h-4 text-slate-500" />
+                  </button>
+                  <button onClick={() => handleDeleteAgent(agent.id)} className="p-1 hover:bg-red-50 rounded">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                  <label className="relative inline-flex items-center cursor-pointer ml-2">
+                    <input type="checkbox" checked={agent.is_enabled} onChange={(e) => handleToggleAgent(agent.id, e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Edit Agent Modal */}
