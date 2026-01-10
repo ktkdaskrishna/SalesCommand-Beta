@@ -51,6 +51,7 @@ async def get_system_config(db) -> dict:
             "id": "system_config",
             "organization": get_default_organization().model_dump(),
             "departments": get_default_departments().model_dump(),
+            "account_fields": get_default_account_fields().model_dump(),
             "modules": [m.model_dump() for m in get_default_modules()],
             "roles": [r.model_dump() for r in get_default_roles()],
             "blue_sheet": blue_sheet,
@@ -62,7 +63,7 @@ async def get_system_config(db) -> dict:
             "incentives": {"rules": [], "payout_periods": ["monthly", "quarterly", "yearly"], "approval_required": True, "approval_roles": ["finance_manager", "ceo"]},
             "integrations": [],
             "ui": get_default_ui_config().model_dump(),
-            "version": "2.0",
+            "version": "3.0",
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         }
