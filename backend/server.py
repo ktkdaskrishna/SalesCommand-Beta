@@ -1410,7 +1410,8 @@ async def get_ai_insights(user: dict = Depends(get_current_user)):
 
 @api_router.post("/seed")
 async def seed_demo_data():
-    """Seed demo data for testing"""
+    """Seed minimal demo data - only Super Admin and Account Manager. 
+    All other users should be created via Super Admin configuration."""
     
     # Check if already seeded
     existing_users = await db.users.count_documents({})
@@ -1419,24 +1420,37 @@ async def seed_demo_data():
     
     now = datetime.now(timezone.utc)
     
-    # Create demo users
+    # Create ONLY two essential users - rest will be configured by Super Admin
     users = [
-        {"id": str(uuid.uuid4()), "email": "superadmin@salescommand.com", "password_hash": hash_password("demo123"), "name": "Admin Master", "role": "super_admin", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "ceo@salescommand.com", "password_hash": hash_password("demo123"), "name": "Sarah Chen", "role": "ceo", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "sales.director@salescommand.com", "password_hash": hash_password("demo123"), "name": "David Martinez", "role": "sales_director", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "pd.mssp@salescommand.com", "password_hash": hash_password("demo123"), "name": "Michael Torres", "role": "product_director", "product_line": "MSSP", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "pd.appsec@salescommand.com", "password_hash": hash_password("demo123"), "name": "Lisa Wang", "role": "product_director", "product_line": "Application Security", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "am1@salescommand.com", "password_hash": hash_password("demo123"), "name": "James Wilson", "role": "account_manager", "quota": 500000, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "am2@salescommand.com", "password_hash": hash_password("demo123"), "name": "Emily Davis", "role": "account_manager", "quota": 400000, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "strategy@salescommand.com", "password_hash": hash_password("demo123"), "name": "Robert Kim", "role": "strategy", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "finance@salescommand.com", "password_hash": hash_password("demo123"), "name": "Nancy Lee", "role": "finance_manager", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "referrer@salescommand.com", "password_hash": hash_password("demo123"), "name": "Tom Referral", "role": "referrer", "department": "Engineering", "created_at": now, "updated_at": now},
+        {
+            "id": str(uuid.uuid4()), 
+            "email": "superadmin@securado.com", 
+            "password_hash": hash_password("admin123"), 
+            "name": "Super Administrator", 
+            "role": "super_admin",
+            "department_id": None,  # Super Admin is above departments
+            "team_id": None,
+            "is_active": True,
+            "created_at": now, 
+            "updated_at": now
+        },
+        {
+            "id": str(uuid.uuid4()), 
+            "email": "am@securado.com", 
+            "password_hash": hash_password("demo123"), 
+            "name": "Alex Mitchell", 
+            "role": "account_manager", 
+            "department_id": "sales",  # Assigned to Sales department
+            "team_id": None,
+            "quota": 500000,
+            "is_active": True,
+            "created_at": now, 
+            "updated_at": now
+        },
     ]
     await db.users.insert_many(users)
     
-    am1_id = users[5]["id"]
-    am2_id = users[6]["id"]
-    referrer_id = users[9]["id"]
+    am_id = users[1]["id"]
     
     # Create default pipeline stages
     pipeline_stages = [
@@ -1450,49 +1464,39 @@ async def seed_demo_data():
     ]
     await db.pipeline_stages.insert_many(pipeline_stages)
     
-    # Create demo accounts
+    # Create one sample account for the Account Manager
     accounts = [
-        {"id": str(uuid.uuid4()), "name": "TechCorp Industries", "industry": "Technology", "annual_revenue": 50000000, "employee_count": 500, "relationship_maturity": "strategic", "assigned_am_id": am1_id, "stakeholders": [{"name": "John Smith", "title": "CTO", "influence_level": "champion"}], "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Global Financial Services", "industry": "Finance", "annual_revenue": 200000000, "employee_count": 2000, "relationship_maturity": "established", "assigned_am_id": am1_id, "stakeholders": [{"name": "Mary Johnson", "title": "CISO", "influence_level": "high"}], "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Healthcare Plus", "industry": "Healthcare", "annual_revenue": 75000000, "employee_count": 800, "relationship_maturity": "developing", "assigned_am_id": am2_id, "stakeholders": [], "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Retail Dynamics", "industry": "Retail", "annual_revenue": 30000000, "employee_count": 300, "relationship_maturity": "new", "assigned_am_id": am2_id, "stakeholders": [], "created_at": now, "updated_at": now},
+        {
+            "id": str(uuid.uuid4()), 
+            "name": "TechCorp Industries", 
+            "industry": "Technology", 
+            "annual_revenue": 50000000, 
+            "employee_count": 500, 
+            "relationship_maturity": "strategic", 
+            "assigned_am_id": am_id, 
+            "stakeholders": [],
+            "created_at": now, 
+            "updated_at": now
+        },
     ]
     await db.accounts.insert_many(accounts)
     
-    # Create demo opportunities
+    # Create one sample opportunity
     opportunities = [
-        {"id": str(uuid.uuid4()), "name": "TechCorp MSSP Expansion", "account_id": accounts[0]["id"], "value": 250000, "stage": "negotiation", "probability": 70, "product_lines": ["MSSP"], "owner_id": am1_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "GFS Security Assessment", "account_id": accounts[1]["id"], "value": 150000, "stage": "proposal", "probability": 50, "product_lines": ["Application Security", "Network Security"], "owner_id": am1_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Healthcare Compliance Suite", "account_id": accounts[2]["id"], "value": 180000, "stage": "discovery", "probability": 30, "product_lines": ["GRC"], "owner_id": am2_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Retail POS Security", "account_id": accounts[3]["id"], "value": 80000, "stage": "qualification", "probability": 20, "product_lines": ["Network Security"], "owner_id": am2_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "TechCorp AppSec Bundle", "account_id": accounts[0]["id"], "value": 120000, "stage": "closed_won", "probability": 100, "product_lines": ["Application Security"], "owner_id": am1_id, "created_at": now, "updated_at": now},
+        {
+            "id": str(uuid.uuid4()), 
+            "name": "TechCorp Security Suite", 
+            "account_id": accounts[0]["id"], 
+            "value": 250000, 
+            "stage": "discovery", 
+            "probability": 30, 
+            "product_lines": ["MSSP", "Application Security"], 
+            "owner_id": am_id, 
+            "created_at": now, 
+            "updated_at": now
+        },
     ]
     await db.opportunities.insert_many(opportunities)
-    
-    # Create demo activities
-    activities = [
-        {"id": str(uuid.uuid4()), "title": "Security Workshop - TechCorp", "activity_type": "presentation", "priority": "high", "status": "pending", "due_date": now + timedelta(days=3), "account_id": accounts[0]["id"], "opportunity_id": opportunities[0]["id"], "product_line": "MSSP", "created_by_id": am1_id, "assigned_to_id": users[1]["id"], "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "title": "Proposal Review Meeting", "activity_type": "meeting", "priority": "high", "status": "in_progress", "due_date": now + timedelta(days=1), "account_id": accounts[1]["id"], "opportunity_id": opportunities[1]["id"], "created_by_id": am1_id, "assigned_to_id": am1_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "title": "Discovery Call - Healthcare", "activity_type": "call", "priority": "medium", "status": "pending", "due_date": now + timedelta(days=5), "account_id": accounts[2]["id"], "opportunity_id": opportunities[2]["id"], "created_by_id": am2_id, "assigned_to_id": am2_id, "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "title": "Technical Demo Prep", "activity_type": "task", "priority": "medium", "status": "completed", "due_date": now - timedelta(days=2), "product_line": "Application Security", "created_by_id": users[2]["id"], "assigned_to_id": users[2]["id"], "completed_at": now - timedelta(days=1), "created_at": now, "updated_at": now},
-    ]
-    await db.activities.insert_many(activities)
-    
-    # Create demo KPIs
-    kpis = [
-        {"id": str(uuid.uuid4()), "name": "Quarterly Revenue Target", "target_value": 1000000, "current_value": 520000, "unit": "currency", "period": "quarterly", "category": "sales", "achievement_percentage": 52, "trend": "up", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Pipeline Value", "target_value": 2000000, "current_value": 780000, "unit": "currency", "period": "quarterly", "category": "sales", "achievement_percentage": 39, "trend": "stable", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Activity Completion Rate", "target_value": 90, "current_value": 75, "unit": "percentage", "period": "monthly", "category": "activity", "user_id": am1_id, "achievement_percentage": 83, "trend": "up", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "name": "Win Rate", "target_value": 30, "current_value": 25, "unit": "percentage", "period": "quarterly", "category": "sales", "achievement_percentage": 83, "trend": "stable", "created_at": now, "updated_at": now},
-    ]
-    await db.kpis.insert_many(kpis)
-    
-    # Create demo incentives
-    incentives = [
-        {"id": str(uuid.uuid4()), "user_id": am1_id, "name": "Q4 Sales Bonus", "target_amount": 25000, "earned_amount": 12500, "period": "quarterly", "criteria": {"closed_deals": 5, "pipeline_value": 500000}, "achievement_percentage": 50, "status": "in_progress", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "user_id": am2_id, "name": "Q4 Sales Bonus", "target_amount": 20000, "earned_amount": 8000, "period": "quarterly", "criteria": {"closed_deals": 4, "pipeline_value": 400000}, "achievement_percentage": 40, "status": "in_progress", "created_at": now, "updated_at": now},
-    ]
-    await db.incentives.insert_many(incentives)
     
     # Create default integrations
     integrations = [
@@ -1501,7 +1505,15 @@ async def seed_demo_data():
     ]
     await db.integrations.insert_many(integrations)
     
-    return {"message": "Demo data seeded successfully", "users_created": len(users)}
+    return {
+        "message": "Demo data seeded successfully",
+        "users_created": len(users),
+        "note": "Only Super Admin and Account Manager created. Configure other users via Super Admin panel.",
+        "credentials": [
+            {"email": "superadmin@securado.com", "password": "admin123", "role": "Super Admin"},
+            {"email": "am@securado.com", "password": "demo123", "role": "Account Manager"}
+        ]
+    }
 
 # ===================== PIPELINE STAGES ROUTES =====================
 
