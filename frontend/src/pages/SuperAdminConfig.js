@@ -1123,11 +1123,15 @@ const AIChatbotTab = ({ config, onConfigUpdate }) => {
   );
 };
 
-// LLM Providers Tab
+// LLM Providers Tab - Enhanced with API Key Input
 const LLMProvidersTab = ({ config, onConfigUpdate }) => {
   const [providers, setProviders] = useState(config?.llm_providers || {});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(null);
+  const [editingKey, setEditingKey] = useState(null);
+  const [newApiKey, setNewApiKey] = useState("");
+  const [useEnvVar, setUseEnvVar] = useState(false);
+  const [envVarName, setEnvVarName] = useState("");
 
   useEffect(() => {
     setProviders(config?.llm_providers || {});
@@ -1143,6 +1147,24 @@ const LLMProvidersTab = ({ config, onConfigUpdate }) => {
       toast.error("Failed to save");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSetApiKey = async (providerId) => {
+    try {
+      await api.post(`/config/llm-providers/${providerId}/api-key`, {
+        api_key: useEnvVar ? "" : newApiKey,
+        use_env: useEnvVar,
+        api_key_env: useEnvVar ? envVarName : ""
+      });
+      toast.success("API key updated");
+      onConfigUpdate();
+      setEditingKey(null);
+      setNewApiKey("");
+      setUseEnvVar(false);
+      setEnvVarName("");
+    } catch (error) {
+      toast.error("Failed to set API key");
     }
   };
 
