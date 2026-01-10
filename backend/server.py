@@ -2183,6 +2183,9 @@ async def global_search(q: str, user: dict = Depends(get_current_user)):
 
 # ===================== APP SETUP =====================
 
+# Integrate configuration routes for Super Admin
+create_config_routes(api_router, db, get_current_user, require_role, UserRole)
+
 app.include_router(api_router)
 
 app.add_middleware(
