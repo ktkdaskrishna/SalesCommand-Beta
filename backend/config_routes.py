@@ -25,10 +25,11 @@ from config_models import (
     DepartmentsConfig, DepartmentConfig, TeamConfig,
     OrganizationContact,
     EmailConfig, UserInvitation,
+    AccountFieldsConfig, AccountFieldDefinition, AccountSection, AccountLayoutConfig, FieldType,
     get_default_modules, get_default_roles, get_default_blue_sheet_config,
     get_default_llm_config, get_default_ui_config, get_default_organization, get_default_ai_agents,
     get_default_departments, get_default_llm_providers, get_default_contact_roles,
-    get_default_email_config, get_default_chatbot_config
+    get_default_email_config, get_default_chatbot_config, get_default_account_fields
 )
 
 config_router = APIRouter(prefix="/config", tags=["Configuration"])
