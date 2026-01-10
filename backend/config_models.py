@@ -564,6 +564,248 @@ class UIConfig(BaseModel):
     compact_mode: bool = False
     animations_enabled: bool = True
 
+# ===================== ACCOUNT FIELD DEFINITIONS (ERP) =====================
+
+class FieldType(str, Enum):
+    """Types of fields that can be defined for accounts"""
+    TEXT = "text"
+    TEXTAREA = "textarea"
+    NUMBER = "number"
+    CURRENCY = "currency"
+    PERCENTAGE = "percentage"
+    DATE = "date"
+    DATETIME = "datetime"
+    DROPDOWN = "dropdown"
+    MULTI_SELECT = "multi_select"
+    CHECKBOX = "checkbox"
+    URL = "url"
+    EMAIL = "email"
+    PHONE = "phone"
+    FILE = "file"
+    IMAGE = "image"
+    RICH_TEXT = "rich_text"
+    RELATIONSHIP = "relationship"  # Link to other records
+    COMPUTED = "computed"  # Auto-calculated field
+
+class FieldValidation(BaseModel):
+    """Validation rules for a field"""
+    required: bool = False
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    pattern: Optional[str] = None  # Regex pattern
+    allowed_values: List[str] = []  # For dropdown/multi-select
+    error_message: Optional[str] = None
+
+class AccountFieldDefinition(BaseModel):
+    """Definition of a custom field for accounts"""
+    id: str
+    name: str
+    field_type: FieldType
+    description: Optional[str] = None
+    placeholder: Optional[str] = None
+    default_value: Optional[Any] = None
+    validation: FieldValidation = FieldValidation()
+    # Display options
+    visible: bool = True
+    editable: bool = True
+    show_in_list: bool = False  # Show in accounts list table
+    show_in_card: bool = False  # Show in account card header
+    # Dropdown/Select options
+    options: List[Dict[str, str]] = []  # [{value: "tech", label: "Technology"}]
+    # Computed field formula
+    formula: Optional[str] = None  # e.g., "total_orders - total_paid"
+    # Relationship field
+    related_entity: Optional[str] = None  # e.g., "users", "opportunities"
+    # Styling
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    # Metadata
+    is_system: bool = False  # System fields cannot be deleted
+    order: int = 0
+    section_id: Optional[str] = None  # Which section this field belongs to
+    created_at: Optional[datetime] = None
+
+class AccountSection(BaseModel):
+    """A section/group of fields in the account form"""
+    id: str
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    order: int = 0
+    collapsed_by_default: bool = False
+    columns: int = 2  # Number of columns in this section
+    field_ids: List[str] = []  # Fields in this section (ordered)
+
+class AccountLayoutConfig(BaseModel):
+    """Configuration for account form layout"""
+    sections: List[AccountSection] = []
+    tabs: List[Dict[str, Any]] = [
+        {"id": "overview", "name": "Overview", "icon": "info"},
+        {"id": "orders", "name": "Orders", "icon": "shopping-cart"},
+        {"id": "invoices", "name": "Invoices", "icon": "file-text"},
+        {"id": "activities", "name": "Activities", "icon": "calendar"},
+        {"id": "blue_sheet", "name": "Blue Sheet", "icon": "file-check"},
+        {"id": "documents", "name": "Documents", "icon": "folder"},
+    ]
+
+class AccountFieldsConfig(BaseModel):
+    """Complete account fields configuration"""
+    fields: List[AccountFieldDefinition] = []
+    layout: AccountLayoutConfig = AccountLayoutConfig()
+    enable_custom_fields: bool = True
+    enable_field_validation: bool = True
+    enable_computed_fields: bool = True
+
+def get_default_account_fields() -> AccountFieldsConfig:
+    """Return default account field definitions"""
+    default_fields = [
+        # System Fields (non-deletable)
+        AccountFieldDefinition(
+            id="name", name="Company Name", field_type=FieldType.TEXT,
+            validation=FieldValidation(required=True, min_length=2, max_length=200),
+            is_system=True, show_in_list=True, show_in_card=True, order=1, section_id="basic"
+        ),
+        AccountFieldDefinition(
+            id="industry", name="Industry", field_type=FieldType.DROPDOWN,
+            options=[
+                {"value": "technology", "label": "Technology"},
+                {"value": "cybersecurity", "label": "Cybersecurity"},
+                {"value": "financial_services", "label": "Financial Services"},
+                {"value": "healthcare", "label": "Healthcare"},
+                {"value": "manufacturing", "label": "Manufacturing"},
+                {"value": "retail", "label": "Retail"},
+                {"value": "government", "label": "Government"},
+                {"value": "education", "label": "Education"},
+                {"value": "other", "label": "Other"},
+            ],
+            is_system=True, show_in_list=True, order=2, section_id="basic"
+        ),
+        AccountFieldDefinition(
+            id="website", name="Website", field_type=FieldType.URL,
+            placeholder="https://company.com", order=3, section_id="basic"
+        ),
+        AccountFieldDefinition(
+            id="employee_count", name="Employee Count", field_type=FieldType.NUMBER,
+            validation=FieldValidation(min_value=1), order=4, section_id="basic"
+        ),
+        AccountFieldDefinition(
+            id="relationship_maturity", name="Relationship Status", field_type=FieldType.DROPDOWN,
+            options=[
+                {"value": "new", "label": "New"},
+                {"value": "developing", "label": "Developing"},
+                {"value": "established", "label": "Established"},
+                {"value": "strategic", "label": "Strategic"},
+            ],
+            is_system=True, show_in_list=True, order=5, section_id="basic"
+        ),
+        AccountFieldDefinition(
+            id="assigned_am_id", name="Account Manager", field_type=FieldType.RELATIONSHIP,
+            related_entity="users", is_system=True, show_in_list=True, order=6, section_id="basic"
+        ),
+        # Financial Fields
+        AccountFieldDefinition(
+            id="total_budget", name="Total Budget", field_type=FieldType.CURRENCY,
+            description="Total allocated budget for this account",
+            show_in_card=True, order=10, section_id="financial"
+        ),
+        AccountFieldDefinition(
+            id="annual_revenue", name="Annual Revenue", field_type=FieldType.CURRENCY,
+            description="Customer's annual revenue", order=11, section_id="financial"
+        ),
+        AccountFieldDefinition(
+            id="contract_value", name="Contract Value", field_type=FieldType.CURRENCY,
+            description="Total contract value", show_in_card=True, order=12, section_id="financial"
+        ),
+        AccountFieldDefinition(
+            id="renewal_date", name="Renewal Date", field_type=FieldType.DATE,
+            order=13, section_id="financial"
+        ),
+        # Computed Fields (auto-calculated from Odoo)
+        AccountFieldDefinition(
+            id="total_orders", name="Total Orders", field_type=FieldType.COMPUTED,
+            formula="SUM(orders.amount)", show_in_card=True, editable=False, order=20, section_id="erp_summary"
+        ),
+        AccountFieldDefinition(
+            id="total_invoiced", name="Total Invoiced", field_type=FieldType.COMPUTED,
+            formula="SUM(invoices.amount)", show_in_card=True, editable=False, order=21, section_id="erp_summary"
+        ),
+        AccountFieldDefinition(
+            id="total_paid", name="Total Paid", field_type=FieldType.COMPUTED,
+            formula="SUM(invoices.paid_amount)", show_in_card=True, editable=False, order=22, section_id="erp_summary"
+        ),
+        AccountFieldDefinition(
+            id="outstanding_amount", name="Outstanding", field_type=FieldType.COMPUTED,
+            formula="total_invoiced - total_paid", show_in_card=True, editable=False, order=23, section_id="erp_summary"
+        ),
+        # Contact Fields
+        AccountFieldDefinition(
+            id="primary_contact_name", name="Primary Contact", field_type=FieldType.TEXT,
+            order=30, section_id="contacts"
+        ),
+        AccountFieldDefinition(
+            id="primary_contact_email", name="Contact Email", field_type=FieldType.EMAIL,
+            order=31, section_id="contacts"
+        ),
+        AccountFieldDefinition(
+            id="primary_contact_phone", name="Contact Phone", field_type=FieldType.PHONE,
+            order=32, section_id="contacts"
+        ),
+        # Address Fields
+        AccountFieldDefinition(
+            id="address", name="Address", field_type=FieldType.TEXTAREA,
+            order=40, section_id="address"
+        ),
+        AccountFieldDefinition(
+            id="city", name="City", field_type=FieldType.TEXT,
+            order=41, section_id="address"
+        ),
+        AccountFieldDefinition(
+            id="country", name="Country", field_type=FieldType.DROPDOWN,
+            options=[
+                {"value": "US", "label": "United States"},
+                {"value": "UK", "label": "United Kingdom"},
+                {"value": "IN", "label": "India"},
+                {"value": "DE", "label": "Germany"},
+                {"value": "FR", "label": "France"},
+                {"value": "AU", "label": "Australia"},
+                {"value": "CA", "label": "Canada"},
+                {"value": "other", "label": "Other"},
+            ],
+            order=42, section_id="address"
+        ),
+        # Notes
+        AccountFieldDefinition(
+            id="business_overview", name="Business Overview", field_type=FieldType.RICH_TEXT,
+            description="Overview of the customer's business", order=50, section_id="notes"
+        ),
+        AccountFieldDefinition(
+            id="strategic_notes", name="Strategic Notes", field_type=FieldType.RICH_TEXT,
+            description="Strategic notes and insights", order=51, section_id="notes"
+        ),
+    ]
+    
+    default_sections = [
+        AccountSection(id="basic", name="Basic Information", icon="building", order=1, columns=2,
+                      field_ids=["name", "industry", "website", "employee_count", "relationship_maturity", "assigned_am_id"]),
+        AccountSection(id="financial", name="Financial", icon="dollar-sign", order=2, columns=2,
+                      field_ids=["total_budget", "annual_revenue", "contract_value", "renewal_date"]),
+        AccountSection(id="erp_summary", name="ERP Summary", icon="database", order=3, columns=4,
+                      field_ids=["total_orders", "total_invoiced", "total_paid", "outstanding_amount"]),
+        AccountSection(id="contacts", name="Primary Contact", icon="user", order=4, columns=3,
+                      field_ids=["primary_contact_name", "primary_contact_email", "primary_contact_phone"]),
+        AccountSection(id="address", name="Address", icon="map-pin", order=5, columns=3,
+                      field_ids=["address", "city", "country"]),
+        AccountSection(id="notes", name="Notes & Overview", icon="file-text", order=6, columns=1,
+                      field_ids=["business_overview", "strategic_notes"]),
+    ]
+    
+    return AccountFieldsConfig(
+        fields=default_fields,
+        layout=AccountLayoutConfig(sections=default_sections)
+    )
+
 # ===================== SYSTEM CONFIGURATION =====================
 
 class SystemConfig(BaseModel):
@@ -571,6 +813,7 @@ class SystemConfig(BaseModel):
     id: str = "system_config"
     organization: OrganizationSettings = OrganizationSettings()
     departments: DepartmentsConfig = DepartmentsConfig()
+    account_fields: AccountFieldsConfig = AccountFieldsConfig()  # NEW: Account field definitions
     modules: List[ModuleDefinition] = []
     roles: List[RoleDefinition] = []
     blue_sheet: BlueSheetConfig = BlueSheetConfig()
@@ -582,7 +825,7 @@ class SystemConfig(BaseModel):
     incentives: IncentiveConfig = IncentiveConfig()
     integrations: List[IntegrationConfig] = []
     ui: UIConfig = UIConfig()
-    version: str = "2.0"
+    version: str = "3.0"
     updated_at: Optional[datetime] = None
     updated_by: Optional[str] = None
 
