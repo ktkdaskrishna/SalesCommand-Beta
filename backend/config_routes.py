@@ -88,6 +88,9 @@ async def get_system_config(db) -> dict:
         if "email" not in config:
             config["email"] = get_default_email_config().model_dump()
             updated = True
+        if "account_fields" not in config:
+            config["account_fields"] = get_default_account_fields().model_dump()
+            updated = True
         if "blue_sheet" in config and "contact_roles" not in config["blue_sheet"]:
             config["blue_sheet"]["contact_roles"] = get_default_contact_roles().model_dump()
             updated = True
