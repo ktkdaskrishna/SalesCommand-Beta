@@ -602,6 +602,10 @@ const AIAgentsTab = ({ config, onConfigUpdate }) => {
   const [testResult, setTestResult] = useState(null);
   const [showNewAgent, setShowNewAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState(null);
+  
+  // Get configured LLM providers
+  const llmProviders = config?.llm_providers?.providers || [];
+  const enabledProviders = llmProviders.filter(p => p.is_enabled);
 
   useEffect(() => {
     setAgentsConfig(config?.ai_agents || {});
