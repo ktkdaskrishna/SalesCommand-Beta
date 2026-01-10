@@ -172,6 +172,629 @@ const RolePermissionEditor = ({ role, modules, onSave, onCancel }) => {
   );
 };
 
+// Organization Tab
+const OrganizationTab = ({ config, onConfigUpdate }) => {
+  const [orgConfig, setOrgConfig] = useState(config?.organization || {});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setOrgConfig(config?.organization || {});
+  }, [config]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/organization", orgConfig);
+      toast.success("Organization settings saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save organization settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Organization Settings</h3>
+          <p className="text-sm text-slate-500">Configure company-wide settings</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      {/* Basic Info */}
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Basic Information</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Organization Name</label>
+            <input type="text" value={orgConfig.name || ""} onChange={(e) => setOrgConfig({ ...orgConfig, name: e.target.value })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Domain</label>
+            <input type="text" value={orgConfig.domain || ""} onChange={(e) => setOrgConfig({ ...orgConfig, domain: e.target.value })} className="input w-full" placeholder="company.com" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Industry</label>
+            <select value={orgConfig.industry || ""} onChange={(e) => setOrgConfig({ ...orgConfig, industry: e.target.value })} className="input w-full">
+              <option value="">Select Industry</option>
+              <option value="technology">Technology</option>
+              <option value="cybersecurity">Cybersecurity</option>
+              <option value="financial_services">Financial Services</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="retail">Retail</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Timezone</label>
+            <select value={orgConfig.timezone || "UTC"} onChange={(e) => setOrgConfig({ ...orgConfig, timezone: e.target.value })} className="input w-full">
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">Eastern Time</option>
+              <option value="America/Chicago">Central Time</option>
+              <option value="America/Denver">Mountain Time</option>
+              <option value="America/Los_Angeles">Pacific Time</option>
+              <option value="Europe/London">London</option>
+              <option value="Asia/Kolkata">India</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Settings */}
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Financial Settings</h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Currency</label>
+            <select value={orgConfig.currency || "USD"} onChange={(e) => setOrgConfig({ ...orgConfig, currency: e.target.value })} className="input w-full">
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="INR">INR (₹)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Fiscal Year Start</label>
+            <select value={orgConfig.fiscal_year_start_month || 1} onChange={(e) => setOrgConfig({ ...orgConfig, fiscal_year_start_month: parseInt(e.target.value) })} className="input w-full">
+              <option value={1}>January</option>
+              <option value={4}>April</option>
+              <option value={7}>July</option>
+              <option value={10}>October</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Quota Period</label>
+            <select value={orgConfig.quota_period || "quarterly"} onChange={(e) => setOrgConfig({ ...orgConfig, quota_period: e.target.value })} className="input w-full">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Default Commission Rate (%)</label>
+            <input type="number" step="0.01" value={(orgConfig.default_commission_rate || 0.05) * 100} onChange={(e) => setOrgConfig({ ...orgConfig, default_commission_rate: parseFloat(e.target.value) / 100 })} className="input w-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* Feature Toggles */}
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Feature Toggles</h4>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-slate-700">Enable AI Features</span>
+            <input type="checkbox" checked={orgConfig.enable_ai_features ?? true} onChange={(e) => setOrgConfig({ ...orgConfig, enable_ai_features: e.target.checked })} className="rounded border-slate-300" />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-slate-700">Enable Referral Program</span>
+            <input type="checkbox" checked={orgConfig.enable_referrals ?? true} onChange={(e) => setOrgConfig({ ...orgConfig, enable_referrals: e.target.checked })} className="rounded border-slate-300" />
+          </label>
+        </div>
+      </div>
+
+      {/* Contact Info */}
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Contact Information</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Contact Email</label>
+            <input type="email" value={orgConfig.contact_email || ""} onChange={(e) => setOrgConfig({ ...orgConfig, contact_email: e.target.value })} className="input w-full" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Contact Phone</label>
+            <input type="text" value={orgConfig.contact_phone || ""} onChange={(e) => setOrgConfig({ ...orgConfig, contact_phone: e.target.value })} className="input w-full" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-slate-500">Address</label>
+            <textarea value={orgConfig.address || ""} onChange={(e) => setOrgConfig({ ...orgConfig, address: e.target.value })} className="input w-full h-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// User Management Tab
+const UserManagementTab = ({ config, onConfigUpdate }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showNewUser, setShowNewUser] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [newUser, setNewUser] = useState({ email: "", name: "", role: "account_manager", password: "", quota: 500000 });
+  const [generatedPassword, setGeneratedPassword] = useState(null);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get("/config/users");
+      setUsers(res.data);
+    } catch (error) {
+      toast.error("Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.name || !newUser.role) {
+      toast.error("Email, name, and role are required");
+      return;
+    }
+    try {
+      const res = await api.post("/config/users", newUser);
+      toast.success("User created successfully");
+      if (res.data.user?.generated_password) {
+        setGeneratedPassword(res.data.user.generated_password);
+      }
+      fetchUsers();
+      setShowNewUser(false);
+      setNewUser({ email: "", name: "", role: "account_manager", password: "", quota: 500000 });
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create user");
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    try {
+      await api.put(`/config/users/${editingUser.id}`, {
+        name: editingUser.name,
+        role: editingUser.role,
+        quota: editingUser.quota,
+        is_active: editingUser.is_active,
+      });
+      toast.success("User updated");
+      fetchUsers();
+      setEditingUser(null);
+    } catch (error) {
+      toast.error("Failed to update user");
+    }
+  };
+
+  const handleResetPassword = async (userId) => {
+    if (!confirm("Reset this user's password?")) return;
+    try {
+      const res = await api.post(`/config/users/${userId}/reset-password`);
+      setGeneratedPassword(res.data.new_password);
+      toast.success("Password reset successfully");
+    } catch (error) {
+      toast.error("Failed to reset password");
+    }
+  };
+
+  const handleDeactivate = async (userId) => {
+    if (!confirm("Deactivate this user?")) return;
+    try {
+      await api.delete(`/config/users/${userId}`);
+      toast.success("User deactivated");
+      fetchUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to deactivate user");
+    }
+  };
+
+  const roles = config?.roles || [];
+
+  if (loading) {
+    return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">User Management</h3>
+          <p className="text-sm text-slate-500">Create, edit, and manage user accounts</p>
+        </div>
+        <button onClick={() => setShowNewUser(true)} className="btn-primary text-sm flex items-center gap-2">
+          <UserPlus className="w-4 h-4" />
+          Add User
+        </button>
+      </div>
+
+      {/* Generated Password Alert */}
+      {generatedPassword && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-green-900">Generated Password</p>
+            <p className="text-lg font-mono text-green-700">{generatedPassword}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { navigator.clipboard.writeText(generatedPassword); toast.success("Copied!"); }} className="btn-secondary text-sm flex items-center gap-1">
+              <Copy className="w-4 h-4" /> Copy
+            </button>
+            <button onClick={() => setGeneratedPassword(null)} className="text-green-600 hover:text-green-800">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* New User Form */}
+      {showNewUser && (
+        <div className="card p-4 space-y-4 border-2 border-blue-200">
+          <h4 className="font-medium text-slate-900">Create New User</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500">Email *</label>
+              <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} className="input w-full" placeholder="user@company.com" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Full Name *</label>
+              <input type="text" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} className="input w-full" placeholder="John Doe" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Role *</label>
+              <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className="input w-full">
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Quota</label>
+              <input type="number" value={newUser.quota} onChange={(e) => setNewUser({ ...newUser, quota: parseFloat(e.target.value) })} className="input w-full" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-500">Password (leave empty to auto-generate)</label>
+              <input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className="input w-full" placeholder="Auto-generate if empty" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleCreateUser} className="btn-primary text-sm">Create User</button>
+            <button onClick={() => setShowNewUser(false)} className="btn-secondary text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="card p-4 space-y-4 border-2 border-amber-200">
+          <h4 className="font-medium text-slate-900">Edit User: {editingUser.email}</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500">Full Name</label>
+              <input type="text" value={editingUser.name} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} className="input w-full" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Role</label>
+              <select value={editingUser.role} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })} className="input w-full">
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Quota</label>
+              <input type="number" value={editingUser.quota || 0} onChange={(e) => setEditingUser({ ...editingUser, quota: parseFloat(e.target.value) })} className="input w-full" />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={editingUser.is_active ?? true} onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })} className="rounded border-slate-300" />
+                <span className="text-sm">Active</span>
+              </label>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleUpdateUser} className="btn-primary text-sm">Save Changes</button>
+            <button onClick={() => setEditingUser(null)} className="btn-secondary text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Users Table */}
+      <div className="card overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-50 border-b">
+            <tr>
+              <th className="text-left p-3 text-xs font-semibold text-slate-600">User</th>
+              <th className="text-left p-3 text-xs font-semibold text-slate-600">Role</th>
+              <th className="text-left p-3 text-xs font-semibold text-slate-600">Quota</th>
+              <th className="text-left p-3 text-xs font-semibold text-slate-600">Status</th>
+              <th className="text-right p-3 text-xs font-semibold text-slate-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {users.map((u) => (
+              <tr key={u.id} className={cn("hover:bg-slate-50", !u.is_active && "opacity-50")}>
+                <td className="p-3">
+                  <div>
+                    <p className="font-medium text-slate-900">{u.name}</p>
+                    <p className="text-xs text-slate-500">{u.email}</p>
+                  </div>
+                </td>
+                <td className="p-3">
+                  <span className="text-xs bg-slate-100 px-2 py-1 rounded">{roles.find(r => r.id === u.role)?.name || u.role}</span>
+                </td>
+                <td className="p-3 text-sm text-slate-600">${(u.quota || 0).toLocaleString()}</td>
+                <td className="p-3">
+                  <span className={cn("text-xs px-2 py-1 rounded", u.is_active !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                    {u.is_active !== false ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <div className="flex justify-end gap-1">
+                    <button onClick={() => setEditingUser(u)} className="p-1 hover:bg-slate-100 rounded" title="Edit">
+                      <Edit2 className="w-4 h-4 text-slate-500" />
+                    </button>
+                    <button onClick={() => handleResetPassword(u.id)} className="p-1 hover:bg-slate-100 rounded" title="Reset Password">
+                      <Key className="w-4 h-4 text-slate-500" />
+                    </button>
+                    <button onClick={() => handleDeactivate(u.id)} className="p-1 hover:bg-red-50 rounded" title="Deactivate">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// AI Agents Tab
+const AIAgentsTab = ({ config, onConfigUpdate }) => {
+  const [agentsConfig, setAgentsConfig] = useState(config?.ai_agents || {});
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [showNewAgent, setShowNewAgent] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(null);
+
+  useEffect(() => {
+    setAgentsConfig(config?.ai_agents || {});
+  }, [config]);
+
+  const handleSaveGlobal = async () => {
+    setSaving(true);
+    try {
+      await api.put("/config/ai-agents", agentsConfig);
+      toast.success("AI agents configuration saved");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to save configuration");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestAgent = async (agent) => {
+    setTesting(agent.id);
+    setTestResult(null);
+    try {
+      // Create sample test data based on agent type
+      const testData = {
+        opportunity_name: "Test Enterprise Deal",
+        opportunity_value: 250000,
+        stage: "Proposal",
+        score: 65,
+        economic_buyer_status: "Identified but not engaged",
+        coach_status: "Active coach in place",
+        red_flags: "Budget approval pending",
+        business_results: "Improved security posture",
+        user_role: "Account Manager",
+        active_opportunities: 12,
+        pipeline_value: 1500000,
+        won_deals: 5,
+        pending_activities: 8,
+      };
+      const res = await api.post(`/config/ai-agents/${agent.id}/test`, testData);
+      setTestResult(res.data);
+    } catch (error) {
+      setTestResult({ success: false, error: error.response?.data?.detail || "Test failed" });
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  const handleToggleAgent = async (agentId, enabled) => {
+    const agents = agentsConfig.agents?.map(a => a.id === agentId ? { ...a, is_enabled: enabled } : a);
+    setAgentsConfig({ ...agentsConfig, agents });
+  };
+
+  const handleDeleteAgent = async (agentId) => {
+    if (!confirm("Delete this AI agent?")) return;
+    try {
+      await api.delete(`/config/ai-agents/${agentId}`);
+      toast.success("Agent deleted");
+      onConfigUpdate();
+    } catch (error) {
+      toast.error("Failed to delete agent");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">AI Agents Configuration</h3>
+          <p className="text-sm text-slate-500">Configure AI-powered assistants and workflows</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowNewAgent(true)} className="btn-secondary text-sm flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Agent
+          </button>
+          <button onClick={handleSaveGlobal} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save All
+          </button>
+        </div>
+      </div>
+
+      {/* Global Settings */}
+      <div className="card p-4">
+        <h4 className="font-medium text-slate-900 mb-4">Global Settings</h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs text-slate-500">Global Rate Limit (per day)</label>
+            <input type="number" value={agentsConfig.global_rate_limit || 10000} onChange={(e) => setAgentsConfig({ ...agentsConfig, global_rate_limit: parseInt(e.target.value) })} className="input w-full" />
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={agentsConfig.enable_usage_tracking ?? true} onChange={(e) => setAgentsConfig({ ...agentsConfig, enable_usage_tracking: e.target.checked })} className="rounded border-slate-300" />
+              <span className="text-sm">Track Usage</span>
+            </label>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={agentsConfig.cost_tracking_enabled ?? true} onChange={(e) => setAgentsConfig({ ...agentsConfig, cost_tracking_enabled: e.target.checked })} className="rounded border-slate-300" />
+              <span className="text-sm">Track Costs</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Test Result */}
+      {testResult && (
+        <div className={cn("rounded-lg p-4 border", testResult.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200")}>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className={cn("font-medium", testResult.success ? "text-green-900" : "text-red-900")}>
+              {testResult.success ? "✓ Test Successful" : "✗ Test Failed"}
+            </h4>
+            <button onClick={() => setTestResult(null)} className="text-slate-500">✕</button>
+          </div>
+          {testResult.success ? (
+            <div className="bg-white rounded p-3 text-sm text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto">
+              {testResult.response}
+            </div>
+          ) : (
+            <p className="text-sm text-red-700">{testResult.error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Agents List */}
+      <div className="space-y-4">
+        {agentsConfig.agents?.map((agent) => (
+          <div key={agent.id} className={cn("card p-4 border-2", agent.is_enabled ? "border-slate-200" : "border-slate-100 opacity-60")}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", agent.is_enabled ? "bg-blue-100" : "bg-slate-100")}>
+                  <Bot className={cn("w-6 h-6", agent.is_enabled ? "text-blue-600" : "text-slate-400")} />
+                </div>
+                <div>
+                  <h4 className="font-medium text-slate-900">{agent.name}</h4>
+                  <p className="text-sm text-slate-500 mt-1">{agent.description}</p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">{agent.llm_provider}</span>
+                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">{agent.model}</span>
+                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">Temp: {agent.temperature}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleTestAgent(agent)} disabled={testing === agent.id} className="btn-secondary text-xs flex items-center gap-1">
+                  {testing === agent.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                  Test
+                </button>
+                <button onClick={() => setEditingAgent(agent)} className="p-1 hover:bg-slate-100 rounded">
+                  <Edit2 className="w-4 h-4 text-slate-500" />
+                </button>
+                <button onClick={() => handleDeleteAgent(agent.id)} className="p-1 hover:bg-red-50 rounded">
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+                <label className="relative inline-flex items-center cursor-pointer ml-2">
+                  <input type="checkbox" checked={agent.is_enabled} onChange={(e) => handleToggleAgent(agent.id, e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Edit Agent Modal */}
+      {editingAgent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4 p-6">
+            <h3 className="text-lg font-semibold mb-4">Edit Agent: {editingAgent.name}</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500">Name</label>
+                  <input type="text" value={editingAgent.name} onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })} className="input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Model</label>
+                  <select value={editingAgent.model} onChange={(e) => setEditingAgent({ ...editingAgent, model: e.target.value })} className="input w-full">
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Temperature</label>
+                  <input type="number" step="0.1" min="0" max="2" value={editingAgent.temperature} onChange={(e) => setEditingAgent({ ...editingAgent, temperature: parseFloat(e.target.value) })} className="input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Max Tokens</label>
+                  <input type="number" value={editingAgent.max_tokens} onChange={(e) => setEditingAgent({ ...editingAgent, max_tokens: parseInt(e.target.value) })} className="input w-full" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">System Prompt</label>
+                <textarea value={editingAgent.system_prompt} onChange={(e) => setEditingAgent({ ...editingAgent, system_prompt: e.target.value })} className="input w-full h-24" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">User Prompt Template</label>
+                <textarea value={editingAgent.user_prompt_template} onChange={(e) => setEditingAgent({ ...editingAgent, user_prompt_template: e.target.value })} className="input w-full h-32" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500">Rate Limit (per user/day)</label>
+                  <input type="number" value={editingAgent.rate_limit_per_user} onChange={(e) => setEditingAgent({ ...editingAgent, rate_limit_per_user: parseInt(e.target.value) })} className="input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Cache TTL (minutes)</label>
+                  <input type="number" value={editingAgent.cache_ttl_minutes} onChange={(e) => setEditingAgent({ ...editingAgent, cache_ttl_minutes: parseInt(e.target.value) })} className="input w-full" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setEditingAgent(null)} className="btn-secondary">Cancel</button>
+              <button onClick={async () => {
+                try {
+                  await api.put(`/config/ai-agents/${editingAgent.id}`, editingAgent);
+                  toast.success("Agent updated");
+                  onConfigUpdate();
+                  setEditingAgent(null);
+                } catch (error) {
+                  toast.error("Failed to update agent");
+                }
+              }} className="btn-primary">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Roles Management Tab
 const RolesTab = ({ config, onConfigUpdate }) => {
   const [selectedRole, setSelectedRole] = useState(null);
