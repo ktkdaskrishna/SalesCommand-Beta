@@ -38,6 +38,10 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Settings, label: "Integrations", path: "/integrations" },
   ];
 
+  const superAdminItems = [
+    { icon: Shield, label: "System Config", path: "/admin/config" },
+  ];
+
   return (
     <>
       {/* Mobile overlay */}
