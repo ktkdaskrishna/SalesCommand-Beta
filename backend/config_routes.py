@@ -1193,6 +1193,10 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
         if provider_idx is None:
             raise HTTPException(status_code=404, detail="Provider not found")
         
+        # Preserve existing API key if not provided
+        if provider_data.get("api_key") is None:
+            provider_data["api_key"] = providers[provider_idx].get("api_key")
+        
         for key, value in provider_data.items():
             if key != "id":
                 providers[provider_idx][key] = value
@@ -1202,6 +1206,44 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
         await save_system_config(db, config, user["id"])
         
         return {"message": "Provider updated"}
+    
+    @api_router.post("/config/llm-providers/{provider_id}/api-key")
+    async def set_provider_api_key(provider_id: str, key_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Set or update API key for an LLM provider"""
+        config = await get_system_config(db)
+        llm_providers = config.get("llm_providers", {"providers": []})
+        
+        providers = llm_providers.get("providers", [])
+        provider_idx = next((i for i, p in enumerate(providers) if p["id"] == provider_id), None)
+        
+        if provider_idx is None:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        
+        api_key = key_data.get("api_key", "").strip()
+        use_env = key_data.get("use_env", False)
+        env_var = key_data.get("api_key_env", "")
+        
+        if use_env:
+            # Use environment variable
+            providers[provider_idx]["api_key"] = None
+            providers[provider_idx]["api_key_env"] = env_var
+            providers[provider_idx]["api_key_configured"] = bool(os.environ.get(env_var, ""))
+        elif api_key:
+            # Use provided API key
+            providers[provider_idx]["api_key"] = api_key
+            providers[provider_idx]["api_key_env"] = ""
+            providers[provider_idx]["api_key_configured"] = True
+        else:
+            # Clear API key
+            providers[provider_idx]["api_key"] = None
+            providers[provider_idx]["api_key_env"] = ""
+            providers[provider_idx]["api_key_configured"] = False
+        
+        llm_providers["providers"] = providers
+        config["llm_providers"] = llm_providers
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "API key updated", "api_key_configured": providers[provider_idx]["api_key_configured"]}
     
     @api_router.delete("/config/llm-providers/{provider_id}")
     async def delete_llm_provider(provider_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
