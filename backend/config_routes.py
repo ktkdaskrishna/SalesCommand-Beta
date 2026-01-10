@@ -1326,7 +1326,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
         }
         
         await db.organization_contacts.insert_one(contact)
-        del contact["_id"] if "_id" in contact else None
+        contact.pop("_id", None)
         
         return {"message": "Contact created", "contact": contact}
     
