@@ -1,139 +1,159 @@
-# SalesCommand Enterprise - Product Requirements Document
+# Securado Enterprise Sales Platform - Product Requirements Document
 
 ## Project Overview
-**Name:** SalesCommand Enterprise  
-**Version:** 1.2 (Super Admin Configuration Architecture)  
+**Name:** Securado Enterprise Sales Platform  
+**Version:** 3.0 (CEO-Grade Enterprise Architecture)  
 **Date:** January 10, 2026  
 **Tech Stack:** FastAPI (Python) + React + MongoDB
 
 ## Original Problem Statement
 Build an Enterprise Sales KPI, Incentive & Activity Management Platform with:
-1. Role-based dashboards (CEO, Product Directors, Account Managers, Strategy Team)
-2. Account & Opportunity Management
-3. Activity Management using Blue Sheet methodology
-4. KPI & Incentive tracking
-5. Configurable integrations for Odoo ERP and Office 365
-6. AI-powered sales insights
-7. JWT authentication with role management
-8. Notifications & workflow alerts
+- Role-based dashboards (CEO, Product Directors, Account Managers, Strategy Team)
+- Account & Opportunity Management with Blue Sheet methodology
+- Activity Management and KPI tracking
+- Configurable integrations for Odoo ERP and Office 365
+- AI-powered sales insights
+- **Phase 3: CEO-Grade configuration-driven architecture where only Super Admin is hardcoded**
 
-## User Personas
+## Core Principle (Phase 3)
+- **Only Super Admin login is hardcoded**
+- All other user experiences are 100% driven by configuration
+- When Super Admin assigns a role, all features, data visibility, AI access auto-activate
+- System functions as a real enterprise SaaS product
 
-### 1. Super Admin
-- Full system configuration access
-- Pipeline stage customization
-- Commission template management
-- Role and permission management
-- UI theme and branding customization
-- LLM/AI prompt configuration
+## Brand Identity (Securado)
+- **Primary Colors:** Maroon (#800000), Dark Gray (#333333)
+- **Accent Colors:** Asparagus (#86c881), Orange Soda (#ee6543), Grayish Yellow (#e0dfd4)
+- **Typography:** Proxima Nova
+- **Tagline:** "Digital Vaccine for Cyber Immunity"
 
-### 2. CEO / Executive
-- Company-wide visibility
-- Strategic task assignment
-- Performance monitoring across teams, products, and regions
-- Can view roles configuration
-
-### 3. Sales Director
-- Configure commission templates
-- Manage incentive structures
-- Team performance oversight
-
-### 4. Finance Manager
-- Commission template management
-- Incentive verification
-- Financial reporting
-
-### 5. Product Directors (PDs)
-- MSSP, Application Security, Network Security, GRC
-- On-time delivery and execution of product-related activities
-- Product pipeline contribution tracking
-
-### 6. Account Managers (AMs)
-- **Enhanced Dashboard with CRM Module**
-- Kanban board for opportunity management
-- Blue Sheet probability calculation with AI
-- Incentive calculator
-- Sales metrics tracking
-
-### 7. Strategy Team
-- Trust-building and executive relationships
-- Long-term opportunity health activities
-
-### 8. Referrer
-- Track referred opportunities
-- View referral incentive credits
+---
 
 ## What's Been Implemented
 
-### Version 1.2 - Super Admin Configuration Architecture (COMPLETED)
-- [x] **System Configuration Backend**
-  - Modular configuration storage in MongoDB
-  - Default configuration initialization
-  - Audit logging for config changes
+### Version 3.0 - CEO-Grade Enterprise Architecture (COMPLETED)
 
-- [x] **Roles & Permissions Management**
-  - 8 predefined system roles with permissions
-  - Custom role creation capability
-  - Feature-to-role permission assignment
-  - Role-based access control (RBAC)
+#### 1. Organization Configuration ✅
+- Company-wide settings management
+- Timezone, currency, fiscal year configuration
+- Quota period settings (monthly/quarterly/yearly)
+- Default commission rate configuration
+- Feature toggles (AI features, referral program)
 
-- [x] **Blue Sheet Configuration**
-  - Configurable scoring elements
-  - Element weight customization
-  - Pipeline stages configuration
-  - Probability formula settings
-  - AI enhancement toggle
+#### 2. Department Management ✅
+- Create/edit/delete departments
+- Department hierarchy support
+- Team structure within departments
+- HOD assignment capability
+- Department-based data access control
 
-- [x] **AI/LLM Configuration**
-  - Provider configuration (OpenAI)
-  - Model selection and parameters
-  - Prompt template management
-  - Response caching settings
+**Default Departments:**
+- Sales (SALES)
+- Strategy (STRATEGY)
+- Product (PRODUCT)
+- Finance (FINANCE)
 
-- [x] **UI & Branding Configuration**
-  - Theme mode (Light/Dark/System)
-  - Color palette customization
-  - Typography settings
-  - Branding (App name, tagline, logos)
-  - UI options (sidebar, animations)
+#### 3. Hierarchical Data Access ✅
+- CEO → All data across all departments
+- HOD → Department-level data only
+- Team Members → Self-owned data only
+- Configurable per role via data_access settings
 
-- [x] **Integrations Configuration**
-  - Odoo ERP settings (MOCKED)
-  - Microsoft 365 settings (MOCKED)
+#### 4. User Management ✅
+- Full CRUD operations for users
+- Role assignment
+- Department/team mapping
+- Quota configuration per user
+- Password reset functionality
+- User invitation system (token-based)
 
-### New API Endpoints (v1.2)
-- `GET /api/config/system` - Full system configuration (Super Admin only)
-- `GET /api/config/user-config` - User's filtered configuration
-- `GET /api/config/user-permissions` - User's permissions
-- `GET /api/config/modules` - All module definitions
-- `GET /api/config/roles` - All role definitions
-- `POST /api/config/roles` - Create new role
-- `PUT /api/config/roles/{id}` - Update role
-- `DELETE /api/config/roles/{id}` - Delete role
-- `PUT /api/config/roles/{id}/permissions` - Update role permissions
-- `GET /api/config/blue-sheet` - Blue Sheet configuration
-- `PUT /api/config/blue-sheet` - Update Blue Sheet config
-- `GET /api/config/llm` - LLM configuration
-- `PUT /api/config/llm` - Update LLM config
-- `GET /api/config/ui` - UI configuration
-- `PUT /api/config/ui` - Update UI config
-- `POST /api/config/reset-defaults` - Reset to defaults
-- `GET /api/config/audit-log` - Configuration audit log
+#### 5. Blue Sheet Contact Roles ✅
+- Economic Buyer, User Buyer, Technical Buyer
+- Coach, Champion, Influencer, Decision Maker
+- Configurable importance weights (1-10)
+- Qualification requirements:
+  - Require Economic Buyer: ✅
+  - Require Coach: ✅
+  - Min contacts for qualification: 3
 
-### Version 1.1 - Account Manager Dashboard Enhanced (COMPLETED)
-- [x] **CRM Module - Kanban Board**
-- [x] **Blue Sheet Probability Calculator with AI**
-- [x] **Sales Metrics Module**
-- [x] **Incentive Calculator**
-- [x] **Global Search**
-- [x] **Referral System**
+#### 6. Multi-Provider LLM Configuration ✅
+- **OpenAI** (default, enabled)
+  - Model: gpt-4o
+  - Uses Emergent LLM Key
+- **Google Gemini** (configurable)
+  - Model: gemini-1.5-pro
+- **Ollama** (for local/private models)
+  - Self-hosted option
+- Cost tracking and rate limiting
+- Test connection functionality
 
-### Version 1.0 - MVP (COMPLETED)
-- [x] JWT Authentication
-- [x] Role-based dashboards
-- [x] Account & Opportunity Management
-- [x] Activity Management
-- [x] KPI & Incentive tracking
+#### 7. AI Chatbot ✅
+- Disabled by default
+- Configurable per role access
+- Name: "Securado Assistant"
+- LLM provider selection
+- System prompt customization
+- Rate limiting per user
+
+#### 8. AI Agents ✅
+- Opportunity Probability Analyzer
+- Sales Pipeline Insights
+- Deal Coach
+- Activity Suggester
+- Configurable prompts and models
+- Test functionality with sample data
+
+#### 9. Email Configuration ✅
+- Office 365 as primary provider
+- User invitation emails
+- Password reset emails
+- Template customization
+
+#### 10. UI & Branding (Securado) ✅
+- Securado brand colors as default
+- Proxima Nova typography
+- Dark sidebar theme
+- Logo upload support
+- Theme customization
+
+---
+
+## API Endpoints (Phase 3)
+
+### Configuration
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/config/system` | GET | Full system configuration |
+| `/api/config/organization` | GET/PUT | Organization settings |
+| `/api/config/departments` | GET/PUT/POST | Department management |
+| `/api/config/departments/{id}` | PUT/DELETE | Department CRUD |
+| `/api/config/departments/{id}/teams` | POST | Create team |
+| `/api/config/users` | GET | All users (admin) |
+| `/api/config/users` | POST | Create user |
+| `/api/config/users/{id}` | PUT/DELETE | Update/deactivate user |
+| `/api/config/users/{id}/role` | PUT | Assign role |
+| `/api/config/users/{id}/reset-password` | POST | Reset password |
+| `/api/config/users/invite` | POST | Send invitation |
+| `/api/config/users/invitations` | GET | Pending invitations |
+| `/api/config/contact-roles` | GET/PUT | Blue Sheet contact roles |
+| `/api/config/llm-providers` | GET/PUT | LLM providers |
+| `/api/config/llm-providers/{id}` | PUT/DELETE | Provider CRUD |
+| `/api/config/llm/test-connection` | POST | Test LLM connection |
+| `/api/config/ai-chatbot` | GET/PUT | Chatbot config |
+| `/api/config/ai-chatbot/toggle` | POST | Enable/disable chatbot |
+| `/api/config/ai-agents` | GET/PUT/POST | AI agents |
+| `/api/config/ai-agents/{id}` | PUT/DELETE | Agent CRUD |
+| `/api/config/ai-agents/{id}/test` | POST | Test agent |
+| `/api/config/email` | GET/PUT | Email config |
+| `/api/config/data-access/{role}` | GET/PUT | Role data access |
+
+### Organization Contacts
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/organizations/{id}/contacts` | GET/POST | List/create contacts |
+| `/api/organizations/{id}/contacts/{cid}` | PUT/DELETE | Update/delete contact |
+
+---
 
 ## Demo Accounts
 | Role | Email | Password |
@@ -145,64 +165,89 @@ Build an Enterprise Sales KPI, Incentive & Activity Management Platform with:
 | Finance Manager | finance@salescommand.com | demo123 |
 | Referrer | referrer@salescommand.com | demo123 |
 
+---
+
 ## Prioritized Backlog
 
-### P0 - Critical (COMPLETED)
-- [x] Account Manager enhanced dashboard
-- [x] Kanban board with drag-drop
-- [x] Blue Sheet probability calculation
-- [x] Commission templates
-- [x] Incentive calculator
-- [x] Sales metrics display
-- [x] **Super Admin configuration panel**
+### P0 - Critical (COMPLETED) ✅
+- [x] Organization settings
+- [x] Department management
+- [x] User management with invitations
+- [x] Multi-provider LLM configuration
+- [x] AI Chatbot framework
+- [x] Blue Sheet contact roles
+- [x] Data access hierarchy
+- [x] Securado branding
 
 ### P1 - High Priority (Next Phase)
-- [ ] **Dynamic Frontend Rendering** - Render UI based on role permissions from config
-- [ ] CEO/Executive dashboard enhancement
-- [ ] Product Director dashboard enhancement
-- [ ] Real-time notifications
+- [ ] **Dynamic Frontend Rendering** - Render UI based on role's assigned features
+- [ ] **Implement Office 365 email sending** - Complete user invitation flow
+- [ ] **Organization contacts UI** - Visual contact cards linked to accounts
+- [ ] **CEO Dashboard** - Cross-department visibility and AI insights
 
 ### P2 - Medium Priority
-- [ ] **Odoo ERP actual integration** - Implement data sync
-- [ ] **Office 365 actual integration** - Email/calendar sync with LLM analysis
-- [ ] Auto-update suggestions from email analysis
-- [ ] Referrer portal with full tracking
+- [ ] **Odoo ERP Integration** - Orders, invoices, collections sync
+- [ ] **Microsoft 365 Calendar/Email Integration**
+- [ ] **MFA Support** - Configurable multi-factor authentication
+- [ ] **Active Directory Integration**
 
 ### P3 - Nice to Have
-- [ ] Dark mode support (UI config ready)
+- [ ] Dashboard widget customization
 - [ ] Advanced reporting/exports
 - [ ] Mobile responsive improvements
-- [ ] API documentation Help button
-- [ ] Dashboard widget customization per user
+
+---
 
 ## Technical Architecture
 
-### Backend Modules
-- `/app/backend/server.py` - Main FastAPI application
-- `/app/backend/config_models.py` - Pydantic models for configuration
-- `/app/backend/config_routes.py` - Configuration API routes
+### Backend
+```
+/app/backend/
+├── server.py              # Main FastAPI application
+├── config_models.py       # ~1400 lines - All configuration models
+├── config_routes.py       # ~1400 lines - Configuration API routes
+└── .env                   # Environment variables
+```
 
-### Frontend Pages
-- `/app/frontend/src/pages/SuperAdminConfig.js` - Admin configuration UI
-- `/app/frontend/src/pages/AccountManagerDashboard.js` - AM dashboard
-- `/app/frontend/src/pages/Dashboard.js` - Generic dashboard
+### Frontend
+```
+/app/frontend/src/
+├── pages/
+│   ├── SuperAdminConfig.js  # ~2000 lines - Admin configuration UI
+│   ├── AccountManagerDashboard.js
+│   ├── Dashboard.js
+│   └── ...
+├── components/
+│   └── Layout.js
+├── context/
+│   └── AuthContext.js
+└── services/
+    └── api.js
+```
 
 ### Database Collections
 - `users` - User accounts
-- `accounts` - Customer accounts
+- `accounts` - Customer/organization accounts
 - `opportunities` - Sales opportunities
 - `activities` - Tasks and activities
-- `pipeline_stages` - Pipeline stage definitions
+- `organization_contacts` - Blue Sheet contacts per org
+- `user_invitations` - Pending user invitations
+- `system_config` - Master configuration document
+- `audit_log` - Configuration change history
 - `commission_templates` - Commission structures
-- `system_config` - System configuration (roles, modules, UI, etc.)
-- `audit_log` - Configuration change audit trail
+- `pipeline_stages` - Pipeline stage definitions
 
-## MOCKED Integrations
-- **Odoo ERP** - Settings pages exist, no actual data sync
-- **Microsoft 365** - Settings pages exist, no actual email/calendar sync
-- **Sales metrics** - Calculated from local closed opportunities
+---
+
+## MOCKED Integrations (Pending Implementation)
+- **Odoo ERP** - Settings exist, no actual sync
+- **Microsoft 365 Email** - Settings exist, email sending not implemented
+- **Microsoft 365 Calendar** - Not implemented
+
+---
 
 ## Test Reports
 - `/app/test_reports/iteration_1.json` - MVP testing
 - `/app/test_reports/iteration_2.json` - AM Dashboard testing
-- `/app/test_reports/iteration_3.json` - Super Admin Config testing (100% pass)
+- `/app/test_reports/iteration_3.json` - Super Admin Config testing
+- `/app/test_reports/iteration_4.json` - Phase 2 Enhanced testing
