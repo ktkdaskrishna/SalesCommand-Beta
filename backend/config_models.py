@@ -540,10 +540,13 @@ class ThemeTypography(BaseModel):
 
 class BrandingConfig(BaseModel):
     """Branding configuration"""
-    app_name: str = "SalesCommand"
+    app_name: str = "Securado"
     logo_url: Optional[str] = None
+    logo_light_url: Optional[str] = None  # Logo for light backgrounds
+    logo_dark_url: Optional[str] = None  # Logo for dark backgrounds
     favicon_url: Optional[str] = None
-    tagline: Optional[str] = None
+    tagline: str = "Digital Vaccine for Cyber Immunity"
+    logo_file_id: Optional[str] = None  # For uploaded logo files
 
 class UIConfig(BaseModel):
     """Complete UI configuration"""
@@ -561,15 +564,19 @@ class SystemConfig(BaseModel):
     """Master system configuration"""
     id: str = "system_config"
     organization: OrganizationSettings = OrganizationSettings()
+    departments: DepartmentsConfig = DepartmentsConfig()
     modules: List[ModuleDefinition] = []
     roles: List[RoleDefinition] = []
     blue_sheet: BlueSheetConfig = BlueSheetConfig()
     llm: LLMConfig = LLMConfig()
+    llm_providers: LLMProvidersConfig = LLMProvidersConfig()
     ai_agents: AIAgentsConfig = AIAgentsConfig()
+    ai_chatbot: AIChatbotConfig = AIChatbotConfig()
+    email: EmailConfig = EmailConfig()
     incentives: IncentiveConfig = IncentiveConfig()
     integrations: List[IntegrationConfig] = []
     ui: UIConfig = UIConfig()
-    version: str = "1.0"
+    version: str = "2.0"
     updated_at: Optional[datetime] = None
     updated_by: Optional[str] = None
 
