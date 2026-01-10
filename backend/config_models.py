@@ -1102,7 +1102,7 @@ def get_default_llm_config() -> LLMConfig:
     return LLMConfig(
         default_provider="openai",
         providers=[
-            LLMProviderConfig(
+            LLMProviderBasicConfig(
                 provider="openai",
                 model="gpt-4o",
                 api_key_env="EMERGENT_LLM_KEY",
