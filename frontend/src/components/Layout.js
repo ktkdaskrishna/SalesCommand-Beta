@@ -17,6 +17,7 @@ import {
   X,
   Sparkles,
   Users,
+  Shield,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen, onClose }) => {
