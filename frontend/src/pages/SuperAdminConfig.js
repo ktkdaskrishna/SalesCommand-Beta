@@ -1682,7 +1682,7 @@ const IntegrationsTab = ({ config, onConfigUpdate }) => {
 // Main Super Admin Config Page
 const SuperAdminConfig = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("roles");
+  const [activeTab, setActiveTab] = useState("organization");
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
 
