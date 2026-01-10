@@ -745,7 +745,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
         new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
         hashed = pwd_context.hash(new_password)
         
-        await db.users.update_one({"id": user_id}, {"$set": {"hashed_password": hashed, "updated_at": datetime.now(timezone.utc)}})
+        await db.users.update_one({"id": user_id}, {"$set": {"password_hash": hashed, "updated_at": datetime.now(timezone.utc)}})
         
         # Log the action
         await db.audit_log.insert_one({
