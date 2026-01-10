@@ -31,12 +31,23 @@ import {
   FolderTree,
   Contact2,
   Mail,
+  Database,
+  GripVertical,
+  Type,
+  Hash,
+  Calendar,
+  DollarSign,
+  List,
+  ToggleLeft,
+  LinkIcon,
+  FileUp,
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Sidebar navigation items - Phase 3 enhanced
+// Sidebar navigation items - Phase 3 enhanced with Account Fields
 const navItems = [
   { id: "organization", label: "Organization", icon: Building2 },
+  { id: "account-fields", label: "Account Fields", icon: Database },
   { id: "departments", label: "Departments", icon: FolderTree },
   { id: "users", label: "User Management", icon: Users },
   { id: "roles", label: "Roles & Permissions", icon: Shield },
