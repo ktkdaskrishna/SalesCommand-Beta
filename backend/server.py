@@ -48,6 +48,10 @@ class UserRole:
     ACCOUNT_MANAGER = "account_manager"
     STRATEGY = "strategy"
     ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+    SALES_DIRECTOR = "sales_director"
+    FINANCE_MANAGER = "finance_manager"
+    REFERRER = "referrer"
 
 ROLE_HIERARCHY = {
     UserRole.CEO: 5,
