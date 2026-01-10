@@ -14,6 +14,7 @@ import Incentives from "./pages/Incentives";
 import Integrations from "./pages/Integrations";
 import AIInsights from "./pages/AIInsights";
 import UsersPage from "./pages/Users";
+import SuperAdminConfig from "./pages/SuperAdminConfig";
 import "./App.css";
 
 // Role-based Dashboard Selector
