@@ -430,6 +430,134 @@ class SalesCommandAPITester:
             200
         )
 
+    def test_kanban_endpoints(self):
+        """Test Kanban board endpoints"""
+        print("\n" + "="*50)
+        print("TESTING KANBAN BOARD ENDPOINTS")
+        print("="*50)
+        
+        # Get opportunities kanban view
+        success, kanban = self.run_test(
+            "Get Opportunities Kanban View",
+            "GET",
+            "opportunities/kanban",
+            200
+        )
+        
+        if success:
+            print(f"   Kanban data loaded successfully")
+            if 'stages' in kanban:
+                print(f"   Number of stages: {len(kanban['stages'])}")
+            if 'kanban' in kanban:
+                print(f"   Kanban columns: {list(kanban['kanban'].keys())}")
+
+    def test_pipeline_stages(self):
+        """Test pipeline stages endpoints"""
+        print("\n" + "="*50)
+        print("TESTING PIPELINE STAGES")
+        print("="*50)
+        
+        # Get pipeline stages
+        success, stages = self.run_test(
+            "Get Pipeline Stages",
+            "GET",
+            "pipeline-stages",
+            200
+        )
+        
+        if success:
+            print(f"   Pipeline stages loaded successfully")
+            if isinstance(stages, list):
+                print(f"   Number of stages: {len(stages)}")
+
+    def test_commission_templates(self):
+        """Test commission templates endpoints"""
+        print("\n" + "="*50)
+        print("TESTING COMMISSION TEMPLATES")
+        print("="*50)
+        
+        # Get commission templates
+        success, templates = self.run_test(
+            "Get Commission Templates",
+            "GET",
+            "commission-templates",
+            200
+        )
+        
+        if success:
+            print(f"   Commission templates loaded successfully")
+            if isinstance(templates, list):
+                print(f"   Number of templates: {len(templates)}")
+
+    def test_incentive_calculator(self):
+        """Test incentive calculator endpoint"""
+        print("\n" + "="*50)
+        print("TESTING INCENTIVE CALCULATOR")
+        print("="*50)
+        
+        # Test incentive calculation
+        success, result = self.run_test(
+            "Calculate Incentive",
+            "POST",
+            "incentive-calculator?revenue=100000&quota=500000&is_new_logo=true",
+            200
+        )
+        
+        if success:
+            print(f"   Incentive calculation successful")
+            if 'final_commission' in result:
+                print(f"   Final commission: ${result['final_commission']}")
+
+    def test_sales_metrics(self):
+        """Test sales metrics endpoint"""
+        print("\n" + "="*50)
+        print("TESTING SALES METRICS")
+        print("="*50)
+        
+        # Get sales metrics for current user
+        success, metrics = self.run_test(
+            "Get Sales Metrics",
+            "GET",
+            f"sales-metrics/{self.user_id}",
+            200
+        )
+        
+        if success:
+            print(f"   Sales metrics loaded successfully")
+
+    def test_blue_sheet_probability(self, opp_id=None):
+        """Test Blue Sheet probability calculation"""
+        print("\n" + "="*50)
+        print("TESTING BLUE SHEET PROBABILITY")
+        print("="*50)
+        
+        if opp_id:
+            # Test Blue Sheet probability calculation
+            analysis_data = {
+                "opportunity_id": opp_id,
+                "economic_buyer_identified": True,
+                "economic_buyer_favorable": True,
+                "user_buyers_favorable": 2,
+                "technical_buyers_favorable": 1,
+                "coach_identified": True,
+                "coach_engaged": True,
+                "clear_business_results": True,
+                "quantifiable_value": True
+            }
+            
+            success, result = self.run_test(
+                "Calculate Blue Sheet Probability",
+                "POST",
+                f"opportunities/{opp_id}/calculate-probability",
+                200,
+                data=analysis_data
+            )
+            
+            if success:
+                print(f"   Blue Sheet probability calculated successfully")
+                if 'calculated_probability' in result:
+                    print(f"   Calculated probability: {result['calculated_probability']}%")
+
     def test_ai_insights(self):
         """Test AI insights endpoint"""
         print("\n" + "="*50)
