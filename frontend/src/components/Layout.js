@@ -119,6 +119,31 @@ const Sidebar = ({ isOpen, onClose }) => {
                 ))}
               </>
             )}
+
+            {user?.role === "super_admin" && (
+              <>
+                <div className="pt-4 pb-2 px-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Super Admin
+                  </span>
+                </div>
+                {superAdminItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={onClose}
+                    className={cn(
+                      "sidebar-link",
+                      location.pathname === item.path && "active"
+                    )}
+                    data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </>
+            )}
           </nav>
 
           {/* User info */}
