@@ -981,3 +981,167 @@ def get_default_ui_config() -> UIConfig:
         compact_mode=False,
         animations_enabled=True
     )
+
+
+def get_default_organization() -> OrganizationSettings:
+    """Return default organization settings"""
+    return OrganizationSettings(
+        id="org_config",
+        name="SalesCommand Enterprise",
+        timezone="UTC",
+        date_format="YYYY-MM-DD",
+        currency="USD",
+        currency_symbol="$",
+        fiscal_year_start_month=1,
+        quota_period="quarterly",
+        default_commission_rate=0.05,
+        enable_referrals=True,
+        enable_ai_features=True,
+        data_retention_days=365
+    )
+
+
+def get_default_ai_agents() -> AIAgentsConfig:
+    """Return default AI agents configuration"""
+    return AIAgentsConfig(
+        agents=[
+            AIAgentConfig(
+                id="probability_analyzer",
+                name="Opportunity Probability Analyzer",
+                agent_type=AIAgentType.PROBABILITY_ANALYZER,
+                description="Analyzes opportunity data and provides probability insights using Blue Sheet methodology",
+                is_enabled=True,
+                llm_provider="openai",
+                model="gpt-4o",
+                temperature=0.7,
+                max_tokens=1000,
+                system_prompt="You are a sales strategy expert specializing in B2B enterprise cybersecurity sales using Miller Heiman Blue Sheet methodology. Provide brief, actionable recommendations.",
+                user_prompt_template="""Analyze this opportunity and provide probability insights:
+                
+Opportunity: {opportunity_name}
+Value: ${opportunity_value}
+Current Stage: {stage}
+Blue Sheet Score: {score}
+
+Analysis factors:
+- Economic Buyer Status: {economic_buyer_status}
+- Coach Engagement: {coach_status}
+- Red Flags: {red_flags}
+- Business Results: {business_results}
+
+Provide 3 specific actionable recommendations to improve win probability.""",
+                input_variables=["opportunity_name", "opportunity_value", "stage", "score", "economic_buyer_status", "coach_status", "red_flags", "business_results"],
+                output_format="text",
+                trigger_type="manual",
+                allowed_roles=["super_admin", "ceo", "sales_director", "account_manager"],
+                rate_limit_per_user=50,
+                cache_enabled=True,
+                cache_ttl_minutes=60
+            ),
+            AIAgentConfig(
+                id="sales_insights",
+                name="Sales Pipeline Insights",
+                agent_type=AIAgentType.SALES_INSIGHTS,
+                description="Provides insights and recommendations based on sales data",
+                is_enabled=True,
+                llm_provider="openai",
+                model="gpt-4o",
+                temperature=0.7,
+                max_tokens=1000,
+                system_prompt="You are a sales analytics expert. Provide 3-4 brief, actionable insights based on the sales data provided. Be concise and specific.",
+                user_prompt_template="""Analyze this sales data and provide insights:
+
+User Role: {user_role}
+Active Opportunities: {active_opportunities}
+Total Pipeline Value: ${pipeline_value}
+Won Deals: {won_deals}
+Pending Activities: {pending_activities}
+
+Focus on patterns, risks, and improvement opportunities.""",
+                input_variables=["user_role", "active_opportunities", "pipeline_value", "won_deals", "pending_activities"],
+                output_format="text",
+                trigger_type="manual",
+                allowed_roles=[],
+                rate_limit_per_user=20,
+                cache_enabled=True,
+                cache_ttl_minutes=30
+            ),
+            AIAgentConfig(
+                id="deal_coach",
+                name="Deal Coach",
+                agent_type=AIAgentType.DEAL_COACH,
+                description="Provides strategic coaching for advancing deals through the pipeline",
+                is_enabled=True,
+                llm_provider="openai",
+                model="gpt-4o",
+                temperature=0.8,
+                max_tokens=1500,
+                system_prompt="You are an experienced enterprise sales coach with expertise in complex B2B sales. Help sales reps navigate deal challenges and develop winning strategies.",
+                user_prompt_template="""I need coaching on this deal:
+
+Deal Name: {deal_name}
+Account: {account_name}
+Value: ${deal_value}
+Current Stage: {stage}
+Days in Stage: {days_in_stage}
+Key Challenge: {challenge}
+
+Provide:
+1. Analysis of the situation
+2. Recommended next steps
+3. Questions to ask the customer
+4. Potential risks to address""",
+                input_variables=["deal_name", "account_name", "deal_value", "stage", "days_in_stage", "challenge"],
+                output_format="text",
+                trigger_type="manual",
+                allowed_roles=["super_admin", "ceo", "sales_director", "account_manager"],
+                rate_limit_per_user=30,
+                cache_enabled=False,
+                cache_ttl_minutes=0
+            ),
+            AIAgentConfig(
+                id="activity_suggester",
+                name="Activity Suggester",
+                agent_type=AIAgentType.ACTIVITY_SUGGESTER,
+                description="Suggests next best activities based on opportunity status",
+                is_enabled=True,
+                llm_provider="openai",
+                model="gpt-4o",
+                temperature=0.6,
+                max_tokens=800,
+                system_prompt="You are a sales productivity expert. Suggest specific, actionable next activities for sales opportunities.",
+                user_prompt_template="""Based on this opportunity status, suggest next activities:
+
+Opportunity: {opportunity_name}
+Stage: {stage}
+Last Activity: {last_activity}
+Days Since Last Touch: {days_since_touch}
+Buying Influences Identified: {buying_influences}
+Red Flags: {red_flags}
+
+Suggest 3-5 specific activities with priority and reasoning.""",
+                input_variables=["opportunity_name", "stage", "last_activity", "days_since_touch", "buying_influences", "red_flags"],
+                output_format="json",
+                output_schema={
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "activity": {"type": "string"},
+                            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+                            "reasoning": {"type": "string"}
+                        }
+                    }
+                },
+                trigger_type="manual",
+                allowed_roles=["super_admin", "ceo", "sales_director", "account_manager"],
+                rate_limit_per_user=50,
+                cache_enabled=True,
+                cache_ttl_minutes=15
+            ),
+        ],
+        global_rate_limit=10000,
+        enable_usage_tracking=True,
+        enable_feedback_collection=True,
+        cost_tracking_enabled=True
+    )
