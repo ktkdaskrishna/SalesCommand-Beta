@@ -42,29 +42,56 @@ async def get_system_config(db) -> dict:
     """Get or create system configuration"""
     config = await db.system_config.find_one({"id": "system_config"}, {"_id": 0})
     if not config:
-        # Initialize with defaults
+        # Initialize with defaults - Phase 3 enhanced config
+        blue_sheet = get_default_blue_sheet_config().model_dump()
+        blue_sheet["contact_roles"] = get_default_contact_roles().model_dump()
+        
         config = {
             "id": "system_config",
             "organization": get_default_organization().model_dump(),
+            "departments": get_default_departments().model_dump(),
             "modules": [m.model_dump() for m in get_default_modules()],
             "roles": [r.model_dump() for r in get_default_roles()],
-            "blue_sheet": get_default_blue_sheet_config().model_dump(),
+            "blue_sheet": blue_sheet,
             "llm": get_default_llm_config().model_dump(),
+            "llm_providers": get_default_llm_providers().model_dump(),
             "ai_agents": get_default_ai_agents().model_dump(),
+            "ai_chatbot": get_default_chatbot_config().model_dump(),
+            "email": get_default_email_config().model_dump(),
             "incentives": {"rules": [], "payout_periods": ["monthly", "quarterly", "yearly"], "approval_required": True, "approval_roles": ["finance_manager", "ceo"]},
             "integrations": [],
             "ui": get_default_ui_config().model_dump(),
-            "version": "1.0",
+            "version": "2.0",
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         }
         await db.system_config.insert_one(config)
     else:
         # Ensure new fields exist for backward compatibility
+        updated = False
         if "organization" not in config:
             config["organization"] = get_default_organization().model_dump()
+            updated = True
         if "ai_agents" not in config:
             config["ai_agents"] = get_default_ai_agents().model_dump()
+            updated = True
+        if "departments" not in config:
+            config["departments"] = get_default_departments().model_dump()
+            updated = True
+        if "llm_providers" not in config:
+            config["llm_providers"] = get_default_llm_providers().model_dump()
+            updated = True
+        if "ai_chatbot" not in config:
+            config["ai_chatbot"] = get_default_chatbot_config().model_dump()
+            updated = True
+        if "email" not in config:
+            config["email"] = get_default_email_config().model_dump()
+            updated = True
+        if "blue_sheet" in config and "contact_roles" not in config["blue_sheet"]:
+            config["blue_sheet"]["contact_roles"] = get_default_contact_roles().model_dump()
+            updated = True
+        if updated:
+            await db.system_config.replace_one({"id": "system_config"}, config, upsert=True)
     return config
 
 
