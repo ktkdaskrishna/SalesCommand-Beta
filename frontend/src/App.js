@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import AccountManagerDashboard from "./pages/AccountManagerDashboard";
 import Accounts from "./pages/Accounts";
 import Opportunities from "./pages/Opportunities";
 import Activities from "./pages/Activities";
@@ -14,6 +15,19 @@ import Integrations from "./pages/Integrations";
 import AIInsights from "./pages/AIInsights";
 import UsersPage from "./pages/Users";
 import "./App.css";
+
+// Role-based Dashboard Selector
+const DashboardSelector = () => {
+  const { user } = useAuth();
+  
+  // Account Managers get the enhanced dashboard with Kanban
+  if (user?.role === "account_manager") {
+    return <AccountManagerDashboard />;
+  }
+  
+  // Others get the standard dashboard
+  return <Dashboard />;
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
