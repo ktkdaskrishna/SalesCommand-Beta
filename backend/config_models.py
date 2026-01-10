@@ -517,26 +517,28 @@ class IntegrationConfig(BaseModel):
 # ===================== UI/THEME CONFIGURATION =====================
 
 class ThemeColors(BaseModel):
-    """Theme color configuration"""
-    primary: str = "#0F172A"
-    primary_foreground: str = "#F8FAFC"
-    secondary: str = "#F1F5F9"
-    secondary_foreground: str = "#0F172A"
-    accent: str = "#2563EB"
+    """Theme color configuration - Securado brand colors as default"""
+    primary: str = "#800000"  # Securado Maroon
+    primary_foreground: str = "#FFFFFF"
+    secondary: str = "#333333"  # Securado Dark Gray
+    secondary_foreground: str = "#FFFFFF"
+    accent: str = "#ee6543"  # Securado Orange Soda
     accent_foreground: str = "#FFFFFF"
     destructive: str = "#EF4444"
-    success: str = "#10B981"
+    success: str = "#86c881"  # Securado Asparagus
     warning: str = "#F59E0B"
     background: str = "#FFFFFF"
-    surface: str = "#F8FAFC"
-    border: str = "#E2E8F0"
+    surface: str = "#e8e8ea"  # Securado Grayish Blue
+    border: str = "#e0dfd4"  # Securado Grayish Yellow
     muted: str = "#64748B"
+    sidebar_bg: str = "#333333"  # Dark sidebar
+    sidebar_text: str = "#FFFFFF"
 
 class ThemeTypography(BaseModel):
-    """Typography configuration"""
-    heading_font: str = "Manrope"
-    body_font: str = "Inter"
-    mono_font: str = "JetBrains Mono"
+    """Typography configuration - Securado uses Proxima Nova"""
+    heading_font: str = "Proxima Nova, Manrope, sans-serif"
+    body_font: str = "Proxima Nova, Inter, sans-serif"
+    mono_font: str = "JetBrains Mono, monospace"
 
 class BrandingConfig(BaseModel):
     """Branding configuration"""
