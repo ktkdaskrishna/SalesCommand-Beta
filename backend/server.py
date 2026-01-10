@@ -20,6 +20,9 @@ from config_models import (
     get_default_llm_config, get_default_ui_config
 )
 
+# Import configuration routes factory
+from config_routes import create_config_routes
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
