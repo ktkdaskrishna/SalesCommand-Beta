@@ -386,6 +386,9 @@ class RoleDefinition(BaseModel):
     is_system_role: bool = False  # System roles cannot be deleted
     permissions: List[RolePermission] = []
     dashboard_config: Optional[Dict] = None  # Default dashboard for this role
+    data_access: Optional[DataAccessConfig] = None  # Hierarchical data access
+    ai_features_enabled: bool = True  # Can use AI features
+    chatbot_enabled: bool = False  # Can use AI chatbot
     is_active: bool = True
 
 # ===================== BLUE SHEET CONFIGURATION =====================
@@ -414,10 +417,18 @@ class BlueSheetStage(BaseModel):
     is_lost: bool = False
     required_elements: List[str] = []  # Blue sheet elements required at this stage
 
+class BlueSheetContactRoleConfig(BaseModel):
+    """Configuration for Blue Sheet contact roles"""
+    roles: List[ContactRoleConfig] = []
+    require_economic_buyer: bool = True
+    require_coach: bool = True
+    min_contacts_for_qualification: int = 3
+
 class BlueSheetConfig(BaseModel):
     """Complete Blue Sheet configuration"""
     elements: List[BlueSheetElement] = []
     stages: List[BlueSheetStage] = []
+    contact_roles: BlueSheetContactRoleConfig = BlueSheetContactRoleConfig()
     probability_formula: str = "weighted_sum"  # weighted_sum, ai_calculated, hybrid
     max_score: int = 100
     ai_enhancement_enabled: bool = True
