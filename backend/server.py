@@ -1364,17 +1364,34 @@ async def seed_demo_data():
     
     # Create demo users
     users = [
+        {"id": str(uuid.uuid4()), "email": "superadmin@salescommand.com", "password_hash": hash_password("demo123"), "name": "Admin Master", "role": "super_admin", "created_at": now, "updated_at": now},
         {"id": str(uuid.uuid4()), "email": "ceo@salescommand.com", "password_hash": hash_password("demo123"), "name": "Sarah Chen", "role": "ceo", "created_at": now, "updated_at": now},
+        {"id": str(uuid.uuid4()), "email": "sales.director@salescommand.com", "password_hash": hash_password("demo123"), "name": "David Martinez", "role": "sales_director", "created_at": now, "updated_at": now},
         {"id": str(uuid.uuid4()), "email": "pd.mssp@salescommand.com", "password_hash": hash_password("demo123"), "name": "Michael Torres", "role": "product_director", "product_line": "MSSP", "created_at": now, "updated_at": now},
         {"id": str(uuid.uuid4()), "email": "pd.appsec@salescommand.com", "password_hash": hash_password("demo123"), "name": "Lisa Wang", "role": "product_director", "product_line": "Application Security", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "am1@salescommand.com", "password_hash": hash_password("demo123"), "name": "James Wilson", "role": "account_manager", "created_at": now, "updated_at": now},
-        {"id": str(uuid.uuid4()), "email": "am2@salescommand.com", "password_hash": hash_password("demo123"), "name": "Emily Davis", "role": "account_manager", "created_at": now, "updated_at": now},
+        {"id": str(uuid.uuid4()), "email": "am1@salescommand.com", "password_hash": hash_password("demo123"), "name": "James Wilson", "role": "account_manager", "quota": 500000, "created_at": now, "updated_at": now},
+        {"id": str(uuid.uuid4()), "email": "am2@salescommand.com", "password_hash": hash_password("demo123"), "name": "Emily Davis", "role": "account_manager", "quota": 400000, "created_at": now, "updated_at": now},
         {"id": str(uuid.uuid4()), "email": "strategy@salescommand.com", "password_hash": hash_password("demo123"), "name": "Robert Kim", "role": "strategy", "created_at": now, "updated_at": now},
+        {"id": str(uuid.uuid4()), "email": "finance@salescommand.com", "password_hash": hash_password("demo123"), "name": "Nancy Lee", "role": "finance_manager", "created_at": now, "updated_at": now},
+        {"id": str(uuid.uuid4()), "email": "referrer@salescommand.com", "password_hash": hash_password("demo123"), "name": "Tom Referral", "role": "referrer", "department": "Engineering", "created_at": now, "updated_at": now},
     ]
     await db.users.insert_many(users)
     
-    am1_id = users[3]["id"]
-    am2_id = users[4]["id"]
+    am1_id = users[5]["id"]
+    am2_id = users[6]["id"]
+    referrer_id = users[9]["id"]
+    
+    # Create default pipeline stages
+    pipeline_stages = [
+        {"id": "lead", "name": "Lead", "order": 1, "color": "#6366F1", "probability_default": 5, "is_won": False, "is_lost": False},
+        {"id": "qualification", "name": "Qualification", "order": 2, "color": "#8B5CF6", "probability_default": 10, "is_won": False, "is_lost": False},
+        {"id": "discovery", "name": "Discovery", "order": 3, "color": "#3B82F6", "probability_default": 25, "is_won": False, "is_lost": False},
+        {"id": "proposal", "name": "Proposal", "order": 4, "color": "#F59E0B", "probability_default": 50, "is_won": False, "is_lost": False},
+        {"id": "negotiation", "name": "Negotiation", "order": 5, "color": "#F97316", "probability_default": 75, "is_won": False, "is_lost": False},
+        {"id": "closed_won", "name": "Closed Won", "order": 6, "color": "#10B981", "probability_default": 100, "is_won": True, "is_lost": False},
+        {"id": "closed_lost", "name": "Closed Lost", "order": 7, "color": "#EF4444", "probability_default": 0, "is_won": False, "is_lost": True},
+    ]
+    await db.pipeline_stages.insert_many(pipeline_stages)
     
     # Create demo accounts
     accounts = [
