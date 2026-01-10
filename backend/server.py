@@ -704,6 +704,54 @@ async def get_opportunities(
         result.append(OpportunityResponse(**opp))
     return result
 
+@api_router.get("/opportunities/kanban")
+async def get_opportunities_kanban_view(user: dict = Depends(get_current_user)):
+    """Get opportunities organized by stage for Kanban board"""
+    query = {}
+    if user["role"] == UserRole.ACCOUNT_MANAGER:
+        query["owner_id"] = user["id"]
+    elif user["role"] == UserRole.REFERRER:
+        referrals = await db.referrals.find({"referrer_user_id": user["id"]}, {"_id": 0}).to_list(100)
+        opp_ids = [r["opportunity_id"] for r in referrals]
+        query["id"] = {"$in": opp_ids}
+    
+    opps = await db.opportunities.find(query, {"_id": 0}).to_list(10000)
+    
+    # Get stages
+    stages = await db.pipeline_stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    if not stages:
+        stages = [
+            {"id": "lead", "name": "Lead", "order": 1, "color": "#6366F1"},
+            {"id": "qualification", "name": "Qualification", "order": 2, "color": "#8B5CF6"},
+            {"id": "discovery", "name": "Discovery", "order": 3, "color": "#3B82F6"},
+            {"id": "proposal", "name": "Proposal", "order": 4, "color": "#F59E0B"},
+            {"id": "negotiation", "name": "Negotiation", "order": 5, "color": "#F97316"},
+            {"id": "closed_won", "name": "Closed Won", "order": 6, "color": "#10B981"},
+            {"id": "closed_lost", "name": "Closed Lost", "order": 7, "color": "#EF4444"},
+        ]
+    
+    # Organize by stage
+    kanban_data = {}
+    for stage in stages:
+        stage_id = stage["id"]
+        stage_opps = [o for o in opps if o.get("stage") == stage_id]
+        
+        # Enrich with account name and activity count
+        for opp in stage_opps:
+            account = await db.accounts.find_one({"id": opp.get("account_id")}, {"_id": 0, "name": 1})
+            opp["account_name"] = account["name"] if account else "Unknown"
+            activities = await db.activities.count_documents({"opportunity_id": opp["id"]})
+            opp["activity_count"] = activities
+        
+        kanban_data[stage_id] = {
+            "stage": stage,
+            "opportunities": stage_opps,
+            "total_value": sum(o.get("value", 0) for o in stage_opps),
+            "count": len(stage_opps)
+        }
+    
+    return {"stages": stages, "kanban": kanban_data}
+
 @api_router.get("/opportunities/{opp_id}", response_model=OpportunityResponse)
 async def get_opportunity(opp_id: str, user: dict = Depends(get_current_user)):
     opp = await db.opportunities.find_one({"id": opp_id}, {"_id": 0})
