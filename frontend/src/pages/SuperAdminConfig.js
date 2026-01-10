@@ -787,11 +787,53 @@ const AIAgentsTab = ({ config, onConfigUpdate }) => {
                   <input type="text" value={editingAgent.name} onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })} className="input w-full" />
                 </div>
                 <div>
+                  <label className="text-xs text-slate-500">LLM Provider *</label>
+                  <select 
+                    value={editingAgent.llm_provider} 
+                    onChange={(e) => {
+                      const selectedProvider = llmProviders.find(p => p.id === e.target.value);
+                      setEditingAgent({ 
+                        ...editingAgent, 
+                        llm_provider: e.target.value,
+                        // Update model to provider's default if available
+                        model: selectedProvider?.default_model || editingAgent.model
+                      });
+                    }} 
+                    className="input w-full"
+                    data-testid="agent-llm-provider-select"
+                  >
+                    {llmProviders.map((p) => (
+                      <option key={p.id} value={p.id} disabled={!p.is_enabled}>
+                        {p.name} {!p.is_enabled && "(Disabled)"} {!p.api_key_configured && "(No Key)"}
+                      </option>
+                    ))}
+                  </select>
+                  {!llmProviders.find(p => p.id === editingAgent.llm_provider)?.api_key_configured && (
+                    <p className="text-xs text-amber-600 mt-1">⚠️ Configure API key in LLM Providers tab first</p>
+                  )}
+                </div>
+                <div>
                   <label className="text-xs text-slate-500">Model</label>
                   <select value={editingAgent.model} onChange={(e) => setEditingAgent({ ...editingAgent, model: e.target.value })} className="input w-full">
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                    {/* OpenAI models */}
+                    <optgroup label="OpenAI">
+                      <option value="gpt-4o">GPT-4o</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini</option>
+                      <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    </optgroup>
+                    {/* Google models */}
+                    <optgroup label="Google Gemini">
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-pro">Gemini Pro</option>
+                    </optgroup>
+                    {/* Local models */}
+                    <optgroup label="Local (Ollama)">
+                      <option value="llama3">Llama 3</option>
+                      <option value="mistral">Mistral</option>
+                      <option value="codellama">Code Llama</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div>
@@ -833,7 +875,7 @@ const AIAgentsTab = ({ config, onConfigUpdate }) => {
                 } catch (error) {
                   toast.error("Failed to update agent");
                 }
-              }} className="btn-primary">Save Changes</button>
+              }} className="btn-primary" data-testid="save-agent-btn">Save Changes</button>
             </div>
           </div>
         </div>
