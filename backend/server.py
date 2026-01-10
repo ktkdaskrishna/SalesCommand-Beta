@@ -1429,6 +1429,735 @@ async def seed_demo_data():
     
     return {"message": "Demo data seeded successfully", "users_created": len(users)}
 
+# ===================== PIPELINE STAGES ROUTES =====================
+
+@api_router.get("/pipeline-stages", response_model=List[PipelineStageResponse])
+async def get_pipeline_stages(user: dict = Depends(get_current_user)):
+    """Get all pipeline stages"""
+    stages = await db.pipeline_stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    if not stages:
+        # Return default stages if none configured
+        default_stages = [
+            {"id": "lead", "name": "Lead", "order": 1, "color": "#6366F1", "probability_default": 5, "is_won": False, "is_lost": False},
+            {"id": "qualification", "name": "Qualification", "order": 2, "color": "#8B5CF6", "probability_default": 10, "is_won": False, "is_lost": False},
+            {"id": "discovery", "name": "Discovery", "order": 3, "color": "#3B82F6", "probability_default": 25, "is_won": False, "is_lost": False},
+            {"id": "proposal", "name": "Proposal", "order": 4, "color": "#F59E0B", "probability_default": 50, "is_won": False, "is_lost": False},
+            {"id": "negotiation", "name": "Negotiation", "order": 5, "color": "#F97316", "probability_default": 75, "is_won": False, "is_lost": False},
+            {"id": "closed_won", "name": "Closed Won", "order": 6, "color": "#10B981", "probability_default": 100, "is_won": True, "is_lost": False},
+            {"id": "closed_lost", "name": "Closed Lost", "order": 7, "color": "#EF4444", "probability_default": 0, "is_won": False, "is_lost": True},
+        ]
+        return default_stages
+    return stages
+
+@api_router.post("/pipeline-stages", response_model=PipelineStageResponse)
+async def create_pipeline_stage(stage_data: PipelineStageCreate, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))):
+    """Create a new pipeline stage"""
+    stage_id = str(uuid.uuid4())
+    stage_dict = {
+        "id": stage_id,
+        **stage_data.model_dump()
+    }
+    await db.pipeline_stages.insert_one(stage_dict)
+    return PipelineStageResponse(**stage_dict)
+
+@api_router.put("/pipeline-stages/{stage_id}", response_model=PipelineStageResponse)
+async def update_pipeline_stage(stage_id: str, stage_data: PipelineStageCreate, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))):
+    """Update a pipeline stage"""
+    await db.pipeline_stages.update_one({"id": stage_id}, {"$set": stage_data.model_dump()})
+    updated = await db.pipeline_stages.find_one({"id": stage_id}, {"_id": 0})
+    return PipelineStageResponse(**updated)
+
+@api_router.put("/pipeline-stages/reorder")
+async def reorder_pipeline_stages(stage_orders: List[Dict], user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))):
+    """Reorder pipeline stages"""
+    for item in stage_orders:
+        await db.pipeline_stages.update_one({"id": item["id"]}, {"$set": {"order": item["order"]}})
+    return {"message": "Stages reordered"}
+
+@api_router.delete("/pipeline-stages/{stage_id}")
+async def delete_pipeline_stage(stage_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))):
+    """Delete a pipeline stage"""
+    await db.pipeline_stages.delete_one({"id": stage_id})
+    return {"message": "Stage deleted"}
+
+# ===================== KANBAN / OPPORTUNITY STAGE MOVE =====================
+
+@api_router.patch("/opportunities/{opp_id}/stage")
+async def move_opportunity_stage(opp_id: str, new_stage: str, user: dict = Depends(get_current_user)):
+    """Move opportunity to a new stage (drag-drop support)"""
+    opp = await db.opportunities.find_one({"id": opp_id})
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    
+    # Get stage probability default
+    stage = await db.pipeline_stages.find_one({"id": new_stage})
+    probability = stage.get("probability_default", 50) if stage else 50
+    
+    update_data = {
+        "stage": new_stage,
+        "probability": probability,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.opportunities.update_one({"id": opp_id}, {"$set": update_data})
+    
+    # Log stage change
+    await db.activity_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "entity_type": "opportunity",
+        "entity_id": opp_id,
+        "action": "stage_change",
+        "old_value": opp.get("stage"),
+        "new_value": new_stage,
+        "user_id": user["id"],
+        "created_at": datetime.now(timezone.utc)
+    })
+    
+    return {"message": "Stage updated", "new_stage": new_stage, "probability": probability}
+
+# ===================== KANBAN VIEW DATA =====================
+
+@api_router.get("/opportunities/kanban")
+async def get_opportunities_kanban(user: dict = Depends(get_current_user)):
+    """Get opportunities organized by stage for Kanban board"""
+    query = {}
+    if user["role"] == UserRole.ACCOUNT_MANAGER:
+        query["owner_id"] = user["id"]
+    elif user["role"] == UserRole.REFERRER:
+        # Get referrals for this user
+        referrals = await db.referrals.find({"referrer_user_id": user["id"]}, {"_id": 0}).to_list(100)
+        opp_ids = [r["opportunity_id"] for r in referrals]
+        query["id"] = {"$in": opp_ids}
+    
+    opps = await db.opportunities.find(query, {"_id": 0}).to_list(10000)
+    
+    # Get stages
+    stages = await db.pipeline_stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    if not stages:
+        stages = [
+            {"id": "lead", "name": "Lead", "order": 1, "color": "#6366F1"},
+            {"id": "qualification", "name": "Qualification", "order": 2, "color": "#8B5CF6"},
+            {"id": "discovery", "name": "Discovery", "order": 3, "color": "#3B82F6"},
+            {"id": "proposal", "name": "Proposal", "order": 4, "color": "#F59E0B"},
+            {"id": "negotiation", "name": "Negotiation", "order": 5, "color": "#F97316"},
+            {"id": "closed_won", "name": "Closed Won", "order": 6, "color": "#10B981"},
+            {"id": "closed_lost", "name": "Closed Lost", "order": 7, "color": "#EF4444"},
+        ]
+    
+    # Organize by stage
+    kanban_data = {}
+    for stage in stages:
+        stage_id = stage["id"]
+        stage_opps = [o for o in opps if o.get("stage") == stage_id]
+        
+        # Enrich with account name and activity count
+        for opp in stage_opps:
+            account = await db.accounts.find_one({"id": opp.get("account_id")}, {"_id": 0, "name": 1})
+            opp["account_name"] = account["name"] if account else "Unknown"
+            activities = await db.activities.count_documents({"opportunity_id": opp["id"]})
+            opp["activity_count"] = activities
+        
+        kanban_data[stage_id] = {
+            "stage": stage,
+            "opportunities": stage_opps,
+            "total_value": sum(o.get("value", 0) for o in stage_opps),
+            "count": len(stage_opps)
+        }
+    
+    return {"stages": stages, "kanban": kanban_data}
+
+# ===================== COMMISSION TEMPLATE ROUTES =====================
+
+@api_router.get("/commission-templates", response_model=List[CommissionTemplateResponse])
+async def get_commission_templates(user: dict = Depends(get_current_user)):
+    """Get all commission templates"""
+    templates = await db.commission_templates.find({}, {"_id": 0}).to_list(100)
+    if not templates:
+        # Return default templates if none exist
+        return []
+    return [CommissionTemplateResponse(**t) for t in templates]
+
+@api_router.post("/commission-templates", response_model=CommissionTemplateResponse)
+async def create_commission_template(template_data: CommissionTemplateCreate, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.SALES_DIRECTOR, UserRole.FINANCE_MANAGER]))):
+    """Create a commission template"""
+    template_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    template_dict = {
+        "id": template_id,
+        **template_data.model_dump(),
+        "tiers": [t.model_dump() for t in template_data.tiers],
+        "created_at": now,
+        "updated_at": now
+    }
+    await db.commission_templates.insert_one(template_dict)
+    return CommissionTemplateResponse(**template_dict)
+
+@api_router.put("/commission-templates/{template_id}", response_model=CommissionTemplateResponse)
+async def update_commission_template(template_id: str, template_data: CommissionTemplateCreate, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.SALES_DIRECTOR, UserRole.FINANCE_MANAGER]))):
+    """Update a commission template"""
+    update_data = template_data.model_dump()
+    update_data["tiers"] = [t.model_dump() if hasattr(t, 'model_dump') else t for t in template_data.tiers]
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.commission_templates.update_one({"id": template_id}, {"$set": update_data})
+    updated = await db.commission_templates.find_one({"id": template_id}, {"_id": 0})
+    return CommissionTemplateResponse(**updated)
+
+@api_router.post("/commission-templates/seed-defaults")
+async def seed_default_commission_templates(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+    """Seed default commission templates"""
+    now = datetime.now(timezone.utc)
+    
+    templates = [
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Flat Rate - 5%",
+            "description": "Simple flat commission rate on all closed deals",
+            "template_type": "flat",
+            "base_rate": 0.05,
+            "tiers": [],
+            "product_weights": {},
+            "new_logo_multiplier": 1.0,
+            "renewal_rate": 0.05,
+            "cap_multiplier": None,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Tiered Attainment - Standard",
+            "description": "Commission multiplier based on quota attainment percentage",
+            "template_type": "tiered_attainment",
+            "base_rate": 0.10,
+            "tiers": [
+                {"min_attainment": 0, "max_attainment": 50, "multiplier": 0.25, "rate": None},
+                {"min_attainment": 50, "max_attainment": 80, "multiplier": 0.50, "rate": None},
+                {"min_attainment": 80, "max_attainment": 100, "multiplier": 0.80, "rate": None},
+                {"min_attainment": 100, "max_attainment": 120, "multiplier": 1.00, "rate": None},
+                {"min_attainment": 120, "max_attainment": 150, "multiplier": 1.50, "rate": None},
+                {"min_attainment": 150, "max_attainment": 999, "multiplier": 2.00, "rate": None},
+            ],
+            "product_weights": {},
+            "new_logo_multiplier": 1.2,
+            "renewal_rate": 0.03,
+            "cap_multiplier": 2.5,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Tiered Revenue - Cybersecurity",
+            "description": "Increasing rate based on cumulative revenue bands",
+            "template_type": "tiered_revenue",
+            "base_rate": 0.06,
+            "tiers": [
+                {"min_attainment": 0, "max_attainment": 100000, "multiplier": 1.0, "rate": 0.06},
+                {"min_attainment": 100000, "max_attainment": 300000, "multiplier": 1.0, "rate": 0.08},
+                {"min_attainment": 300000, "max_attainment": 500000, "multiplier": 1.0, "rate": 0.10},
+                {"min_attainment": 500000, "max_attainment": 999999999, "multiplier": 1.0, "rate": 0.12},
+            ],
+            "product_weights": {
+                "MSSP": 1.0,
+                "Application Security": 1.1,
+                "Network Security": 0.9,
+                "GRC": 1.2
+            },
+            "new_logo_multiplier": 1.25,
+            "renewal_rate": 0.04,
+            "cap_multiplier": 3.0,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Quota-Based Accelerator",
+            "description": "Base + accelerators for exceeding quota",
+            "template_type": "quota_based",
+            "base_rate": 0.08,
+            "tiers": [
+                {"min_attainment": 100, "max_attainment": 110, "multiplier": 1.25, "rate": None},
+                {"min_attainment": 110, "max_attainment": 125, "multiplier": 1.5, "rate": None},
+                {"min_attainment": 125, "max_attainment": 999, "multiplier": 2.0, "rate": None},
+            ],
+            "product_weights": {},
+            "new_logo_multiplier": 1.15,
+            "renewal_rate": 0.05,
+            "cap_multiplier": 2.5,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "New Logo Hunter",
+            "description": "High commission for new customer acquisition",
+            "template_type": "flat",
+            "base_rate": 0.12,
+            "tiers": [],
+            "product_weights": {},
+            "new_logo_multiplier": 1.5,
+            "renewal_rate": 0.02,
+            "cap_multiplier": None,
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now
+        },
+    ]
+    
+    for t in templates:
+        existing = await db.commission_templates.find_one({"name": t["name"]})
+        if not existing:
+            await db.commission_templates.insert_one(t)
+    
+    return {"message": "Default templates seeded", "count": len(templates)}
+
+@api_router.post("/users/{user_id}/assign-commission-template")
+async def assign_commission_template(user_id: str, template_id: str, quota: float = 0, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.SALES_DIRECTOR, UserRole.FINANCE_MANAGER]))):
+    """Assign a commission template to a user"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "commission_template_id": template_id,
+            "quota": quota,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    return {"message": "Commission template assigned"}
+
+# ===================== REFERRAL ROUTES =====================
+
+@api_router.post("/referrals", response_model=ReferralResponse)
+async def create_referral(referral_data: ReferralCreate, user: dict = Depends(get_current_user)):
+    """Create a referral for an opportunity"""
+    # Check if opportunity already has a referral
+    existing = await db.referrals.find_one({"opportunity_id": referral_data.opportunity_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Opportunity already has a referral assigned")
+    
+    referral_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    
+    referral_dict = {
+        "id": referral_id,
+        **referral_data.model_dump(),
+        "earned_amount": 0,
+        "status": "pending",
+        "created_at": now
+    }
+    await db.referrals.insert_one(referral_dict)
+    
+    # Get names
+    opp = await db.opportunities.find_one({"id": referral_data.opportunity_id})
+    referrer = await db.users.find_one({"id": referral_data.referrer_user_id})
+    
+    return ReferralResponse(
+        **referral_dict,
+        opportunity_name=opp["name"] if opp else None,
+        referrer_name=referrer["name"] if referrer else None
+    )
+
+@api_router.get("/referrals", response_model=List[ReferralResponse])
+async def get_referrals(user: dict = Depends(get_current_user)):
+    """Get referrals - filtered by role"""
+    query = {}
+    if user["role"] == UserRole.REFERRER:
+        query["referrer_user_id"] = user["id"]
+    elif user["role"] == UserRole.ACCOUNT_MANAGER:
+        # Get opportunities owned by this AM
+        opps = await db.opportunities.find({"owner_id": user["id"]}, {"_id": 0, "id": 1}).to_list(1000)
+        opp_ids = [o["id"] for o in opps]
+        query["opportunity_id"] = {"$in": opp_ids}
+    
+    referrals = await db.referrals.find(query, {"_id": 0}).to_list(1000)
+    
+    result = []
+    for ref in referrals:
+        opp = await db.opportunities.find_one({"id": ref["opportunity_id"]})
+        referrer = await db.users.find_one({"id": ref["referrer_user_id"]})
+        ref["opportunity_name"] = opp["name"] if opp else None
+        ref["referrer_name"] = referrer["name"] if referrer else None
+        result.append(ReferralResponse(**ref))
+    
+    return result
+
+@api_router.put("/referrals/{referral_id}/incentive")
+async def update_referral_incentive(referral_id: str, incentive_percentage: float, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.SALES_DIRECTOR, UserRole.FINANCE_MANAGER]))):
+    """Update referral incentive percentage"""
+    await db.referrals.update_one(
+        {"id": referral_id},
+        {"$set": {"incentive_percentage": incentive_percentage}}
+    )
+    return {"message": "Referral incentive updated"}
+
+# ===================== BLUE SHEET PROBABILITY CALCULATION =====================
+
+@api_router.post("/opportunities/{opp_id}/calculate-probability", response_model=BlueSheetProbabilityResponse)
+async def calculate_blue_sheet_probability(opp_id: str, analysis: BlueSheetAnalysis, user: dict = Depends(get_current_user)):
+    """Calculate opportunity probability using Blue Sheet methodology with LLM enhancement"""
+    opp = await db.opportunities.find_one({"id": opp_id}, {"_id": 0})
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    
+    # Base scoring
+    score_breakdown = {}
+    total_score = 0
+    
+    # Buying Influences (max 40 points)
+    buying_influence_score = 0
+    if analysis.economic_buyer_identified:
+        buying_influence_score += 10
+    if analysis.economic_buyer_favorable:
+        buying_influence_score += 10
+    buying_influence_score += min(analysis.user_buyers_favorable, 3) * 3  # max 9
+    buying_influence_score += min(analysis.technical_buyers_favorable, 2) * 3  # max 6
+    if analysis.coach_identified:
+        buying_influence_score += 3
+    if analysis.coach_engaged:
+        buying_influence_score += 2
+    score_breakdown["buying_influences"] = buying_influence_score
+    total_score += buying_influence_score
+    
+    # Red Flags (negative points)
+    red_flag_penalty = 0
+    if analysis.no_access_to_economic_buyer:
+        red_flag_penalty -= 15
+    if analysis.reorganization_pending:
+        red_flag_penalty -= 10
+    if analysis.budget_not_confirmed:
+        red_flag_penalty -= 12
+    if analysis.competition_preferred:
+        red_flag_penalty -= 15
+    if analysis.timeline_unclear:
+        red_flag_penalty -= 8
+    score_breakdown["red_flags"] = red_flag_penalty
+    total_score += red_flag_penalty
+    
+    # Win Results (max 20 points)
+    win_results_score = 0
+    if analysis.clear_business_results:
+        win_results_score += 12
+    if analysis.quantifiable_value:
+        win_results_score += 8
+    score_breakdown["win_results"] = win_results_score
+    total_score += win_results_score
+    
+    # Action Plan (max 15 points)
+    action_score = 0
+    if analysis.next_steps_defined:
+        action_score += 8
+    if analysis.mutual_action_plan:
+        action_score += 7
+    score_breakdown["action_plan"] = action_score
+    total_score += action_score
+    
+    # Calculate probability (scale to 0-100)
+    max_possible = 75  # 40 + 20 + 15
+    calculated_probability = max(0, min(100, int((total_score / max_possible) * 100)))
+    
+    # Determine confidence level
+    confidence = "low"
+    if analysis.economic_buyer_identified and analysis.coach_identified:
+        confidence = "medium"
+    if analysis.economic_buyer_favorable and analysis.quantifiable_value and analysis.mutual_action_plan:
+        confidence = "high"
+    
+    # Generate recommendations using LLM
+    recommendations = []
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        if api_key:
+            context = f"""
+            Opportunity: {opp.get('name')}
+            Value: ${opp.get('value', 0):,.0f}
+            Current Stage: {opp.get('stage')}
+            Calculated Probability: {calculated_probability}%
+            
+            Blue Sheet Analysis:
+            - Economic Buyer Identified: {analysis.economic_buyer_identified}
+            - Economic Buyer Favorable: {analysis.economic_buyer_favorable}
+            - Coach Engaged: {analysis.coach_engaged}
+            - Budget Confirmed: {not analysis.budget_not_confirmed}
+            - Competition Preferred: {analysis.competition_preferred}
+            - Clear Business Results: {analysis.clear_business_results}
+            - Mutual Action Plan: {analysis.mutual_action_plan}
+            
+            For a cybersecurity consulting firm (services: MSSP, Application Security, Network Security, GRC),
+            provide 3 specific actionable recommendations to improve win probability.
+            """
+            
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=f"bluesheet-{opp_id}-{datetime.now().timestamp()}",
+                system_message="You are a sales strategy expert specializing in B2B enterprise cybersecurity sales using Miller Heiman Blue Sheet methodology. Provide brief, actionable recommendations."
+            ).with_model("openai", "gpt-4o")
+            
+            message = UserMessage(text=context)
+            response = await chat.send_message(message)
+            recommendations = [line.strip() for line in response.split("\n") if line.strip() and len(line) > 10][:3]
+    except Exception as e:
+        logger.error(f"LLM recommendation error: {e}")
+        # Fallback recommendations
+        if not analysis.economic_buyer_identified:
+            recommendations.append("Identify and engage the Economic Buyer - the person with final budget authority")
+        if not analysis.coach_identified:
+            recommendations.append("Develop a Coach inside the organization who can guide your strategy")
+        if analysis.budget_not_confirmed:
+            recommendations.append("Confirm budget allocation and funding timeline")
+        if not analysis.mutual_action_plan:
+            recommendations.append("Create a mutual action plan with clear milestones and commitments")
+    
+    # Update opportunity probability
+    await db.opportunities.update_one(
+        {"id": opp_id},
+        {"$set": {
+            "probability": calculated_probability,
+            "blue_sheet_analysis": analysis.model_dump(),
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Generate summary
+    summary = f"Based on Blue Sheet analysis, this opportunity has a {calculated_probability}% probability of closing. "
+    if calculated_probability >= 70:
+        summary += "Strong position with key buying influences engaged."
+    elif calculated_probability >= 40:
+        summary += "Moderate position - address red flags to improve odds."
+    else:
+        summary += "Weak position - significant gaps in sales strategy need attention."
+    
+    return BlueSheetProbabilityResponse(
+        opportunity_id=opp_id,
+        calculated_probability=calculated_probability,
+        confidence_level=confidence,
+        analysis_summary=summary,
+        recommendations=recommendations,
+        score_breakdown=score_breakdown
+    )
+
+# ===================== SALES METRICS / INCENTIVE CALCULATOR =====================
+
+@api_router.get("/sales-metrics/{user_id}", response_model=SalesMetricsResponse)
+async def get_sales_metrics(user_id: str, period: str = "quarterly", user: dict = Depends(get_current_user)):
+    """Get sales metrics for a user"""
+    # Determine period dates
+    now = datetime.now(timezone.utc)
+    if period == "monthly":
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "quarterly":
+        quarter_month = ((now.month - 1) // 3) * 3 + 1
+        period_start = now.replace(month=quarter_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:  # ytd
+        period_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get closed won opportunities
+    won_opps = await db.opportunities.find({
+        "owner_id": user_id,
+        "stage": "closed_won"
+    }, {"_id": 0}).to_list(10000)
+    
+    # Calculate metrics (in real scenario, this would come from Odoo)
+    orders_won = sum(o.get("value", 0) for o in won_opps)
+    orders_booked = orders_won  # Simplified
+    orders_invoiced = orders_won * 0.8  # Simplified estimate
+    orders_collected = orders_won * 0.6  # Simplified estimate
+    
+    # Get user quota
+    target_user = await db.users.find_one({"id": user_id})
+    quota = target_user.get("quota", 500000) if target_user else 500000
+    
+    attainment = (orders_won / quota * 100) if quota > 0 else 0
+    
+    # Calculate commission
+    commission_earned = await calculate_commission(user_id, orders_won, attainment)
+    
+    return SalesMetricsResponse(
+        user_id=user_id,
+        period=period,
+        period_start=period_start,
+        period_end=now,
+        orders_won=orders_won,
+        orders_booked=orders_booked,
+        orders_invoiced=orders_invoiced,
+        orders_collected=orders_collected,
+        quota=quota,
+        attainment_percentage=round(attainment, 1),
+        commission_earned=commission_earned,
+        commission_projected=commission_earned * (100 / max(attainment, 1)) if attainment < 100 else commission_earned
+    )
+
+async def calculate_commission(user_id: str, revenue: float, attainment: float) -> float:
+    """Calculate commission based on user's assigned template"""
+    user = await db.users.find_one({"id": user_id})
+    if not user or not user.get("commission_template_id"):
+        # Default 5% flat
+        return revenue * 0.05
+    
+    template = await db.commission_templates.find_one({"id": user["commission_template_id"]})
+    if not template:
+        return revenue * 0.05
+    
+    if template["template_type"] == "flat":
+        commission = revenue * template["base_rate"]
+    
+    elif template["template_type"] == "tiered_attainment":
+        base_commission = revenue * template["base_rate"]
+        multiplier = 1.0
+        for tier in template.get("tiers", []):
+            if tier["min_attainment"] <= attainment < tier["max_attainment"]:
+                multiplier = tier["multiplier"]
+                break
+        commission = base_commission * multiplier
+    
+    elif template["template_type"] == "tiered_revenue":
+        commission = 0
+        remaining = revenue
+        for tier in sorted(template.get("tiers", []), key=lambda x: x["min_attainment"]):
+            tier_max = tier["max_attainment"] - tier["min_attainment"]
+            tier_revenue = min(remaining, tier_max)
+            commission += tier_revenue * tier.get("rate", template["base_rate"])
+            remaining -= tier_revenue
+            if remaining <= 0:
+                break
+    
+    elif template["template_type"] == "quota_based":
+        commission = revenue * template["base_rate"]
+        if attainment >= 100:
+            for tier in template.get("tiers", []):
+                if tier["min_attainment"] <= attainment < tier["max_attainment"]:
+                    commission *= tier["multiplier"]
+                    break
+    
+    else:
+        commission = revenue * 0.05
+    
+    # Apply cap if exists
+    if template.get("cap_multiplier"):
+        quota = user.get("quota", 500000)
+        max_commission = quota * template["base_rate"] * template["cap_multiplier"]
+        commission = min(commission, max_commission)
+    
+    return round(commission, 2)
+
+@api_router.post("/incentive-calculator")
+async def calculate_incentive_preview(
+    revenue: float,
+    template_id: Optional[str] = None,
+    quota: float = 500000,
+    is_new_logo: bool = False,
+    product_line: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Preview incentive calculation without saving"""
+    attainment = (revenue / quota * 100) if quota > 0 else 0
+    
+    if template_id:
+        template = await db.commission_templates.find_one({"id": template_id})
+    else:
+        template = None
+    
+    if not template:
+        # Default calculation
+        base_commission = revenue * 0.05
+        return {
+            "revenue": revenue,
+            "quota": quota,
+            "attainment": round(attainment, 1),
+            "base_commission": base_commission,
+            "multipliers_applied": [],
+            "final_commission": base_commission
+        }
+    
+    multipliers = []
+    base_commission = revenue * template["base_rate"]
+    
+    # Apply template logic
+    if template["template_type"] == "tiered_attainment":
+        for tier in template.get("tiers", []):
+            if tier["min_attainment"] <= attainment < tier["max_attainment"]:
+                multipliers.append({"type": "attainment_tier", "value": tier["multiplier"]})
+                base_commission *= tier["multiplier"]
+                break
+    
+    # Apply new logo multiplier
+    if is_new_logo and template.get("new_logo_multiplier", 1.0) > 1.0:
+        multipliers.append({"type": "new_logo", "value": template["new_logo_multiplier"]})
+        base_commission *= template["new_logo_multiplier"]
+    
+    # Apply product weight
+    if product_line and template.get("product_weights", {}).get(product_line):
+        weight = template["product_weights"][product_line]
+        multipliers.append({"type": "product_weight", "value": weight})
+        base_commission *= weight
+    
+    # Apply cap
+    if template.get("cap_multiplier"):
+        max_commission = quota * template["base_rate"] * template["cap_multiplier"]
+        if base_commission > max_commission:
+            multipliers.append({"type": "cap_applied", "value": template["cap_multiplier"]})
+            base_commission = max_commission
+    
+    return {
+        "revenue": revenue,
+        "quota": quota,
+        "attainment": round(attainment, 1),
+        "template_name": template["name"],
+        "base_rate": template["base_rate"],
+        "base_commission": revenue * template["base_rate"],
+        "multipliers_applied": multipliers,
+        "final_commission": round(base_commission, 2)
+    }
+
+# ===================== GLOBAL SEARCH =====================
+
+@api_router.get("/search")
+async def global_search(q: str, user: dict = Depends(get_current_user)):
+    """Global search across CRM, Sales, and Incentives"""
+    if len(q) < 2:
+        return {"results": []}
+    
+    results = []
+    search_regex = {"$regex": q, "$options": "i"}
+    
+    # Search accounts
+    accounts = await db.accounts.find(
+        {"$or": [{"name": search_regex}, {"industry": search_regex}]},
+        {"_id": 0, "id": 1, "name": 1}
+    ).limit(5).to_list(5)
+    for a in accounts:
+        results.append({"type": "account", "id": a["id"], "name": a["name"], "icon": "building"})
+    
+    # Search opportunities
+    opps = await db.opportunities.find(
+        {"name": search_regex},
+        {"_id": 0, "id": 1, "name": 1}
+    ).limit(5).to_list(5)
+    for o in opps:
+        results.append({"type": "opportunity", "id": o["id"], "name": o["name"], "icon": "target"})
+    
+    # Search activities
+    activities = await db.activities.find(
+        {"title": search_regex},
+        {"_id": 0, "id": 1, "title": 1}
+    ).limit(5).to_list(5)
+    for a in activities:
+        results.append({"type": "activity", "id": a["id"], "name": a["title"], "icon": "list"})
+    
+    # Search users
+    if user["role"] in [UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]:
+        users_found = await db.users.find(
+            {"$or": [{"name": search_regex}, {"email": search_regex}]},
+            {"_id": 0, "id": 1, "name": 1}
+        ).limit(5).to_list(5)
+        for u in users_found:
+            results.append({"type": "user", "id": u["id"], "name": u["name"], "icon": "user"})
+    
+    return {"query": q, "results": results[:15]}
+
 # ===================== APP SETUP =====================
 
 app.include_router(api_router)
