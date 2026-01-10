@@ -1,26 +1,34 @@
 # ===================== SUPER ADMIN CONFIGURATION API ROUTES =====================
 # This module provides API endpoints for the configuration system
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 import secrets
 import string
+import os
 
 from config_models import (
     ModuleDefinition, ModuleFeature, ModuleFeatureAction,
-    RoleDefinition, RolePermission,
-    BlueSheetConfig, BlueSheetElement, BlueSheetStage,
-    LLMConfig, LLMProviderConfig, PromptTemplate,
+    RoleDefinition, RolePermission, DataAccessConfig, DataAccessLevel,
+    BlueSheetConfig, BlueSheetElement, BlueSheetStage, BlueSheetContactRoleConfig,
+    LLMConfig, PromptTemplate,
+    LLMProvidersConfig, LLMProviderConfig, LLMProviderType,
     IncentiveConfig, IncentiveRule,
     IntegrationConfig,
     UIConfig, ThemeColors, ThemeTypography, BrandingConfig,
     SystemConfig,
     OrganizationSettings, UserCreateByAdmin, UserUpdateByAdmin, UserFullResponse,
     AIAgentsConfig, AIAgentConfig, AIAgentType,
+    AIChatbotConfig,
+    DepartmentsConfig, DepartmentConfig, TeamConfig,
+    OrganizationContact,
+    EmailConfig, UserInvitation,
     get_default_modules, get_default_roles, get_default_blue_sheet_config,
-    get_default_llm_config, get_default_ui_config, get_default_organization, get_default_ai_agents
+    get_default_llm_config, get_default_ui_config, get_default_organization, get_default_ai_agents,
+    get_default_departments, get_default_llm_providers, get_default_contact_roles,
+    get_default_email_config, get_default_chatbot_config
 )
 
 config_router = APIRouter(prefix="/config", tags=["Configuration"])
