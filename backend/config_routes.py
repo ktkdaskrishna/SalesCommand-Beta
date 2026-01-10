@@ -619,7 +619,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
     async def create_user_admin(user_data: UserCreateByAdmin, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
         """Create a new user (admin only)"""
         from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
         
         # Check if email already exists
         existing = await db.users.find_one({"email": user_data.email})
