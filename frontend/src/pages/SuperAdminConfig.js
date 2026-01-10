@@ -1725,8 +1725,14 @@ const SuperAdminConfig = () => {
 
   const renderTab = () => {
     switch (activeTab) {
+      case "organization":
+        return <OrganizationTab config={config} onConfigUpdate={fetchConfig} />;
+      case "users":
+        return <UserManagementTab config={config} onConfigUpdate={fetchConfig} />;
       case "roles":
         return <RolesTab config={config} onConfigUpdate={fetchConfig} />;
+      case "ai-agents":
+        return <AIAgentsTab config={config} onConfigUpdate={fetchConfig} />;
       case "blue-sheet":
         return <BlueSheetTab config={config} onConfigUpdate={fetchConfig} />;
       case "llm":
