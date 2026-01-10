@@ -1390,6 +1390,278 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
             raise HTTPException(status_code=404, detail="Invitation not found or already used")
         return {"message": "Invitation cancelled"}
     
+    # ===================== ACCOUNT FIELDS CONFIGURATION =====================
+    
+    @api_router.get("/config/account-fields")
+    async def get_account_fields(user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+        """Get account field definitions"""
+        config = await get_system_config(db)
+        return config.get("account_fields", get_default_account_fields().model_dump())
+    
+    @api_router.put("/config/account-fields")
+    async def update_account_fields(fields_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update account field definitions"""
+        config = await get_system_config(db)
+        config["account_fields"] = fields_data
+        await save_system_config(db, config, user["id"])
+        return {"message": "Account fields updated"}
+    
+    @api_router.post("/config/account-fields/field")
+    async def add_account_field(field_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Add a new custom field to accounts"""
+        config = await get_system_config(db)
+        account_fields = config.get("account_fields", get_default_account_fields().model_dump())
+        
+        # Generate ID if not provided
+        if not field_data.get("id"):
+            field_data["id"] = field_data["name"].lower().replace(" ", "_")
+        
+        # Check for duplicate ID
+        existing_ids = [f["id"] for f in account_fields.get("fields", [])]
+        if field_data["id"] in existing_ids:
+            raise HTTPException(status_code=400, detail="Field with this ID already exists")
+        
+        # Set defaults
+        field_data.setdefault("visible", True)
+        field_data.setdefault("editable", True)
+        field_data.setdefault("is_system", False)
+        field_data.setdefault("order", len(account_fields.get("fields", [])) + 1)
+        field_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        
+        account_fields["fields"].append(field_data)
+        config["account_fields"] = account_fields
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Field added", "field": field_data}
+    
+    @api_router.put("/config/account-fields/field/{field_id}")
+    async def update_account_field(field_id: str, field_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update an account field"""
+        config = await get_system_config(db)
+        account_fields = config.get("account_fields", {})
+        fields = account_fields.get("fields", [])
+        
+        field_idx = next((i for i, f in enumerate(fields) if f["id"] == field_id), None)
+        if field_idx is None:
+            raise HTTPException(status_code=404, detail="Field not found")
+        
+        # Prevent modifying system fields' critical properties
+        if fields[field_idx].get("is_system"):
+            protected = ["id", "field_type", "is_system"]
+            for key in protected:
+                if key in field_data and field_data[key] != fields[field_idx].get(key):
+                    raise HTTPException(status_code=400, detail=f"Cannot modify '{key}' on system fields")
+        
+        # Update field
+        for key, value in field_data.items():
+            if key != "id":  # Don't allow ID change
+                fields[field_idx][key] = value
+        
+        account_fields["fields"] = fields
+        config["account_fields"] = account_fields
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Field updated"}
+    
+    @api_router.delete("/config/account-fields/field/{field_id}")
+    async def delete_account_field(field_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Delete a custom account field"""
+        config = await get_system_config(db)
+        account_fields = config.get("account_fields", {})
+        fields = account_fields.get("fields", [])
+        
+        field = next((f for f in fields if f["id"] == field_id), None)
+        if not field:
+            raise HTTPException(status_code=404, detail="Field not found")
+        
+        if field.get("is_system"):
+            raise HTTPException(status_code=400, detail="Cannot delete system fields")
+        
+        account_fields["fields"] = [f for f in fields if f["id"] != field_id]
+        
+        # Also remove from layout sections
+        for section in account_fields.get("layout", {}).get("sections", []):
+            if field_id in section.get("field_ids", []):
+                section["field_ids"].remove(field_id)
+        
+        config["account_fields"] = account_fields
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Field deleted"}
+    
+    @api_router.put("/config/account-fields/layout")
+    async def update_account_layout(layout_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Update account form layout (sections and field arrangement)"""
+        config = await get_system_config(db)
+        account_fields = config.get("account_fields", {})
+        account_fields["layout"] = layout_data
+        config["account_fields"] = account_fields
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Layout updated"}
+    
+    @api_router.post("/config/account-fields/section")
+    async def add_account_section(section_data: dict, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
+        """Add a new section to account form"""
+        config = await get_system_config(db)
+        account_fields = config.get("account_fields", {})
+        layout = account_fields.get("layout", {"sections": [], "tabs": []})
+        
+        if not section_data.get("id"):
+            section_data["id"] = section_data["name"].lower().replace(" ", "_")
+        
+        # Check for duplicate
+        existing_ids = [s["id"] for s in layout.get("sections", [])]
+        if section_data["id"] in existing_ids:
+            raise HTTPException(status_code=400, detail="Section with this ID already exists")
+        
+        section_data.setdefault("order", len(layout.get("sections", [])) + 1)
+        section_data.setdefault("columns", 2)
+        section_data.setdefault("field_ids", [])
+        
+        layout["sections"].append(section_data)
+        account_fields["layout"] = layout
+        config["account_fields"] = account_fields
+        await save_system_config(db, config, user["id"])
+        
+        return {"message": "Section added", "section": section_data}
+    
+    # ===================== ACCOUNT ENRICH (ODOO INTEGRATION) =====================
+    
+    @api_router.post("/accounts/{account_id}/enrich")
+    async def enrich_account(account_id: str, user: dict = Depends(get_current_user)):
+        """Enrich account with data from Odoo ERP (mocked for now)"""
+        account = await db.accounts.find_one({"id": account_id})
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        # Check if user has permission to enrich (owner, admin, or CEO)
+        if user["role"] not in ["super_admin", "ceo"] and account.get("assigned_am_id") != user["id"]:
+            raise HTTPException(status_code=403, detail="Not authorized to enrich this account")
+        
+        # Get Odoo integration config
+        config = await get_system_config(db)
+        integrations = config.get("integrations", [])
+        odoo_config = next((i for i in integrations if i.get("integration_type") == "odoo"), None)
+        
+        # For now, generate mock data - in real implementation, call Odoo API
+        import random
+        
+        # Mock Orders from Odoo
+        mock_orders = [
+            {
+                "id": f"SO-2024-{str(i).zfill(3)}",
+                "date": f"2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+                "products": random.choice(["MSSP License", "Security Audit", "Consulting", "Penetration Testing"]),
+                "amount": random.randint(25000, 200000),
+                "status": random.choice(["pending", "in_progress", "delivered", "cancelled"]),
+                "source": "odoo"
+            }
+            for i in range(1, random.randint(4, 8))
+        ]
+        
+        # Mock Invoices from Odoo
+        mock_invoices = [
+            {
+                "id": f"INV-2024-{str(i).zfill(3)}",
+                "date": f"2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+                "order_id": mock_orders[min(i-1, len(mock_orders)-1)]["id"] if mock_orders else None,
+                "amount": random.randint(20000, 150000),
+                "paid_amount": random.randint(0, 1) * random.randint(20000, 150000),
+                "due_date": f"2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+                "status": random.choice(["paid", "pending", "overdue"]),
+                "source": "odoo"
+            }
+            for i in range(1, random.randint(3, 6))
+        ]
+        
+        # Calculate totals
+        total_orders = sum(o["amount"] for o in mock_orders)
+        total_invoiced = sum(inv["amount"] for inv in mock_invoices)
+        total_paid = sum(inv["paid_amount"] for inv in mock_invoices)
+        outstanding = total_invoiced - total_paid
+        
+        # Update account with enriched data
+        enrichment_data = {
+            "total_orders": total_orders,
+            "total_invoiced": total_invoiced,
+            "total_paid": total_paid,
+            "outstanding_amount": outstanding,
+            "orders": mock_orders,
+            "invoices": mock_invoices,
+            "last_enriched_at": datetime.now(timezone.utc),
+            "enrichment_source": "odoo_mock"
+        }
+        
+        await db.accounts.update_one(
+            {"id": account_id},
+            {"$set": enrichment_data}
+        )
+        
+        # Log the enrichment
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "entity_type": "account",
+            "entity_id": account_id,
+            "action": "enrich",
+            "user_id": user["id"],
+            "changes": {"enriched_from": "odoo_mock", "orders_count": len(mock_orders), "invoices_count": len(mock_invoices)},
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        return {
+            "message": "Account enriched successfully",
+            "source": "odoo_mock",
+            "summary": {
+                "total_orders": total_orders,
+                "total_invoiced": total_invoiced,
+                "total_paid": total_paid,
+                "outstanding": outstanding,
+                "orders_count": len(mock_orders),
+                "invoices_count": len(mock_invoices)
+            },
+            "orders": mock_orders,
+            "invoices": mock_invoices
+        }
+    
+    @api_router.get("/accounts/{account_id}/orders")
+    async def get_account_orders(account_id: str, user: dict = Depends(get_current_user)):
+        """Get orders for an account (from enriched data)"""
+        account = await db.accounts.find_one({"id": account_id}, {"_id": 0})
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        # Check permission
+        if user["role"] not in ["super_admin", "ceo", "sales_director"] and account.get("assigned_am_id") != user["id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        return {
+            "account_id": account_id,
+            "orders": account.get("orders", []),
+            "total": account.get("total_orders", 0),
+            "last_enriched": account.get("last_enriched_at")
+        }
+    
+    @api_router.get("/accounts/{account_id}/invoices")
+    async def get_account_invoices(account_id: str, user: dict = Depends(get_current_user)):
+        """Get invoices for an account (from enriched data)"""
+        account = await db.accounts.find_one({"id": account_id}, {"_id": 0})
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        # Check permission
+        if user["role"] not in ["super_admin", "ceo", "sales_director", "finance_manager"] and account.get("assigned_am_id") != user["id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        return {
+            "account_id": account_id,
+            "invoices": account.get("invoices", []),
+            "total_invoiced": account.get("total_invoiced", 0),
+            "total_paid": account.get("total_paid", 0),
+            "outstanding": account.get("outstanding_amount", 0),
+            "last_enriched": account.get("last_enriched_at")
+        }
+    
     # ===================== ORGANIZATION CONTACTS =====================
     
     @api_router.post("/organizations/{org_id}/contacts")
