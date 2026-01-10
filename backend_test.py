@@ -72,14 +72,14 @@ class SalesCommandAPITester:
         )
         return success
 
-    def test_login(self, email="ceo@salescommand.com", password="demo123"):
+    def test_login(self, email="am1@salescommand.com", password="demo123"):
         """Test login and get token"""
         print("\n" + "="*50)
         print("TESTING AUTHENTICATION")
         print("="*50)
         
         success, response = self.run_test(
-            "Login",
+            "Login as Account Manager",
             "POST",
             "auth/login",
             200,
