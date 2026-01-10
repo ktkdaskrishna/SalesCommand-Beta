@@ -27,18 +27,26 @@ import {
   Key,
   Play,
   Copy,
+  MessageSquare,
+  FolderTree,
+  Contact2,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Sidebar navigation items
+// Sidebar navigation items - Phase 3 enhanced
 const navItems = [
   { id: "organization", label: "Organization", icon: Building2 },
+  { id: "departments", label: "Departments", icon: FolderTree },
   { id: "users", label: "User Management", icon: Users },
   { id: "roles", label: "Roles & Permissions", icon: Shield },
+  { id: "contact-roles", label: "Contact Roles", icon: Contact2 },
   { id: "ai-agents", label: "AI Agents", icon: Bot },
-  { id: "llm", label: "LLM Providers", icon: Sparkles },
-  { id: "blue-sheet", label: "Blue Sheet Config", icon: FileText },
+  { id: "ai-chatbot", label: "AI Chatbot", icon: MessageSquare },
+  { id: "llm-providers", label: "LLM Providers", icon: Sparkles },
+  { id: "blue-sheet", label: "Blue Sheet", icon: FileText },
   { id: "ui", label: "UI & Branding", icon: Palette },
+  { id: "email", label: "Email Config", icon: Mail },
   { id: "integrations", label: "Integrations", icon: Link },
 ];
 
