@@ -379,6 +379,7 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
         role: editingUser.role,
         quota: editingUser.quota,
         is_active: editingUser.is_active,
+        department_id: editingUser.department_id || null,
       });
       toast.success("User updated");
       fetchUsers();
@@ -504,6 +505,13 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
               </select>
             </div>
             <div>
+              <label className="text-xs text-slate-500">Department</label>
+              <select value={editingUser.department_id || ""} onChange={(e) => setEditingUser({ ...editingUser, department_id: e.target.value || null })} className="input w-full">
+                <option value="">No Department</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="text-xs text-slate-500">Quota</label>
               <input type="number" value={editingUser.quota || 0} onChange={(e) => setEditingUser({ ...editingUser, quota: parseFloat(e.target.value) })} className="input w-full" />
             </div>
@@ -515,7 +523,7 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleUpdateUser} className="btn-primary text-sm">Save Changes</button>
+            <button onClick={handleUpdateUser} className="btn-primary text-sm" data-testid="edit-user-save-btn">Save Changes</button>
             <button onClick={() => setEditingUser(null)} className="btn-secondary text-sm">Cancel</button>
           </div>
         </div>
@@ -523,49 +531,62 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
 
       {/* Users Table */}
       <div className="card overflow-hidden">
-        <table className="w-full">
+        <table className="w-full" data-testid="users-table">
           <thead className="bg-slate-50 border-b">
             <tr>
               <th className="text-left p-3 text-xs font-semibold text-slate-600">User</th>
               <th className="text-left p-3 text-xs font-semibold text-slate-600">Role</th>
+              <th className="text-left p-3 text-xs font-semibold text-slate-600">Department</th>
               <th className="text-left p-3 text-xs font-semibold text-slate-600">Quota</th>
               <th className="text-left p-3 text-xs font-semibold text-slate-600">Status</th>
               <th className="text-right p-3 text-xs font-semibold text-slate-600">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {users.map((u) => (
-              <tr key={u.id} className={cn("hover:bg-slate-50", !u.is_active && "opacity-50")}>
-                <td className="p-3">
-                  <div>
-                    <p className="font-medium text-slate-900">{u.name}</p>
-                    <p className="text-xs text-slate-500">{u.email}</p>
-                  </div>
-                </td>
-                <td className="p-3">
-                  <span className="text-xs bg-slate-100 px-2 py-1 rounded">{roles.find(r => r.id === u.role)?.name || u.role}</span>
-                </td>
-                <td className="p-3 text-sm text-slate-600">${(u.quota || 0).toLocaleString()}</td>
-                <td className="p-3">
-                  <span className={cn("text-xs px-2 py-1 rounded", u.is_active !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
-                    {u.is_active !== false ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  <div className="flex justify-end gap-1">
-                    <button onClick={() => setEditingUser(u)} className="p-1 hover:bg-slate-100 rounded" title="Edit">
-                      <Edit2 className="w-4 h-4 text-slate-500" />
-                    </button>
-                    <button onClick={() => handleResetPassword(u.id)} className="p-1 hover:bg-slate-100 rounded" title="Reset Password">
-                      <Key className="w-4 h-4 text-slate-500" />
-                    </button>
-                    <button onClick={() => handleDeactivate(u.id)} className="p-1 hover:bg-red-50 rounded" title="Deactivate">
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const userDept = departments.find(d => d.id === u.department_id);
+              return (
+                <tr key={u.id} className={cn("hover:bg-slate-50", !u.is_active && "opacity-50")} data-testid={`user-row-${u.id}`}>
+                  <td className="p-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{u.name}</p>
+                      <p className="text-xs text-slate-500">{u.email}</p>
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">{roles.find(r => r.id === u.role)?.name || u.role}</span>
+                  </td>
+                  <td className="p-3">
+                    {userDept ? (
+                      <span className="text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: userDept.color || '#800000' }}>
+                        {userDept.name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No Department</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-sm text-slate-600">${(u.quota || 0).toLocaleString()}</td>
+                  <td className="p-3">
+                    <span className={cn("text-xs px-2 py-1 rounded", u.is_active !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                      {u.is_active !== false ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => setEditingUser(u)} className="p-1 hover:bg-slate-100 rounded" title="Edit" data-testid={`edit-user-${u.id}`}>
+                        <Edit2 className="w-4 h-4 text-slate-500" />
+                      </button>
+                      <button onClick={() => handleResetPassword(u.id)} className="p-1 hover:bg-slate-100 rounded" title="Reset Password">
+                        <Key className="w-4 h-4 text-slate-500" />
+                      </button>
+                      <button onClick={() => handleDeactivate(u.id)} className="p-1 hover:bg-red-50 rounded" title="Deactivate">
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
