@@ -1182,14 +1182,14 @@ Suggest:
 
 
 def get_default_ui_config() -> UIConfig:
-    """Return default UI configuration"""
+    """Return default UI configuration with Securado branding"""
     return UIConfig(
         theme_mode="light",
         colors=ThemeColors(),
         typography=ThemeTypography(),
         branding=BrandingConfig(
-            app_name="SalesCommand",
-            tagline="Enterprise Sales Platform"
+            app_name="Securado",
+            tagline="Digital Vaccine for Cyber Immunity"
         ),
         sidebar_collapsed=False,
         compact_mode=False,
@@ -1201,7 +1201,7 @@ def get_default_organization() -> OrganizationSettings:
     """Return default organization settings"""
     return OrganizationSettings(
         id="org_config",
-        name="SalesCommand Enterprise",
+        name="Securado Enterprise",
         timezone="UTC",
         date_format="YYYY-MM-DD",
         currency="USD",
@@ -1212,6 +1212,246 @@ def get_default_organization() -> OrganizationSettings:
         enable_referrals=True,
         enable_ai_features=True,
         data_retention_days=365
+    )
+
+
+def get_default_departments() -> DepartmentsConfig:
+    """Return default departments configuration"""
+    return DepartmentsConfig(
+        departments=[
+            DepartmentConfig(
+                id="sales",
+                name="Sales",
+                code="SALES",
+                description="Sales team responsible for revenue generation",
+                order=1,
+                color="#800000",
+                icon="trending-up"
+            ),
+            DepartmentConfig(
+                id="strategy",
+                name="Strategy",
+                code="STRATEGY",
+                description="Strategic accounts and executive relationships",
+                order=2,
+                color="#ee6543",
+                icon="target"
+            ),
+            DepartmentConfig(
+                id="product",
+                name="Product",
+                code="PRODUCT",
+                description="Product management and development",
+                order=3,
+                color="#86c881",
+                icon="box"
+            ),
+            DepartmentConfig(
+                id="finance",
+                name="Finance",
+                code="FINANCE",
+                description="Financial operations and reporting",
+                order=4,
+                color="#333333",
+                icon="dollar-sign"
+            ),
+        ],
+        teams=[],
+        enable_cross_department_visibility=False,
+        enable_team_based_access=True
+    )
+
+
+def get_default_llm_providers() -> LLMProvidersConfig:
+    """Return default LLM providers configuration"""
+    return LLMProvidersConfig(
+        providers=[
+            LLMProviderConfig(
+                id="openai",
+                provider=LLMProviderType.OPENAI,
+                name="OpenAI",
+                is_enabled=True,
+                is_default=True,
+                api_key_env="EMERGENT_LLM_KEY",
+                available_models=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+                default_model="gpt-4o",
+                max_tokens_limit=128000,
+                supports_streaming=True,
+                supports_function_calling=True,
+                cost_per_1k_input_tokens=0.005,
+                cost_per_1k_output_tokens=0.015
+            ),
+            LLMProviderConfig(
+                id="google",
+                provider=LLMProviderType.GOOGLE,
+                name="Google Gemini",
+                is_enabled=False,
+                is_default=False,
+                api_key_env="GOOGLE_API_KEY",
+                available_models=["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
+                default_model="gemini-1.5-pro",
+                max_tokens_limit=1000000,
+                supports_streaming=True,
+                supports_function_calling=True,
+                cost_per_1k_input_tokens=0.00125,
+                cost_per_1k_output_tokens=0.005
+            ),
+            LLMProviderConfig(
+                id="ollama",
+                provider=LLMProviderType.OLLAMA,
+                name="Ollama (Local)",
+                is_enabled=False,
+                is_default=False,
+                api_key_env="",
+                api_base_url="http://localhost:11434",
+                available_models=["llama2", "mistral", "codellama"],
+                default_model="llama2",
+                max_tokens_limit=4096,
+                supports_streaming=True,
+                supports_function_calling=False,
+                cost_per_1k_input_tokens=0,
+                cost_per_1k_output_tokens=0
+            ),
+        ],
+        default_provider_id="openai",
+        enable_fallback=True,
+        enable_cost_tracking=True
+    )
+
+
+def get_default_contact_roles() -> BlueSheetContactRoleConfig:
+    """Return default Blue Sheet contact role configuration"""
+    return BlueSheetContactRoleConfig(
+        roles=[
+            ContactRoleConfig(
+                id="economic_buyer",
+                name="Economic Buyer",
+                role_type=BlueSheetContactRole.ECONOMIC_BUYER,
+                description="The person who gives final approval and releases funds",
+                importance_weight=10,
+                color="#800000",
+                icon="dollar-sign",
+                is_required_for_qualification=True,
+                questions_to_ask=[
+                    "What is your budget approval process?",
+                    "Who else needs to approve this purchase?",
+                    "What ROI do you need to see?"
+                ]
+            ),
+            ContactRoleConfig(
+                id="user_buyer",
+                name="User Buyer",
+                role_type=BlueSheetContactRole.USER_BUYER,
+                description="The person who will use or supervise the use of the product",
+                importance_weight=7,
+                color="#ee6543",
+                icon="user",
+                is_required_for_qualification=False,
+                questions_to_ask=[
+                    "How will this solution fit into your daily workflow?",
+                    "What features are most important to you?"
+                ]
+            ),
+            ContactRoleConfig(
+                id="technical_buyer",
+                name="Technical Buyer",
+                role_type=BlueSheetContactRole.TECHNICAL_BUYER,
+                description="The person who evaluates technical specifications",
+                importance_weight=8,
+                color="#333333",
+                icon="settings",
+                is_required_for_qualification=False,
+                questions_to_ask=[
+                    "What technical requirements must be met?",
+                    "What is your current infrastructure?"
+                ]
+            ),
+            ContactRoleConfig(
+                id="coach",
+                name="Coach",
+                role_type=BlueSheetContactRole.COACH,
+                description="Someone inside the account who wants you to win and provides guidance",
+                importance_weight=9,
+                color="#86c881",
+                icon="compass",
+                is_required_for_qualification=True,
+                questions_to_ask=[
+                    "What do I need to know about the decision process?",
+                    "Who are the key influencers?"
+                ]
+            ),
+            ContactRoleConfig(
+                id="champion",
+                name="Champion",
+                role_type=BlueSheetContactRole.CHAMPION,
+                description="An advocate who actively sells on your behalf internally",
+                importance_weight=10,
+                color="#2563EB",
+                icon="star",
+                is_required_for_qualification=False,
+                questions_to_ask=[
+                    "How can we help you make the case internally?",
+                    "What obstacles do you anticipate?"
+                ]
+            ),
+            ContactRoleConfig(
+                id="influencer",
+                name="Influencer",
+                role_type=BlueSheetContactRole.INFLUENCER,
+                description="Someone who can influence the decision but doesn't make it",
+                importance_weight=5,
+                color="#F59E0B",
+                icon="users",
+                is_required_for_qualification=False
+            ),
+            ContactRoleConfig(
+                id="decision_maker",
+                name="Decision Maker",
+                role_type=BlueSheetContactRole.DECISION_MAKER,
+                description="Person with authority to make the buying decision",
+                importance_weight=9,
+                color="#EF4444",
+                icon="check-circle",
+                is_required_for_qualification=False
+            ),
+        ],
+        require_economic_buyer=True,
+        require_coach=True,
+        min_contacts_for_qualification=3
+    )
+
+
+def get_default_email_config() -> EmailConfig:
+    """Return default email configuration"""
+    return EmailConfig(
+        provider=EmailProviderType.OFFICE365,
+        is_enabled=False,
+        from_email="noreply@securado.com",
+        from_name="Securado Sales Platform"
+    )
+
+
+def get_default_chatbot_config() -> AIChatbotConfig:
+    """Return default AI chatbot configuration"""
+    return AIChatbotConfig(
+        is_enabled=False,
+        name="Securado Assistant",
+        welcome_message="Hello! I'm your Securado Sales Assistant. How can I help you today?",
+        llm_provider="openai",
+        model="gpt-4o",
+        temperature=0.7,
+        max_tokens=2000,
+        system_prompt="""You are Securado Assistant, an AI-powered sales helper for the Securado enterprise sales platform. 
+You help users with:
+- Analyzing opportunities and providing strategic recommendations
+- Understanding Blue Sheet methodology and sales best practices
+- Navigating the platform and its features
+- Answering questions about accounts, contacts, and deals
+Be concise, professional, and actionable in your responses.""",
+        allowed_roles=[],
+        features=["opportunity_analysis", "sales_tips", "platform_help", "data_queries"],
+        rate_limit_per_user=50,
+        context_window=10
     )
 
 
