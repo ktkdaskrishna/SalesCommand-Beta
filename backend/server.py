@@ -571,7 +571,8 @@ async def get_users(user: dict = Depends(require_role([UserRole.CEO, UserRole.AD
 # ===================== ACCOUNT ROUTES =====================
 
 @api_router.post("/accounts", response_model=AccountResponse)
-async def create_account(account_data: AccountCreate, user: dict = Depends(get_current_user)):
+async def create_account(account_data: AccountCreate, user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO]))):
+    """Create account - Super Admin and CEO only"""
     account_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     account_dict = {
