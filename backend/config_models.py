@@ -238,7 +238,9 @@ class LLMProviderConfig(BaseModel):
     name: str
     is_enabled: bool = True
     is_default: bool = False
-    api_key_env: str  # Environment variable name for API key
+    api_key_env: str = ""  # Environment variable name for API key (optional)
+    api_key: Optional[str] = None  # Actual API key (stored securely, masked in responses)
+    api_key_configured: bool = False  # Whether a key is set
     api_base_url: Optional[str] = None  # For Ollama or custom endpoints
     available_models: List[str] = []
     default_model: str
