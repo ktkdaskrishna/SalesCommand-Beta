@@ -735,7 +735,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
     async def reset_user_password(user_id: str, user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))):
         """Reset a user's password (admin only)"""
         from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
         
         target_user = await db.users.find_one({"id": user_id})
         if not target_user:
