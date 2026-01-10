@@ -677,6 +677,7 @@ def create_config_routes(api_router, db, get_current_user, require_role, UserRol
             "role": user_data.role,
             "password_hash": pwd_context.hash(password),
             "department": user_data.department,
+            "department_id": user_data.department_id,  # New field for department assignment
             "product_line": user_data.product_line,
             "manager_id": user_data.manager_id,
             "quota": user_data.quota,
