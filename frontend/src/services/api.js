@@ -103,6 +103,26 @@ export const aiAPI = {
   getInsights: () => api.post("/ai/insights"),
 };
 
+// Configuration (Super Admin)
+export const configAPI = {
+  getSystem: () => api.get("/config/system"),
+  getUserConfig: () => api.get("/config/user-config"),
+  getUserPermissions: () => api.get("/config/user-permissions"),
+  getModules: () => api.get("/config/modules"),
+  getRoles: () => api.get("/config/roles"),
+  createRole: (data) => api.post("/config/roles", data),
+  updateRole: (roleId, data) => api.put(`/config/roles/${roleId}`, data),
+  deleteRole: (roleId) => api.delete(`/config/roles/${roleId}`),
+  updateRolePermissions: (roleId, permissions) => api.put(`/config/roles/${roleId}/permissions`, permissions),
+  getBlueSheet: () => api.get("/config/blue-sheet"),
+  updateBlueSheet: (data) => api.put("/config/blue-sheet", data),
+  getLLM: () => api.get("/config/llm"),
+  updateLLM: (data) => api.put("/config/llm", data),
+  getUI: () => api.get("/config/ui"),
+  updateUI: (data) => api.put("/config/ui", data),
+  resetDefaults: (section) => api.post("/config/reset-defaults", null, { params: { section } }),
+};
+
 // Seed data
 export const seedAPI = {
   seed: () => api.post("/seed"),
