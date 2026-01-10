@@ -14,6 +14,12 @@ import jwt
 from passlib.context import CryptContext
 from bson import ObjectId
 
+# Import configuration models
+from config_models import (
+    get_default_modules, get_default_roles, get_default_blue_sheet_config,
+    get_default_llm_config, get_default_ui_config
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
