@@ -45,6 +45,7 @@ class UserCreateByAdmin(BaseModel):
     role: str
     password: Optional[str] = None  # If not provided, generate random
     department: Optional[str] = None
+    department_id: Optional[str] = None  # New field for department assignment
     product_line: Optional[str] = None
     manager_id: Optional[str] = None
     quota: float = 500000
@@ -56,6 +57,7 @@ class UserUpdateByAdmin(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     department: Optional[str] = None
+    department_id: Optional[str] = None  # New field for department assignment
     product_line: Optional[str] = None
     manager_id: Optional[str] = None
     quota: Optional[float] = None
