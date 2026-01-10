@@ -37,10 +37,12 @@ async def get_system_config(db) -> dict:
         # Initialize with defaults
         config = {
             "id": "system_config",
+            "organization": get_default_organization().model_dump(),
             "modules": [m.model_dump() for m in get_default_modules()],
             "roles": [r.model_dump() for r in get_default_roles()],
             "blue_sheet": get_default_blue_sheet_config().model_dump(),
             "llm": get_default_llm_config().model_dump(),
+            "ai_agents": get_default_ai_agents().model_dump(),
             "incentives": {"rules": [], "payout_periods": ["monthly", "quarterly", "yearly"], "approval_required": True, "approval_roles": ["finance_manager", "ceo"]},
             "integrations": [],
             "ui": get_default_ui_config().model_dump(),
@@ -49,6 +51,12 @@ async def get_system_config(db) -> dict:
             "updated_at": datetime.now(timezone.utc)
         }
         await db.system_config.insert_one(config)
+    else:
+        # Ensure new fields exist for backward compatibility
+        if "organization" not in config:
+            config["organization"] = get_default_organization().model_dump()
+        if "ai_agents" not in config:
+            config["ai_agents"] = get_default_ai_agents().model_dump()
     return config
 
 
