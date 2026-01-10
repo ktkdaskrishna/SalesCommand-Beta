@@ -124,6 +124,200 @@ class AIAgentsConfig(BaseModel):
     cost_tracking_enabled: bool = True
     max_cost_per_day: Optional[float] = None
 
+# ===================== AI CHATBOT CONFIGURATION =====================
+
+class AIChatbotConfig(BaseModel):
+    """AI Chatbot configuration - disabled by default"""
+    is_enabled: bool = False
+    name: str = "Sales Assistant"
+    welcome_message: str = "Hello! I'm your Sales Assistant. How can I help you today?"
+    llm_provider: str = "openai"
+    model: str = "gpt-4o"
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    system_prompt: str = "You are a helpful sales assistant for an enterprise sales platform. Help users with opportunity analysis, sales strategies, and platform navigation."
+    allowed_roles: List[str] = []  # Empty means all roles, specific roles to restrict
+    features: List[str] = ["opportunity_analysis", "sales_tips", "platform_help", "data_queries"]
+    rate_limit_per_user: int = 50  # Messages per day
+    context_window: int = 10  # Previous messages to include
+
+# ===================== DEPARTMENT CONFIGURATION =====================
+
+class DepartmentConfig(BaseModel):
+    """Department/Team structure configuration"""
+    id: str
+    name: str
+    code: str  # Short code like "SALES", "STRATEGY"
+    description: Optional[str] = None
+    head_user_id: Optional[str] = None  # HOD user ID
+    parent_department_id: Optional[str] = None  # For hierarchical departments
+    is_active: bool = True
+    order: int = 0
+    color: str = "#2563EB"
+    icon: str = "building"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class TeamConfig(BaseModel):
+    """Team within a department"""
+    id: str
+    name: str
+    department_id: str
+    lead_user_id: Optional[str] = None
+    description: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+class DepartmentsConfig(BaseModel):
+    """Complete departments and teams configuration"""
+    departments: List[DepartmentConfig] = []
+    teams: List[TeamConfig] = []
+    enable_cross_department_visibility: bool = False
+    enable_team_based_access: bool = True
+
+# ===================== BLUE SHEET CONTACT ROLES =====================
+
+class BlueSheetContactRole(str, Enum):
+    """Miller Heiman Blue Sheet contact roles"""
+    ECONOMIC_BUYER = "economic_buyer"
+    USER_BUYER = "user_buyer"
+    TECHNICAL_BUYER = "technical_buyer"
+    COACH = "coach"
+    CHAMPION = "champion"
+    INFLUENCER = "influencer"
+    DECISION_MAKER = "decision_maker"
+    GATEKEEPER = "gatekeeper"
+    END_USER = "end_user"
+    EXECUTIVE_SPONSOR = "executive_sponsor"
+
+class ContactRoleConfig(BaseModel):
+    """Configuration for a contact role in Blue Sheet"""
+    id: str
+    name: str
+    role_type: BlueSheetContactRole
+    description: str
+    importance_weight: int = 5  # 1-10 scale
+    color: str = "#2563EB"
+    icon: str = "user"
+    is_required_for_qualification: bool = False
+    questions_to_ask: List[str] = []
+
+class OrganizationContact(BaseModel):
+    """Contact within an organization/account"""
+    id: str
+    organization_id: str
+    name: str
+    title: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    roles: List[str] = []  # List of BlueSheetContactRole values
+    influence_level: str = "medium"  # low, medium, high, very_high
+    relationship_status: str = "neutral"  # negative, neutral, supportive, champion
+    notes: Optional[str] = None
+    last_contact_date: Optional[datetime] = None
+    avatar_url: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+# ===================== ENHANCED LLM PROVIDER CONFIGURATION =====================
+
+class LLMProviderType(str, Enum):
+    """Supported LLM providers"""
+    OPENAI = "openai"
+    GOOGLE = "google"
+    ANTHROPIC = "anthropic"
+    OLLAMA = "ollama"
+    AZURE_OPENAI = "azure_openai"
+
+class LLMProviderConfig(BaseModel):
+    """Individual LLM provider configuration"""
+    id: str
+    provider: LLMProviderType
+    name: str
+    is_enabled: bool = True
+    is_default: bool = False
+    api_key_env: str  # Environment variable name for API key
+    api_base_url: Optional[str] = None  # For Ollama or custom endpoints
+    available_models: List[str] = []
+    default_model: str
+    max_tokens_limit: int = 4096
+    supports_streaming: bool = True
+    supports_function_calling: bool = True
+    cost_per_1k_input_tokens: float = 0.0
+    cost_per_1k_output_tokens: float = 0.0
+    rate_limit_rpm: int = 60  # Requests per minute
+    timeout_seconds: int = 30
+
+class LLMProvidersConfig(BaseModel):
+    """Complete LLM providers configuration"""
+    providers: List[LLMProviderConfig] = []
+    default_provider_id: str = "openai"
+    enable_fallback: bool = True
+    fallback_provider_id: Optional[str] = None
+    enable_cost_tracking: bool = True
+    monthly_budget_limit: Optional[float] = None
+
+# ===================== EMAIL & NOTIFICATION CONFIGURATION =====================
+
+class EmailProviderType(str, Enum):
+    """Supported email providers"""
+    OFFICE365 = "office365"
+    SENDGRID = "sendgrid"
+    RESEND = "resend"
+    SMTP = "smtp"
+
+class EmailConfig(BaseModel):
+    """Email configuration for notifications and invitations"""
+    provider: EmailProviderType = EmailProviderType.OFFICE365
+    is_enabled: bool = True
+    from_email: str = "noreply@salescommand.com"
+    from_name: str = "SalesCommand"
+    # Office 365 specific
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret_env: str = "OFFICE365_CLIENT_SECRET"
+    # Templates
+    user_invitation_subject: str = "Welcome to SalesCommand - Set Up Your Account"
+    password_reset_subject: str = "SalesCommand - Password Reset Request"
+    enable_email_notifications: bool = True
+
+# ===================== USER INVITATION CONFIGURATION =====================
+
+class UserInvitation(BaseModel):
+    """User invitation record"""
+    id: str
+    email: str
+    name: str
+    role: str
+    department_id: Optional[str] = None
+    team_id: Optional[str] = None
+    invited_by: str  # User ID of inviter
+    invitation_token: str
+    expires_at: datetime
+    is_used: bool = False
+    used_at: Optional[datetime] = None
+    created_at: datetime
+
+# ===================== DATA ACCESS CONFIGURATION =====================
+
+class DataAccessLevel(str, Enum):
+    """Data access levels for hierarchical permissions"""
+    SELF = "self"  # Only own data
+    TEAM = "team"  # Team data
+    DEPARTMENT = "department"  # Department data
+    ORGANIZATION = "organization"  # All organization data
+
+class DataAccessConfig(BaseModel):
+    """Data access configuration for a role"""
+    opportunities: DataAccessLevel = DataAccessLevel.SELF
+    accounts: DataAccessLevel = DataAccessLevel.SELF
+    activities: DataAccessLevel = DataAccessLevel.SELF
+    incentives: DataAccessLevel = DataAccessLevel.SELF
+    reports: DataAccessLevel = DataAccessLevel.SELF
+    users: DataAccessLevel = DataAccessLevel.SELF
+
 # ===================== CORE CONFIGURATION MODELS =====================
 
 class ModuleType(str, Enum):
