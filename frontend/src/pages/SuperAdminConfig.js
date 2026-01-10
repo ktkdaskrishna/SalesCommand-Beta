@@ -411,6 +411,7 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
   };
 
   const roles = config?.roles || [];
+  const departments = config?.departments?.departments || [];
 
   if (loading) {
     return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>;
@@ -421,7 +422,7 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">User Management</h3>
-          <p className="text-sm text-slate-500">Create, edit, and manage user accounts</p>
+          <p className="text-sm text-slate-500">Create, edit, and manage user accounts with department assignments</p>
         </div>
         <button onClick={() => setShowNewUser(true)} className="btn-primary text-sm flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
@@ -462,6 +463,13 @@ const UserManagementTab = ({ config, onConfigUpdate }) => {
               <label className="text-xs text-slate-500">Role *</label>
               <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className="input w-full">
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Department</label>
+              <select value={newUser.department_id || ""} onChange={(e) => setNewUser({ ...newUser, department_id: e.target.value || null })} className="input w-full">
+                <option value="">No Department</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
