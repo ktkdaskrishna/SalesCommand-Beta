@@ -2965,6 +2965,8 @@ const SuperAdminConfig = () => {
     switch (activeTab) {
       case "organization":
         return <OrganizationTab config={config} onConfigUpdate={fetchConfig} />;
+      case "account-fields":
+        return <AccountFieldsTab config={config} onConfigUpdate={fetchConfig} />;
       case "departments":
         return <DepartmentsTab config={config} onConfigUpdate={fetchConfig} />;
       case "users":
