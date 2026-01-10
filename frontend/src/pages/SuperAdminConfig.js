@@ -1198,7 +1198,7 @@ const LLMProvidersTab = ({ config, onConfigUpdate }) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">LLM Providers</h3>
-          <p className="text-sm text-slate-500">Configure AI language model providers</p>
+          <p className="text-sm text-slate-500">Configure AI language model providers and API keys</p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary text-sm flex items-center gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -1211,18 +1211,31 @@ const LLMProvidersTab = ({ config, onConfigUpdate }) => {
           <div key={provider.id} className={cn("card p-4 border-2", provider.is_enabled ? "border-green-200" : "border-slate-200")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold", provider.is_enabled ? "bg-green-500" : "bg-slate-400")}>
+                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold", provider.is_enabled && provider.api_key_configured ? "bg-green-500" : provider.is_enabled ? "bg-amber-500" : "bg-slate-400")}>
                   {provider.provider?.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-medium text-slate-900">{provider.name}</h4>
+                  <h4 className="font-medium text-slate-900 flex items-center gap-2">
+                    {provider.name}
+                    {provider.api_key_configured ? (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Key Configured</span>
+                    ) : (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">No API Key</span>
+                    )}
+                  </h4>
                   <p className="text-sm text-slate-500">
-                    Model: {provider.default_model} | Key: {provider.api_key_env}
+                    Model: {provider.default_model}
+                    {provider.api_key_masked && ` | Key: ${provider.api_key_masked}`}
+                    {provider.api_key_env && ` | Env: ${provider.api_key_env}`}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleTest(provider)} disabled={testing === provider.id || !provider.is_enabled} className="btn-secondary text-xs flex items-center gap-1">
+                <button onClick={() => setEditingKey(editingKey === provider.id ? null : provider.id)} className="btn-secondary text-xs flex items-center gap-1">
+                  <Key className="w-3 h-3" />
+                  {editingKey === provider.id ? "Cancel" : "Set Key"}
+                </button>
+                <button onClick={() => handleTest(provider)} disabled={testing === provider.id || !provider.api_key_configured} className="btn-secondary text-xs flex items-center gap-1">
                   {testing === provider.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                   Test
                 </button>
@@ -1232,7 +1245,53 @@ const LLMProvidersTab = ({ config, onConfigUpdate }) => {
                 </label>
               </div>
             </div>
-            {provider.is_enabled && (
+            
+            {/* API Key Configuration */}
+            {editingKey === provider.id && (
+              <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                <h5 className="font-medium text-slate-700">Configure API Key for {provider.name}</h5>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input type="radio" checked={!useEnvVar} onChange={() => setUseEnvVar(false)} name={`keyType-${provider.id}`} />
+                    <span className="text-sm">Enter API Key</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="radio" checked={useEnvVar} onChange={() => setUseEnvVar(true)} name={`keyType-${provider.id}`} />
+                    <span className="text-sm">Use Environment Variable</span>
+                  </label>
+                </div>
+                {!useEnvVar ? (
+                  <div>
+                    <label className="text-xs text-slate-500">API Key</label>
+                    <input
+                      type="password"
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      className="input w-full"
+                      placeholder="sk-..."
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs text-slate-500">Environment Variable Name</label>
+                    <input
+                      type="text"
+                      value={envVarName}
+                      onChange={(e) => setEnvVarName(e.target.value)}
+                      className="input w-full"
+                      placeholder="OPENAI_API_KEY or EMERGENT_LLM_KEY"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Use EMERGENT_LLM_KEY for platform-provided key</p>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => handleSetApiKey(provider.id)} className="btn-primary text-sm">Save API Key</button>
+                  <button onClick={() => { setEditingKey(null); setNewApiKey(""); setUseEnvVar(false); }} className="btn-secondary text-sm">Cancel</button>
+                </div>
+              </div>
+            )}
+            
+            {provider.is_enabled && editingKey !== provider.id && (
               <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-4 gap-4 text-xs">
                 <div><span className="text-slate-500">Max Tokens:</span> {provider.max_tokens_limit}</div>
                 <div><span className="text-slate-500">Rate Limit:</span> {provider.rate_limit_rpm}/min</div>
