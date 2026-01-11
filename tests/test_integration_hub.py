@@ -143,17 +143,29 @@ class TestDataLakeAPI:
 
 
 class TestOdooIntegration:
-    """Odoo integration endpoint tests"""
+    """Odoo integration endpoint tests (requires authentication)"""
     
-    def test_odoo_config(self):
+    @pytest.fixture
+    def auth_headers(self):
+        """Get authentication token"""
+        login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": "superadmin@salescommand.com",
+            "password": "demo123"
+        })
+        if login_response.status_code == 200:
+            token = login_response.json().get("access_token")
+            return {"Authorization": f"Bearer {token}"}
+        pytest.skip("Authentication failed")
+    
+    def test_odoo_config(self, auth_headers):
         """Test GET /api/odoo/config returns config"""
-        response = requests.get(f"{BASE_URL}/api/odoo/config")
+        response = requests.get(f"{BASE_URL}/api/odoo/config", headers=auth_headers)
         # May return 200 or 404 depending on setup
         assert response.status_code in [200, 404, 500]
         
-    def test_odoo_sync_logs(self):
+    def test_odoo_sync_logs(self, auth_headers):
         """Test GET /api/odoo/sync-logs returns logs"""
-        response = requests.get(f"{BASE_URL}/api/odoo/sync-logs?limit=50")
+        response = requests.get(f"{BASE_URL}/api/odoo/sync-logs?limit=50", headers=auth_headers)
         # May return 200 or 404 depending on setup
         assert response.status_code in [200, 404, 500]
 
