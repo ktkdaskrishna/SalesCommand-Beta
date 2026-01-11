@@ -690,11 +690,19 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
             raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
         
         engine = OdooSyncEngine(db, client)
+        
+        # First sync users
+        user_map = await engine.sync_users_from_odoo(config)
+        
         results = []
         
         for mapping in config.entity_mappings:
             if mapping.sync_enabled:
                 log = await engine.sync_entity(mapping, config.global_settings.get("sync_batch_size", 100))
+                
+                # Assign to platform users
+                await assign_to_platform_users(db, mapping, user_map)
+                
                 mapping.last_sync_at = datetime.now(timezone.utc)
                 results.append({
                     "entity": mapping.name,
@@ -706,7 +714,7 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
                 })
         
         await save_odoo_config(config)
-        return {"results": results}
+        return {"results": results, "users_synced": len(user_map)}
     
     @router.get("/sync-logs")
     async def get_sync_logs(
