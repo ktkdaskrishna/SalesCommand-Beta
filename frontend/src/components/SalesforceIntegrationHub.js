@@ -440,7 +440,7 @@ const SalesforceConnectionTab = ({ config, onUpdate, onTest, testing, status }) 
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-            Click <strong>"New Connected App"</strong>
+            Click <strong>&ldquo;New Connected App&rdquo;</strong>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>

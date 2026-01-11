@@ -307,7 +307,7 @@ const MS365ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
               placeholder="https://your-app.com/api/auth/ms365/callback"
               data-testid="ms365-redirect-uri-input"
             />
-            <p className="text-xs text-slate-500 mt-1">Add this URI to your Azure AD app's redirect URIs</p>
+            <p className="text-xs text-slate-500 mt-1">Add this URI to your Azure AD app&apos;s redirect URIs</p>
           </div>
         </div>
 
@@ -345,19 +345,19 @@ const MS365ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-cyan-200 text-cyan-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-            Click <strong>"New registration"</strong> and give your app a name
+            Click <strong>&ldquo;New registration&rdquo;</strong> and give your app a name
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-cyan-200 text-cyan-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-            Add the <strong>Redirect URI</strong> shown above under "Web" platform
+            Add the <strong>Redirect URI</strong> shown above under &ldquo;Web&rdquo; platform
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-cyan-200 text-cyan-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
-            Go to <strong>"Certificates & secrets"</strong> and create a new client secret
+            Go to <strong>&ldquo;Certificates &amp; secrets&rdquo;</strong> and create a new client secret
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-cyan-200 text-cyan-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">5</span>
-            Under <strong>"API permissions"</strong>, add: User.Read, Calendars.Read, Mail.Read
+            Under <strong>&ldquo;API permissions&rdquo;</strong>, add: User.Read, Calendars.Read, Mail.Read
           </li>
         </ol>
         <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-800 mt-3">

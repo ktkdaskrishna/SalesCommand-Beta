@@ -450,7 +450,7 @@ const AccountFormBuilder = ({ onClose }) => {
               {sections.length === 0 && (
                 <div className="text-center py-12 text-slate-500">
                   <Columns className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                  <p>No sections yet. Click "Add Section" to start building your form.</p>
+                  <p>No sections yet. Click &ldquo;Add Section&rdquo; to start building your form.</p>
                 </div>
               )}
             </div>

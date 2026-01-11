@@ -327,7 +327,7 @@ const HubSpotConnectionTab = ({ config, onUpdate, onTest, testing, status }) => 
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-orange-200 text-orange-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-            Click <strong>"Create a private app"</strong>
+            Click <strong>&ldquo;Create a private app&rdquo;</strong>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-orange-200 text-orange-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>

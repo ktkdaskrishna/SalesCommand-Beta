@@ -569,7 +569,7 @@ const ConnectionTab = ({ integration, config, onUpdate, onTest, testing, status,
               </li>
               <li className="flex items-start gap-2">
                 <span className={cn("w-5 h-5 rounded-full text-xs flex items-center justify-center flex-shrink-0 mt-0.5", `bg-${meta.color}-200 text-${meta.color}-800`)}>3</span>
-                Click <strong>"Account Security"</strong> tab → <strong>"New API Key"</strong>
+                Click <strong>&ldquo;Account Security&rdquo;</strong> tab → <strong>&ldquo;New API Key&rdquo;</strong>
               </li>
             </>
           )}
