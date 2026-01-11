@@ -103,7 +103,7 @@ function AppRoutes() {
         path="/accounts/:id"
         element={
           <ProtectedRoute>
-            <Accounts />
+            <AccountDetail />
           </ProtectedRoute>
         }
       />
