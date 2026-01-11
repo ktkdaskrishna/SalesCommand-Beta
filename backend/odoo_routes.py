@@ -358,13 +358,12 @@ class OdooSyncEngine:
                     {"$set": {"odoo_user_id": odoo_id}}
                 )
             elif config.auto_create_users:
-                # Create new platform user with simple password
-                from passlib.hash import bcrypt
+                # Create new platform user with bcrypt directly
+                import bcrypt
                 
                 new_user_id = str(uuid.uuid4())
-                # Use a simple default password
                 default_password = "changeme123"
-                password_hash = bcrypt.hash(default_password[:72])  # Truncate to 72 bytes
+                password_hash = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 
                 new_user = {
                     "id": new_user_id,
