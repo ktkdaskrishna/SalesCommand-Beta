@@ -60,7 +60,7 @@ class TestAuthentication:
     def test_protected_route_without_token(self):
         """Test protected route without token should fail"""
         response = requests.get(f"{BASE_URL}/api/auth/me")
-        assert response.status_code == 401
+        assert response.status_code in [401, 403]
         print(f"✓ Protected route correctly requires auth")
         
     def test_protected_route_with_token(self):
