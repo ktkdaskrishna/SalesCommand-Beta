@@ -37,6 +37,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const adminItems = [
     { icon: Users, label: "Users", path: "/users" },
     { icon: Settings, label: "Integrations", path: "/integrations" },
+    { icon: Database, label: "Integration Hub", path: "/integration-hub" },
   ];
 
   const superAdminItems = [
