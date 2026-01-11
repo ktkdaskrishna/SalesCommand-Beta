@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { cn } from "../lib/utils";
 import AccountFormBuilder from "../components/AccountFormBuilder";
+import OdooIntegrationHub from "../components/OdooIntegrationHub";
 import {
   Settings,
   Users,
