@@ -214,15 +214,24 @@ A unified frontend component for managing all integrations with the same structu
 
 ### Features
 - **Multi-Integration Support:** Odoo ERP, Salesforce, HubSpot, Microsoft 365
-- **Tab-based Interface:** Switch between integrations using selector tabs
-- **Connection Tab:** Configure API credentials specific to each integration
-- **Field Mapping Tab:** Visual field mapper showing source→canonical mappings
-- **Sync Data Tab:** Preview and sync individual entities or all at once
-- **Data Lake Tab:** Three-zone architecture visualization (Raw, Canonical, Serving)
-- **History Tab:** View sync logs with timestamps and record counts
+- **Dedicated Integration Pages:** Each integration has its own full-featured page
+- **Tab-based Interface:** Connection, Field Mapping, Sync Data, Data Lake, History tabs
+- **Visual Field Mapper:** Source field → Target field mapping visualization
+- **SSO Setup Tab:** Microsoft 365 includes SSO configuration
 
 ### Routes
-- `/integration-hub` - Unified Integration Hub
+- `/integrations/odoo` - Odoo ERP Integration Hub
+- `/integrations/salesforce` - Salesforce Integration Hub
+- `/integrations/hubspot` - HubSpot Integration Hub
+- `/integrations/ms365` - Microsoft 365 Integration Hub
+- `/integration-hub` - Unified Integration Overview
+
+### Integration Page Structure (Same for all)
+1. **Connection Tab** - Configure API credentials specific to each integration
+2. **Field Mapping Tab** - Visual mapper showing source→canonical field mappings
+3. **Sync Data Tab** - Preview and sync individual entities or all at once
+4. **Data Lake Tab** - Three-zone architecture visualization (Raw, Canonical, Serving)
+5. **History Tab** - View sync logs with timestamps and record counts
 
 ---
 
