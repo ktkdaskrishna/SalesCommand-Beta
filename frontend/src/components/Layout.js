@@ -40,6 +40,13 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Database, label: "Integration Hub", path: "/integration-hub" },
   ];
 
+  const integrationItems = [
+    { icon: Database, label: "Odoo ERP", path: "/integrations/odoo" },
+    { icon: Database, label: "Salesforce", path: "/integrations/salesforce" },
+    { icon: Database, label: "HubSpot", path: "/integrations/hubspot" },
+    { icon: Database, label: "Microsoft 365", path: "/integrations/ms365" },
+  ];
+
   const superAdminItems = [
     { icon: Shield, label: "System Config", path: "/admin/config" },
   ];
