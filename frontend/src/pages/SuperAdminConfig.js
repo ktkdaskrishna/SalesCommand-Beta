@@ -2843,9 +2843,490 @@ const UITab = ({ config, onConfigUpdate }) => {
   );
 };
 
-// Integrations Tab
+// Integrations Tab with Pipeline Visualization
 const IntegrationsTab = ({ config, onConfigUpdate }) => {
-  return <VisualDataFlowHub />;
+  const [activeView, setActiveView] = useState('pipeline');
+
+  return (
+    <div className="space-y-4">
+      {/* Tab Navigation */}
+      <div className="flex gap-2 border-b border-slate-700 pb-2">
+        <button
+          onClick={() => setActiveView('pipeline')}
+          className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+            activeView === 'pipeline'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white hover:bg-slate-700'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            Data Lake Pipeline
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveView('odoo')}
+          className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+            activeView === 'odoo'
+              ? 'bg-purple-600 text-white'
+              : 'text-slate-400 hover:text-white hover:bg-slate-700'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Link className="w-4 h-4" />
+            Odoo Integration
+          </span>
+        </button>
+      </div>
+
+      {/* Content */}
+      {activeView === 'pipeline' ? (
+        <IntegrationPipelineHub />
+      ) : (
+        <VisualDataFlowHub />
+      )}
+    </div>
+  );
+};
+
+// Integration Pipeline Hub Component (inline version for SuperAdmin)
+const IntegrationPipelineHub = () => {
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [config, setConfig] = useState({});
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncLog, setSyncLog] = useState([]);
+
+  const integrations = [
+    { 
+      id: 'salesforce', 
+      name: 'Salesforce', 
+      icon: '☁️', 
+      bgColor: 'bg-blue-600',
+      description: 'CRM & Sales Cloud',
+      status: 'disconnected',
+      lastSync: null
+    },
+    { 
+      id: 'odoo', 
+      name: 'Odoo ERP', 
+      icon: '🟣', 
+      bgColor: 'bg-purple-600',
+      description: 'ERP & CRM',
+      status: 'connected',
+      lastSync: '2 hours ago'
+    },
+    { 
+      id: 'hubspot', 
+      name: 'HubSpot', 
+      icon: '🟠', 
+      bgColor: 'bg-orange-600',
+      description: 'Marketing & Sales',
+      status: 'disconnected',
+      lastSync: null
+    },
+    { 
+      id: 'ms365', 
+      name: 'Microsoft 365', 
+      icon: '🔷', 
+      bgColor: 'bg-cyan-600',
+      description: 'SSO & Calendar',
+      status: 'pending',
+      lastSync: null
+    }
+  ];
+
+  const pipelineSteps = [
+    { id: 0, title: 'Connector', icon: '⚡', desc: 'API Connection' },
+    { id: 1, title: 'Mapper', icon: '🔄', desc: 'Field Transform' },
+    { id: 2, title: 'Validator', icon: '✓', desc: 'Data Quality' },
+    { id: 3, title: 'Normalizer', icon: '🔗', desc: 'Dedupe & Resolve' },
+    { id: 4, title: 'Pipeline', icon: '▶', desc: 'Run Sync' }
+  ];
+
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    await new Promise(r => setTimeout(r, 1500));
+    setTestResult({ success: true, message: 'Connection successful!' });
+    setTesting(false);
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncLog([]);
+    
+    const steps = [
+      { msg: `Connecting to ${selectedIntegration?.name}...`, delay: 500 },
+      { msg: '✓ Connected successfully', delay: 300 },
+      { msg: 'Fetching users...', delay: 800 },
+      { msg: '✓ Fetched 12 users → Raw Zone', delay: 200 },
+      { msg: 'Fetching accounts...', delay: 1000 },
+      { msg: '✓ Fetched 45 accounts → Raw Zone', delay: 200 },
+      { msg: 'Fetching contacts...', delay: 1200 },
+      { msg: '✓ Fetched 128 contacts → Raw Zone', delay: 200 },
+      { msg: 'Processing: Mapping → Validating → Normalizing...', delay: 1500 },
+      { msg: '✓ 185 records → Canonical Zone', delay: 300 },
+      { msg: 'Updating Serving Zone...', delay: 800 },
+      { msg: '🎉 Sync complete!', delay: 0 }
+    ];
+
+    for (const step of steps) {
+      await new Promise(r => setTimeout(r, step.delay));
+      setSyncLog(log => [...log, step.msg]);
+    }
+    setSyncing(false);
+  };
+
+  const fieldMappings = {
+    salesforce: {
+      contact: [
+        { source: 'FirstName + LastName', target: 'name' },
+        { source: 'Email', target: 'email' },
+        { source: 'Phone', target: 'phone' },
+        { source: 'Title', target: 'job_title' },
+        { source: 'AccountId', target: 'account_id' },
+      ],
+      account: [
+        { source: 'Name', target: 'name' },
+        { source: 'Website', target: 'website' },
+        { source: 'Industry', target: 'industry' },
+        { source: 'NumberOfEmployees', target: 'employee_count' },
+      ]
+    },
+    odoo: {
+      contact: [
+        { source: 'name', target: 'name' },
+        { source: 'email', target: 'email' },
+        { source: 'phone', target: 'phone' },
+        { source: 'function', target: 'job_title' },
+      ]
+    }
+  };
+
+  const validationRules = [
+    { field: 'Email', rule: 'Valid email format', severity: 'error' },
+    { field: 'Name', rule: 'Required, non-empty', severity: 'error' },
+    { field: 'Amount', rule: 'Non-negative number', severity: 'warning' },
+  ];
+
+  const renderStepContent = () => {
+    if (!selectedIntegration) return null;
+
+    switch (activeStep) {
+      case 0: // Connector
+        return (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="text-xl">⚡</span> Connector Configuration
+            </h4>
+            <p className="text-sm text-slate-400">
+              Configure API connection to {selectedIntegration.name}
+            </p>
+            
+            {selectedIntegration.id === 'salesforce' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Instance URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://yourcompany.salesforce.com"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                    value={config.instance_url || ''}
+                    onChange={(e) => setConfig({ ...config, instance_url: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Access Token</label>
+                  <input
+                    type="password"
+                    placeholder="OAuth 2.0 access token"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                    value={config.access_token || ''}
+                    onChange={(e) => setConfig({ ...config, access_token: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {selectedIntegration.id === 'odoo' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Odoo URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://yourcompany.odoo.com"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Database</label>
+                  <input
+                    type="text"
+                    placeholder="production"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    placeholder="Your API key"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleTestConnection}
+              disabled={testing}
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Test Connection
+            </button>
+
+            {testResult && (
+              <div className={`p-3 rounded-lg ${testResult.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {testResult.message}
+              </div>
+            )}
+          </div>
+        );
+
+      case 1: // Mapper
+        const mappings = fieldMappings[selectedIntegration.id] || {};
+        return (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="text-xl">🔄</span> Field Mapper
+            </h4>
+            <p className="text-sm text-slate-400">
+              How {selectedIntegration.name} fields map to canonical fields
+            </p>
+            
+            {Object.entries(mappings).map(([entity, fields]) => (
+              <div key={entity} className="border border-slate-700 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 bg-slate-800 font-medium text-white capitalize">{entity}</div>
+                <div className="p-3 space-y-2">
+                  {fields.map((f, idx) => (
+                    <div key={idx} className="flex items-center gap-3 text-sm">
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">{f.source}</span>
+                      <span className="text-slate-500">→</span>
+                      <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded">{f.target}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+
+      case 2: // Validator
+        return (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="text-xl">✓</span> Validation Rules
+            </h4>
+            <p className="text-sm text-slate-400">
+              Data quality checks before entering the Data Lake
+            </p>
+            
+            <div className="space-y-2">
+              {validationRules.map((rule, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-0.5 text-xs rounded ${rule.severity === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                      {rule.severity}
+                    </span>
+                    <span className="text-sm text-white font-medium">{rule.field}</span>
+                  </div>
+                  <span className="text-sm text-slate-400">{rule.rule}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 3: // Normalizer
+        return (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="text-xl">🔗</span> Normalizer
+            </h4>
+            <p className="text-sm text-slate-400">
+              Deduplication and reference resolution
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: '🔄', title: 'Data Standardization', desc: 'Email lowercase, phone format' },
+                { icon: '🔍', title: 'Duplicate Detection', desc: 'Find duplicates by email/name' },
+                { icon: '🔗', title: 'Reference Resolution', desc: 'AccountId → canonical ID' },
+                { icon: '🤝', title: 'Cross-System Merge', desc: 'Same entity from multiple sources' },
+              ].map((feature, idx) => (
+                <div key={idx} className="p-3 bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span>{feature.icon}</span>
+                    <span className="text-sm font-medium text-white">{feature.title}</span>
+                  </div>
+                  <p className="text-xs text-slate-400">{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 4: // Pipeline
+        return (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="text-xl">▶</span> Run Sync Pipeline
+            </h4>
+            <p className="text-sm text-slate-400">
+              Execute: Fetch → Raw Zone → Canonical Zone → Serving Zone
+            </p>
+            
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {syncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+              {syncing ? 'Syncing...' : 'Run Full Sync'}
+            </button>
+
+            {syncLog.length > 0 && (
+              <div className="bg-slate-900 rounded-lg p-4 max-h-48 overflow-y-auto font-mono text-sm">
+                {syncLog.map((log, idx) => (
+                  <div key={idx} className={`py-1 ${log.startsWith('✓') ? 'text-green-400' : log.startsWith('🎉') ? 'text-yellow-400 font-bold' : 'text-slate-300'}`}>
+                    {log}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="p-3 bg-slate-800 rounded-lg text-center">
+                <div className="text-xl font-bold text-white">185</div>
+                <div className="text-xs text-slate-400">Records</div>
+              </div>
+              <div className="p-3 bg-slate-800 rounded-lg text-center">
+                <div className="text-xl font-bold text-green-400">98%</div>
+                <div className="text-xs text-slate-400">Success</div>
+              </div>
+              <div className="p-3 bg-slate-800 rounded-lg text-center">
+                <div className="text-xl font-bold text-blue-400">3</div>
+                <div className="text-xs text-slate-400">Merged</div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Integration Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {integrations.map(integration => (
+          <div
+            key={integration.id}
+            onClick={() => { setSelectedIntegration(integration); setActiveStep(0); }}
+            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              selectedIntegration?.id === integration.id
+                ? 'border-blue-500 bg-blue-500/10'
+                : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${integration.bgColor}`}>
+                <span className="text-xl">{integration.icon}</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white text-sm">{integration.name}</h3>
+                <p className="text-xs text-slate-400">{integration.description}</p>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${
+                integration.status === 'connected' ? 'bg-green-500' :
+                integration.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+              }`} />
+              <span className="text-xs text-slate-500 capitalize">{integration.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedIntegration && (
+        <>
+          {/* Pipeline Steps */}
+          <div className="bg-slate-800/50 rounded-xl p-4">
+            <h3 className="text-sm font-medium text-slate-400 mb-3">{selectedIntegration.name} Pipeline</h3>
+            <div className="flex items-center justify-between">
+              {pipelineSteps.map((step, idx) => (
+                <React.Fragment key={step.id}>
+                  <button
+                    onClick={() => setActiveStep(step.id)}
+                    className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+                      activeStep === step.id ? 'bg-blue-600' : 'hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="text-xl">{step.icon}</span>
+                    <span className="text-xs text-white font-medium">{step.title}</span>
+                    <span className="text-xs text-slate-400">{step.desc}</span>
+                  </button>
+                  {idx < pipelineSteps.length - 1 && (
+                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* Step Content */}
+          <div className="bg-slate-800/50 rounded-xl p-6">
+            {renderStepContent()}
+          </div>
+        </>
+      )}
+
+      {/* Data Lake Zones */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-blue-900/50 to-slate-800 rounded-xl p-4 border border-blue-800/50">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-5 h-5 text-blue-400" />
+            <h3 className="font-semibold text-white">Raw Zone</h3>
+          </div>
+          <p className="text-xs text-slate-400 mb-2">Immutable source archive</p>
+          <div className="text-2xl font-bold text-blue-400">1,247</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-900/50 to-slate-800 rounded-xl p-4 border border-green-800/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Database className="w-5 h-5 text-green-400" />
+            <h3 className="font-semibold text-white">Canonical Zone</h3>
+          </div>
+          <p className="text-xs text-slate-400 mb-2">Unified entities</p>
+          <div className="text-2xl font-bold text-green-400">892</div>
+        </div>
+        <div className="bg-gradient-to-br from-purple-900/50 to-slate-800 rounded-xl p-4 border border-purple-800/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            <h3 className="font-semibold text-white">Serving Zone</h3>
+          </div>
+          <p className="text-xs text-slate-400 mb-2">Dashboard-ready</p>
+          <div className="text-2xl font-bold text-purple-400">24</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Main Super Admin Config Page
