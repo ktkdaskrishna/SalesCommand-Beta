@@ -1,11 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Database, Link, ArrowRight, Settings, Play, CheckCircle, 
   XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronRight,
-  Zap, Filter, GitMerge, Upload, FileText, Clock, BarChart3
+  Zap, Filter, GitMerge, Upload, FileText, Clock, BarChart3,
+  Loader2
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Helper to get auth token
+const getAuthToken = () => localStorage.getItem('token');
+
+// API helper with auth
+const apiCall = async (endpoint, options = {}) => {
+  const token = getAuthToken();
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || 'Request failed');
+  }
+  return response.json();
+};
 
 // Pipeline step component
 const PipelineStep = ({ icon: Icon, title, description, status, isLast, onClick, isActive }) => {
