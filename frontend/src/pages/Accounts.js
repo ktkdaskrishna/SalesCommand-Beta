@@ -592,38 +592,3 @@ const MapPin = ({ className }) => (
 );
 
 export default Accounts;
-                      onChange={(e) => setFormData({ ...formData, business_overview: e.target.value })}
-                      className="input w-full h-24"
-                      placeholder="Brief description of the company..."
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Strategic Notes</label>
-                    <textarea
-                      value={formData.strategic_notes}
-                      onChange={(e) => setFormData({ ...formData, strategic_notes: e.target.value })}
-                      className="input w-full h-24"
-                      placeholder="Key strategic considerations..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
-                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Create Account
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Accounts;
