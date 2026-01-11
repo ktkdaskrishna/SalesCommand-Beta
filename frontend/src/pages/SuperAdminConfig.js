@@ -2845,48 +2845,66 @@ const UITab = ({ config, onConfigUpdate }) => {
 
 // Integrations Tab with Pipeline Visualization
 const IntegrationsTab = ({ config, onConfigUpdate }) => {
-  const [activeView, setActiveView] = useState('pipeline');
+  const [activeView, setActiveView] = useState('odoo');
+
+  const integrationTabs = [
+    { id: 'odoo', name: 'Odoo ERP', icon: '🟣', color: 'purple' },
+    { id: 'salesforce', name: 'Salesforce', icon: '☁️', color: 'blue' },
+    { id: 'hubspot', name: 'HubSpot', icon: '🟠', color: 'orange' },
+    { id: 'ms365', name: 'Microsoft 365', icon: '🔷', color: 'cyan' },
+  ];
 
   return (
     <div className="space-y-4">
       {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-slate-700 pb-2">
-        <button
-          onClick={() => setActiveView('pipeline')}
-          className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-            activeView === 'pipeline'
-              ? 'bg-blue-600 text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-700'
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <Database className="w-4 h-4" />
-            Data Lake Pipeline
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveView('odoo')}
-          className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-            activeView === 'odoo'
-              ? 'bg-purple-600 text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-700'
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <Link className="w-4 h-4" />
-            Odoo Integration
-          </span>
-        </button>
+      <div className="flex gap-2 border-b border-slate-200 pb-2">
+        {integrationTabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveView(tab.id)}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors flex items-center gap-2 ${
+              activeView === tab.id
+                ? `bg-${tab.color}-600 text-white`
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            {tab.name}
+          </button>
+        ))}
       </div>
 
-      {/* Content */}
-      {activeView === 'pipeline' ? (
-        <IntegrationPipelineHub />
-      ) : (
-        <VisualDataFlowHub />
-      )}
+      {/* Content - Use dedicated integration hubs */}
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        {activeView === 'odoo' && <EmbeddedOdooIntegration />}
+        {activeView === 'salesforce' && <EmbeddedSalesforceIntegration />}
+        {activeView === 'hubspot' && <EmbeddedHubSpotIntegration />}
+        {activeView === 'ms365' && <EmbeddedMS365Integration />}
+      </div>
     </div>
   );
+};
+
+// Embedded Integration Components that mirror the dedicated pages
+const EmbeddedOdooIntegration = () => {
+  // Import and render the OdooIntegrationHub directly
+  const OdooIntegrationHub = require('../components/OdooIntegrationHub').default;
+  return <OdooIntegrationHub />;
+};
+
+const EmbeddedSalesforceIntegration = () => {
+  const SalesforceIntegrationHub = require('../components/SalesforceIntegrationHub').default;
+  return <SalesforceIntegrationHub />;
+};
+
+const EmbeddedHubSpotIntegration = () => {
+  const HubSpotIntegrationHub = require('../components/HubSpotIntegrationHub').default;
+  return <HubSpotIntegrationHub />;
+};
+
+const EmbeddedMS365Integration = () => {
+  const MS365IntegrationHub = require('../components/MS365IntegrationHub').default;
+  return <MS365IntegrationHub />;
 };
 
 // Integration Pipeline Hub Component (inline version for SuperAdmin)
