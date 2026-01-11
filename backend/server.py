@@ -2252,6 +2252,17 @@ create_config_routes(api_router, db, get_current_user, require_role, UserRole)
 odoo_router = create_odoo_routes(db, get_current_user, require_role)
 api_router.include_router(odoo_router)
 
+# Integrate new Data Lake architecture routes
+from api.data_lake import router as data_lake_router
+from api.sync import router as sync_router
+from api.dashboard import router as dashboard_router_v2
+from api.auth_ms365 import router as ms365_router
+
+api_router.include_router(data_lake_router)
+api_router.include_router(sync_router)
+api_router.include_router(dashboard_router_v2)
+api_router.include_router(ms365_router)
+
 app.include_router(api_router)
 
 app.add_middleware(
