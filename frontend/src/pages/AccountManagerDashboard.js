@@ -846,17 +846,14 @@ const AccountManagerDashboard = () => {
         </div>
       )}
 
-      {/* CRM Module - Kanban Board */}
-      <div className="card" data-testid="kanban-board">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <Target className="w-5 h-5 text-blue-600" />
-            Opportunity Pipeline
-          </h3>
-          <span className="text-sm text-slate-500">
-            Drag and drop to move opportunities between stages
-          </span>
-        </div>
+      {/* Pipeline Kanban - Expandable */}
+      <ExpandableContainer
+        title="Opportunity Pipeline"
+        subtitle="Drag and drop to move opportunities between stages"
+        icon={Target}
+        className="mb-8"
+        data-testid="kanban-board"
+      >
         <div className="p-4 overflow-x-auto">
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="flex gap-4 min-w-max">
@@ -871,7 +868,7 @@ const AccountManagerDashboard = () => {
             </div>
           </DragDropContext>
         </div>
-      </div>
+      </ExpandableContainer>
 
       {/* Recent Activities */}
       <div className="card" data-testid="recent-activities">
