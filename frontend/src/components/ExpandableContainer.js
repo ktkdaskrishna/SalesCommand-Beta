@@ -94,10 +94,10 @@ const ExpandableContainer = ({
     onExpandChange?.(newState);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsExpanded(false);
     onExpandChange?.(false);
-  };
+  }, [onExpandChange]);
 
   // Handle escape key to close
   useEffect(() => {
