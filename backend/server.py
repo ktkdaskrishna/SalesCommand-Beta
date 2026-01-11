@@ -135,12 +135,12 @@ class AccountResponse(BaseModel):
     annual_revenue: Optional[float] = None
     employee_count: Optional[int] = None
     business_overview: Optional[str] = None
-    relationship_maturity: str
+    relationship_maturity: Optional[str] = None  # Made optional for Odoo-synced records
     strategic_notes: Optional[str] = None
     stakeholders: List[Dict] = []
     assigned_am_id: Optional[str] = None
     assigned_am_name: Optional[str] = None
-    odoo_id: Optional[str] = None
+    odoo_id: Optional[Any] = None  # Can be int or str depending on source
     created_at: datetime
     updated_at: datetime
     opportunity_count: int = 0
