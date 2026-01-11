@@ -18,6 +18,7 @@ import {
   Sparkles,
   Users,
   Shield,
+  Database,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen, onClose }) => {
