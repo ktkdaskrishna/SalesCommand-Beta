@@ -658,4 +658,125 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
             "preview": preview_data
         }
     
+    # ===================== TOGGLE SYNC ENDPOINT =====================
+    
+    @router.put("/mappings/{mapping_id}/toggle")
+    async def toggle_entity_sync(
+        mapping_id: str,
+        toggle_data: dict,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Toggle sync enabled/disabled for an entity mapping"""
+        config = await get_odoo_config()
+        
+        # Find and update the mapping
+        mapping_found = False
+        for mapping in config.entity_mappings:
+            if mapping.id == mapping_id:
+                mapping.sync_enabled = toggle_data.get("sync_enabled", True)
+                mapping_found = True
+                break
+        
+        if not mapping_found:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        
+        # Save config
+        await db.system_config.update_one(
+            {"id": "system_config"},
+            {"$set": {"odoo_integration": config.model_dump()}},
+            upsert=True
+        )
+        
+        return {"message": f"Sync {'enabled' if toggle_data.get('sync_enabled') else 'disabled'} for {mapping_id}"}
+    
+    # ===================== WEBHOOK ENDPOINT (Odoo → Platform) =====================
+    
+    @router.post("/webhook/incoming")
+    async def receive_odoo_webhook(
+        payload: dict,
+    ):
+        """
+        Receive webhook from Odoo for real-time sync.
+        Odoo should be configured to send webhooks on create/update/delete events.
+        
+        Expected payload format:
+        {
+            "model": "res.partner",
+            "event": "create" | "update" | "delete",
+            "record_id": 123,
+            "data": { ... record fields ... },
+            "timestamp": "2024-01-01T00:00:00Z"
+        }
+        """
+        try:
+            model = payload.get("model")
+            event = payload.get("event", "update")
+            record_id = payload.get("record_id")
+            data = payload.get("data", {})
+            source = payload.get("source", "odoo")
+            
+            # Prevent loops - don't process if this originated from our platform
+            if source == "platform":
+                return {"status": "skipped", "reason": "Loop prevention - originated from platform"}
+            
+            if not model or not record_id:
+                raise HTTPException(status_code=400, detail="Missing model or record_id")
+            
+            # Find the mapping for this model
+            config = await get_odoo_config()
+            mapping = None
+            for em in config.entity_mappings:
+                if em.odoo_model.value == model:
+                    mapping = em
+                    break
+            
+            if not mapping:
+                return {"status": "skipped", "reason": f"No mapping configured for model {model}"}
+            
+            if not mapping.sync_enabled:
+                return {"status": "skipped", "reason": f"Sync disabled for {model}"}
+            
+            # Get the target collection
+            collection = db[mapping.local_collection]
+            
+            if event == "delete":
+                # Delete the local record
+                result = await collection.delete_one({"odoo_id": record_id})
+                return {
+                    "status": "success",
+                    "event": "delete",
+                    "deleted": result.deleted_count
+                }
+            
+            # For create/update, we need to map the data
+            # Use a minimal engine without full client
+            engine = OdooSyncEngine(db, None)
+            
+            # Add id to data for mapping
+            data["id"] = record_id
+            local_record = await engine.map_record(data, mapping)
+            
+            # Check if record exists
+            existing = await collection.find_one({"odoo_id": record_id})
+            
+            if existing:
+                # Update
+                local_record["updated_at"] = datetime.now(timezone.utc)
+                await collection.update_one(
+                    {"odoo_id": record_id},
+                    {"$set": local_record}
+                )
+                return {"status": "success", "event": "update", "odoo_id": record_id}
+            else:
+                # Create
+                local_record["created_at"] = datetime.now(timezone.utc)
+                local_record["updated_at"] = datetime.now(timezone.utc)
+                await collection.insert_one(local_record)
+                return {"status": "success", "event": "create", "odoo_id": record_id}
+                
+        except Exception as e:
+            # Log the error but don't fail - webhooks should be resilient
+            print(f"Webhook processing error: {str(e)}")
+            return {"status": "error", "message": str(e)}
+    
     return router
