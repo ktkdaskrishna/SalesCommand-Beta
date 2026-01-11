@@ -142,6 +142,26 @@ class AccountResponse(BaseModel):
     updated_at: datetime
     opportunity_count: int = 0
     total_pipeline_value: float = 0
+    # Enriched ERP fields
+    total_budget: Optional[float] = None
+    contract_value: Optional[float] = None
+    renewal_date: Optional[str] = None
+    total_orders: Optional[float] = None
+    total_invoiced: Optional[float] = None
+    total_paid: Optional[float] = None
+    outstanding_amount: Optional[float] = None
+    orders: List[Dict] = []
+    invoices: List[Dict] = []
+    last_enriched_at: Optional[datetime] = None
+    enrichment_source: Optional[str] = None
+    # Contact fields
+    primary_contact_name: Optional[str] = None
+    primary_contact_email: Optional[str] = None
+    primary_contact_phone: Optional[str] = None
+    # Address fields
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
 
 # Opportunity Models
 class OpportunityCreate(BaseModel):
