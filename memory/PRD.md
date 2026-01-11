@@ -1,211 +1,160 @@
-# Securado Enterprise Sales Platform - Product Requirements Document
-
-## Project Overview
-**Name:** Securado Enterprise Sales Platform  
-**Version:** 3.2 (ERP-Style Account Management)  
-**Last Updated:** January 10, 2026  
-**Tech Stack:** FastAPI (Python) + React + MongoDB
+# Enterprise Sales KPI, Incentive & Activity Management Platform - PRD
 
 ## Original Problem Statement
-Build an Enterprise Sales KPI, Incentive & Activity Management Platform with configuration-driven architecture where only Super Admin is hardcoded.
+Build a highly configurable Enterprise Sales KPI, Incentive & Activity Management Platform driven by a Super Admin role. The platform integrates with Odoo ERP (versions 17, 18, 19) for bi-directional data synchronization with a user-friendly visual data flow interface.
 
-## Core Principle
-- **Only Super Admin login is hardcoded**
-- All other user experiences are 100% driven by configuration
-- Account/Organization uses single data model - managed by Admin only
-- Sales users can only view accounts assigned to them
-
----
+## Core Architecture
+- **Frontend:** React + Tailwind CSS + Shadcn/UI
+- **Backend:** FastAPI (Python) + MongoDB
+- **Integration:** Odoo ERP via JSON-RPC API
+- **Drag & Drop:** @hello-pangea/dnd
 
 ## What's Been Implemented
 
-### Version 3.2 - ERP-Style Account Management (January 10, 2026) ✅ NEW
+### 1. Visual Data Flow Hub (Completed - Jan 11, 2026)
+A simplified, user-friendly Odoo integration replacing complex field mapping:
 
-#### Phase 1: Account Field Definitions ✅
-- **22 configurable fields** across 6 sections
-- Field types: text, textarea, number, currency, date, dropdown, multi-select, checkbox, URL, email, phone, file, rich_text, relationship, computed
-- System fields (non-deletable): Company Name, Industry, Relationship Status, Account Manager
-- Custom field creation with validation rules
-- Show in List / Show in Card toggles
+**Features:**
+- Visual canvas showing Odoo ↔ Platform data flow
+- Drag-and-drop entity cards for sync enablement
+- One-click Sync All button
+- Conflict Resolution Policy (Odoo Master / Last Updated / Smart Merge)
+- Real-time webhook endpoint for incoming Odoo data
+- Sync history and logs panel
+- Connection settings with auto-test
 
-#### Phase 2: Account Layout Builder ✅
-- 6 default sections: Basic Info, Financial, ERP Summary, Primary Contact, Address, Notes
-- Configurable column layouts (1-4 columns per section)
-- Drag-ready interface for field arrangement
-- Add/edit sections with icons
+**Entities Supported:**
+- Contacts & Companies (res.partner → accounts)
+- Opportunities (crm.lead → opportunities)
+- Activities (mail.activity → activities)
 
-#### Phase 3: Account Management (Admin Only) ✅
-- **"Create Account" button only visible to super_admin and ceo**
-- Sales users cannot create accounts
-- Account creation with all configurable fields
-- Account assignment to Account Managers
+### 2. Expand to Full Window Feature (Completed - Jan 11, 2026)
+Added expandable/fullscreen capability to:
+- Visual Data Flow Hub
+- Account Form Builder
+- CRM Pipeline Kanban Board
 
-#### Phase 4: Enrich Button (Odoo Integration) ✅ MOCKED
-- **"Enrich" button** on each account row
-- Fetches mock data from Odoo (orders, invoices)
-- Auto-calculates: Total Orders, Total Invoiced, Total Paid, Outstanding
-- Stores enrichment data on account record
-- Separate API endpoints for /accounts/{id}/orders and /accounts/{id}/invoices
+Component: `/app/frontend/src/components/ExpandableContainer.js`
 
-#### Summary Cards ✅
-- Total Accounts count
-- Total Budget (aggregated)
-- Total Orders (from Odoo enrichment)
-- Outstanding Amount (calculated)
+### 3. Odoo ERP Integration (Completed)
+- JSON-RPC client for Odoo 17/18/19
+- Authentication via API key
+- Bi-directional sync support
+- Webhook endpoint: `/api/webhooks/odoo` (for Odoo → Platform)
+- Field mapping with auto-suggestions
 
----
+### 4. Dynamic Account Entity (Completed)
+- Odoo-style drag-and-drop form builder
+- Configurable fields and layout by Super Admin
+- Dynamic rendering on Account pages
 
-### Previous Implementations
+### 5. Role-Based Access Control (Completed)
+- Super Admin with full configuration access
+- Account Manager role with limited data visibility
+- Dynamic role creation with permission management
 
-#### User-Department Assignment ✅
-- Department column in User Management table
-- Department dropdown in Create/Edit User modals
+## Database Schema
 
-#### AI Agent → LLM Provider Mapping ✅
-- Edit Agent modal includes LLM Provider dropdown
-- Visual indicators for API key status
+### Collections:
+- `users` - User accounts with roles
+- `accounts` - Customer/company records (synced from Odoo res.partner)
+- `opportunities` - Sales pipeline (synced from Odoo crm.lead)
+- `activities` - Tasks/meetings (synced from Odoo mail.activity)
+- `system_config` - Platform configuration including Odoo integration settings
 
-#### Phase 2 Super Admin Configuration ✅
-- Organization settings
-- Department management
-- Multi-provider LLM configuration
-- AI Agents and Chatbot
-- Blue Sheet contact roles
-- Securado branding
-
----
+### Odoo Integration Config:
+```json
+{
+  "connection": {
+    "url": "https://your-odoo.com",
+    "database": "db_name",
+    "username": "user@email.com",
+    "api_key": "***",
+    "is_connected": true,
+    "odoo_version": "19.0+e"
+  },
+  "entity_mappings": [...],
+  "conflict_policy": "odoo_master"
+}
+```
 
 ## API Endpoints
 
-### Account Fields Configuration
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/config/account-fields` | GET | Get field definitions |
-| `/api/config/account-fields` | PUT | Update all fields |
-| `/api/config/account-fields/field` | POST | Add custom field |
-| `/api/config/account-fields/field/{id}` | PUT | Update field |
-| `/api/config/account-fields/field/{id}` | DELETE | Delete field |
-| `/api/config/account-fields/layout` | PUT | Update layout |
-| `/api/config/account-fields/section` | POST | Add section |
+### Odoo Integration:
+- `GET /api/odoo/config` - Get integration configuration
+- `PUT /api/odoo/config/connection` - Update connection settings
+- `POST /api/odoo/test-connection` - Test Odoo connectivity
+- `GET /api/odoo/mappings` - Get all entity mappings
+- `PUT /api/odoo/mappings/{id}/toggle` - Enable/disable sync for entity
+- `GET /api/odoo/preview/{mapping_id}` - Preview data before sync
+- `POST /api/odoo/sync/{mapping_id}` - Sync a single entity
+- `POST /api/odoo/sync-all` - Sync all enabled entities
+- `GET /api/odoo/sync-logs` - Get sync history
+- `POST /api/odoo/webhook/incoming` - Receive webhooks from Odoo
 
-### Account Enrich (Odoo)
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/accounts/{id}/enrich` | POST | Fetch Odoo data (MOCKED) |
-| `/api/accounts/{id}/orders` | GET | Get orders |
-| `/api/accounts/{id}/invoices` | GET | Get invoices |
+## Current Status
 
-### Accounts (Permission Protected)
-| Endpoint | Method | Permission |
-|----------|--------|------------|
-| `/api/accounts` | POST | super_admin, ceo only |
-| `/api/accounts` | GET | All (filtered by assignment) |
+### Working:
+- ✅ Visual Data Flow Hub with entity cards
+- ✅ Expand to full window feature
+- ✅ Real Odoo connection (v19.0+e tested)
+- ✅ Bi-directional sync with webhook support
+- ✅ Account Form Builder
+- ✅ CRM Pipeline Kanban
+- ✅ Role-based access control
 
----
-
-## Default Account Field Sections
-
-| Section | Fields | Columns |
-|---------|--------|---------|
-| Basic Information | Company Name, Industry, Website, Employee Count, Relationship Status, Account Manager | 2 |
-| Financial | Total Budget, Annual Revenue, Contract Value, Renewal Date | 2 |
-| ERP Summary | Total Orders, Total Invoiced, Total Paid, Outstanding (computed) | 4 |
-| Primary Contact | Name, Email, Phone | 3 |
-| Address | Address, City, Country | 3 |
-| Notes | Business Overview, Strategic Notes | 1 |
-
----
-
-## Test Credentials
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | superadmin@salescommand.com | demo123 |
-
----
+### Testing Credentials:
+- Super Admin: `superadmin@salescommand.com` / `demo123`
+- Odoo Instance: `https://securadotest.odoo.com`
+- Odoo Database: `securadotest`
+- Odoo User: `krishna@securado.net`
 
 ## Prioritized Backlog
 
-### P0 - Completed ✅
-- [x] Account Field Definitions
-- [x] Account Layout Builder
-- [x] Admin-only Account Creation
-- [x] Enrich Button (Mocked Odoo)
-- [x] User-Department Assignment
-- [x] AI Agent-LLM Provider Mapping
+### P0 (Critical):
+- [x] Visual Data Flow Hub
+- [x] Expand to full window feature
+- [ ] Real-time webhook configuration in Odoo (user action required)
 
-### P1 - High Priority (Next)
-- [ ] **Real Odoo Integration** - Replace mock with actual Odoo API calls
-- [ ] **Account Detail Page** - Full ERP view with tabs (Overview, Orders, Invoices, Activities, Blue Sheet, Documents)
-- [ ] **Hierarchical Data Visibility** - Frontend filtering based on role's data_access_level
-- [ ] **User Invitation Flow** - Email-based password setup
+### P1 (High):
+- [ ] Hierarchical data visibility (HOD, CEO roles)
+- [ ] User invitation & password reset flow
+- [ ] Microsoft 365 integration
 
-### P2 - Medium Priority
-- [ ] **Drag-and-drop field reordering** in layout builder
-- [ ] **Document upload** to accounts
-- [ ] **Microsoft 365 Calendar/Email Integration**
-- [ ] **CEO Dashboard** - Cross-department visibility
+### P2 (Medium):
+- [ ] Active Directory/M365 login support
+- [ ] Dashboard customization widgets
+- [ ] In-app help & documentation
+- [ ] Fix ESLint warnings
 
-### P3 - Future
-- [ ] Dashboard widget customization
-- [ ] Advanced reporting/exports
-- [ ] Active Directory Integration
+## Files of Reference
 
----
+### Backend:
+- `/app/backend/odoo_routes.py` - Odoo API routes
+- `/app/backend/odoo_models.py` - Odoo Pydantic models
+- `/app/backend/server.py` - Main FastAPI application
 
-## Technical Architecture
+### Frontend:
+- `/app/frontend/src/components/VisualDataFlowHub.js` - Visual sync UI
+- `/app/frontend/src/components/ExpandableContainer.js` - Fullscreen wrapper
+- `/app/frontend/src/components/AccountFormBuilder.js` - Form builder
+- `/app/frontend/src/pages/AccountManagerDashboard.js` - CRM Kanban
+- `/app/frontend/src/pages/SuperAdminConfig.js` - Admin panel
 
-### Backend Structure
+## Webhook Setup for Real-Time Sync
+
+To enable real-time sync from Odoo to this platform:
+
+1. Open Odoo Studio → Automations
+2. Create automation for each model (res.partner, crm.lead, mail.activity)
+3. Set trigger: On Creation / On Update
+4. Add action: "Send Webhook" to: `{PLATFORM_URL}/api/webhooks/odoo`
+5. Payload format:
+```json
+{
+  "model": "res.partner",
+  "event": "create|update|delete",
+  "record_id": 123,
+  "data": { ... }
+}
 ```
-/app/backend/
-├── server.py              # Main FastAPI application
-├── config_models.py       # ~1800 lines - All configuration models including AccountFieldsConfig
-├── config_routes.py       # ~1600 lines - Configuration API routes including account fields
-└── .env
-```
-
-### Frontend Structure
-```
-/app/frontend/src/
-├── pages/
-│   ├── SuperAdminConfig.js  # ~3100 lines - Admin config with AccountFieldsTab
-│   ├── Accounts.js          # Updated with Enrich, permission controls
-│   └── ...
-└── ...
-```
-
-### Database Collections
-- `users` - User accounts with department_id
-- `accounts` - Customer accounts (enriched with orders, invoices from Odoo)
-- `system_config` - Master configuration including account_fields
-
----
-
-## MOCKED Integrations
-- **Odoo ERP** - Enrich endpoint generates random mock orders/invoices
-- **Microsoft 365** - Settings exist, no actual sync
-
----
-
-## Workflow Summary
-
-### Account Lifecycle
-```
-1. Super Admin defines fields (System Config → Account Fields)
-2. Super Admin creates account (Accounts → Create Account)
-3. Super Admin assigns Account Manager
-4. AM or Admin clicks "Enrich" to sync from Odoo
-5. Sales users view assigned accounts (read-only)
-6. Orders/Invoices populate from Odoo
-7. Calculated fields auto-update (Outstanding, Totals)
-```
-
-### Permission Matrix
-| Action | Super Admin | CEO | HOD | AM | Sales |
-|--------|-------------|-----|-----|----|----|
-| Create Account | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Edit Account | ✅ | ✅ | ❌ | ❌ | ❌ |
-| View Account | ✅ | ✅ | ✅* | ✅* | ✅* |
-| Enrich Account | ✅ | ✅ | ❌ | ✅* | ❌ |
-| Configure Fields | ✅ | ❌ | ❌ | ❌ | ❌ |
-
-*Filtered to assigned accounts only
