@@ -588,7 +588,14 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
             raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
         
         engine = OdooSyncEngine(db, client)
+        
+        # First sync users to create user mapping
+        user_map = await engine.sync_users_from_odoo(config)
+        
         log = await engine.sync_entity(mapping, config.global_settings.get("sync_batch_size", 100))
+        
+        # Post-process: Assign accounts/opportunities to mapped users
+        await assign_to_platform_users(db, mapping, user_map)
         
         # Update last sync time
         mapping.last_sync_at = datetime.now(timezone.utc)
@@ -601,6 +608,69 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
             "updated": log.records_updated,
             "failed": log.records_failed,
             "errors": log.errors[:10] if log.errors else []  # Return first 10 errors
+        }
+    
+    async def assign_to_platform_users(db, mapping: EntityMapping, user_map: Dict[int, str]):
+        """Assign synced records to platform users based on Odoo salesperson"""
+        collection = db[mapping.local_collection]
+        
+        # Find records with odoo_salesperson_id (contacts) or owner_id (opportunities)
+        if mapping.local_collection == "accounts":
+            # For accounts, look for odoo_salesperson_id
+            async for record in collection.find({"odoo_salesperson_id": {"$exists": True}}):
+                salesperson_data = record.get("odoo_salesperson_id")
+                if isinstance(salesperson_data, list) and len(salesperson_data) >= 1:
+                    odoo_user_id = salesperson_data[0] if isinstance(salesperson_data[0], int) else None
+                elif isinstance(salesperson_data, int):
+                    odoo_user_id = salesperson_data
+                else:
+                    continue
+                
+                if odoo_user_id and odoo_user_id in user_map:
+                    await collection.update_one(
+                        {"id": record["id"]},
+                        {"$set": {"assigned_am_id": user_map[odoo_user_id]}}
+                    )
+        
+        elif mapping.local_collection == "opportunities":
+            # For opportunities, look for owner_id (which comes from user_id)
+            async for record in collection.find({"odoo_id": {"$exists": True}}):
+                # The owner_id was already mapped during sync, but we need to resolve it
+                owner_data = record.get("owner_id")
+                if isinstance(owner_data, list) and len(owner_data) >= 1:
+                    odoo_user_id = owner_data[0] if isinstance(owner_data[0], int) else None
+                elif isinstance(owner_data, int):
+                    odoo_user_id = owner_data
+                else:
+                    continue
+                
+                if odoo_user_id and odoo_user_id in user_map:
+                    await collection.update_one(
+                        {"id": record["id"]},
+                        {"$set": {"owner_id": user_map[odoo_user_id]}}
+                    )
+    
+    @router.post("/sync-users")
+    async def sync_odoo_users(user: dict = Depends(require_role(["super_admin"]))):
+        """Sync users from Odoo and create platform accounts"""
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        if not conn.is_connected:
+            raise HTTPException(status_code=400, detail="Odoo not connected")
+        
+        client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+        success, message = await client.authenticate()
+        
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
+        
+        engine = OdooSyncEngine(db, client)
+        user_map = await engine.sync_users_from_odoo(config)
+        
+        return {
+            "message": f"Synced {len(user_map)} users from Odoo",
+            "user_mappings": [{"odoo_id": k, "platform_id": v} for k, v in user_map.items()]
         }
     
     @router.post("/sync-all")
