@@ -23,6 +23,9 @@ from config_models import (
 # Import configuration routes factory
 from config_routes import create_config_routes
 
+# Import Odoo integration routes
+from odoo_routes import create_odoo_routes
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
