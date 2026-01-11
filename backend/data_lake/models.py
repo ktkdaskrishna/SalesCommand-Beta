@@ -4,7 +4,7 @@ These are the stable, normalized entities in the canonical zone.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import Field, EmailStr
 import uuid
 
@@ -23,7 +23,7 @@ from core.enums import (
 class CanonicalContact(BaseEntity):
     """Canonical contact/person entity"""
     
-    entity_type: str = Field(default=EntityType.CONTACT, const=True)
+    entity_type: Literal["contact"] = "contact"
     
     # Core Fields
     name: str
@@ -60,7 +60,7 @@ class CanonicalContact(BaseEntity):
 class CanonicalAccount(BaseEntity):
     """Canonical account/company entity"""
     
-    entity_type: str = Field(default=EntityType.ACCOUNT, const=True)
+    entity_type: Literal["account"] = "account"
     
     # Core Fields
     name: str
@@ -106,7 +106,7 @@ class CanonicalAccount(BaseEntity):
 class CanonicalOpportunity(BaseEntity):
     """Canonical opportunity/deal entity"""
     
-    entity_type: str = Field(default=EntityType.OPPORTUNITY, const=True)
+    entity_type: Literal["opportunity"] = "opportunity"
     
     # Core Fields
     name: str
@@ -160,7 +160,7 @@ class CanonicalOpportunity(BaseEntity):
 class CanonicalActivity(BaseEntity):
     """Canonical activity/task entity"""
     
-    entity_type: str = Field(default=EntityType.ACTIVITY, const=True)
+    entity_type: Literal["activity"] = "activity"
     
     # Core Fields
     subject: str
@@ -200,7 +200,7 @@ class CanonicalActivity(BaseEntity):
 class CanonicalUser(BaseEntity):
     """Canonical user entity"""
     
-    entity_type: str = Field(default=EntityType.USER, const=True)
+    entity_type: Literal["user"] = "user"
     
     # Core Fields
     email: EmailStr
