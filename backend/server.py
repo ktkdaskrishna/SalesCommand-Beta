@@ -742,11 +742,23 @@ async def get_opportunities(
     
     result = []
     for opp in opps:
-        account = await db.accounts.find_one({"id": opp["account_id"]})
-        opp["account_name"] = account["name"] if account else None
+        # Handle Odoo-synced records
+        if opp.get("expected_close_date") is False or opp.get("expected_close_date") is True:
+            opp["expected_close_date"] = None
+        if opp.get("odoo_id") is not None:
+            opp["odoo_id"] = str(opp["odoo_id"])
         
-        owner = await db.users.find_one({"id": opp["owner_id"]})
-        opp["owner_name"] = owner["name"] if owner else None
+        if opp.get("account_id"):
+            account = await db.accounts.find_one({"id": opp["account_id"]})
+            opp["account_name"] = account["name"] if account else None
+        else:
+            opp["account_name"] = None
+        
+        if opp.get("owner_id"):
+            owner = await db.users.find_one({"id": opp["owner_id"]})
+            opp["owner_name"] = owner["name"] if owner else None
+        else:
+            opp["owner_name"] = None
         
         result.append(OpportunityResponse(**opp))
     return result
