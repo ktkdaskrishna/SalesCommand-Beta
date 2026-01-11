@@ -165,6 +165,14 @@ class AccountResponse(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
+    
+    @field_validator('website', 'primary_contact_email', 'address', 'city', 'country', 'primary_contact_name', 'primary_contact_phone', 'industry', 'business_overview', 'relationship_maturity', 'strategic_notes', 'renewal_date', 'enrichment_source', mode='before')
+    @classmethod
+    def convert_false_to_none(cls, v):
+        """Convert False values from Odoo to None"""
+        if v is False or v == "":
+            return None
+        return v
 
 # Opportunity Models
 class OpportunityCreate(BaseModel):
