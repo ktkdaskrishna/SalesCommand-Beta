@@ -700,8 +700,7 @@ const IntegrationHub = () => {
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState({});
-
-  const integrations = [
+  const [integrations, setIntegrations] = useState([
     { 
       id: 'salesforce', 
       name: 'Salesforce', 
@@ -717,8 +716,8 @@ const IntegrationHub = () => {
       icon: '🟣', 
       bgColor: 'bg-purple-600',
       description: 'ERP & CRM',
-      status: 'connected',
-      lastSync: '2 hours ago'
+      status: 'disconnected',
+      lastSync: null
     },
     { 
       id: 'hubspot', 
@@ -738,7 +737,71 @@ const IntegrationHub = () => {
       status: 'pending',
       lastSync: null
     }
-  ];
+  ]);
+  const [dataLakeStats, setDataLakeStats] = useState({
+    raw: { records: 0 },
+    canonical: { records: 0 },
+    serving: { aggregates: 0 }
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch integration status and data lake stats
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch integrations status
+      const token = getAuthToken();
+      if (token) {
+        try {
+          const intgData = await apiCall('/api/integrations');
+          setIntegrations(prev => prev.map(intg => {
+            const found = intgData.find(i => i.integration_type === intg.id);
+            if (found) {
+              return {
+                ...intg,
+                status: found.enabled ? 'connected' : 'disconnected',
+                lastSync: found.last_sync ? new Date(found.last_sync).toLocaleString() : null
+              };
+            }
+            return intg;
+          }));
+        } catch (e) {
+          // Integrations endpoint might require admin
+          console.log('Integration fetch skipped (may require admin)');
+        }
+      }
+      
+      // Fetch sync status
+      const syncStatus = await apiCall('/api/sync/status');
+      setIntegrations(prev => prev.map(intg => {
+        const sourceStatus = syncStatus.sources?.[intg.id];
+        if (sourceStatus?.connected) {
+          return { ...intg, status: 'connected' };
+        }
+        return intg;
+      }));
+
+      // Fetch data lake stats
+      const stats = await apiCall('/api/data-lake/stats');
+      const rawTotal = stats.raw_zone?.total_records || 0;
+      const canonicalTotal = Object.values(stats.canonical_zone || {}).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+      const servingTotal = Object.values(stats.serving_zone || {}).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+      
+      setDataLakeStats({
+        raw: { records: rawTotal },
+        canonical: { records: canonicalTotal },
+        serving: { aggregates: servingTotal }
+      });
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const pipelineSteps = [
     { icon: Zap, title: 'Connector', status: config.url || config.instance_url ? 'ready' : 'pending' },
@@ -751,7 +814,7 @@ const IntegrationHub = () => {
   const renderStepContent = () => {
     switch (activeStep) {
       case 0:
-        return <ConnectorPanel integration={selectedIntegration} config={config} onConfigChange={setConfig} />;
+        return <ConnectorPanel integration={selectedIntegration} config={config} onConfigChange={setConfig} onSaveConfig={() => fetchData()} />;
       case 1:
         return <MapperPanel integration={selectedIntegration} mappings={{}} onMappingsChange={() => {}} />;
       case 2:
@@ -759,7 +822,7 @@ const IntegrationHub = () => {
       case 3:
         return <NormalizerPanel integration={selectedIntegration} />;
       case 4:
-        return <PipelinePanel integration={selectedIntegration} onSync={() => {}} />;
+        return <PipelinePanel integration={selectedIntegration} config={config} onSync={() => fetchData()} />;
       default:
         return null;
     }
@@ -769,9 +832,20 @@ const IntegrationHub = () => {
     <div className="min-h-screen bg-slate-900 p-6" data-testid="integration-hub">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Integration Hub</h1>
-          <p className="text-slate-400">Connect external systems and manage the data pipeline to your Data Lake</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Integration Hub</h1>
+            <p className="text-slate-400">Connect external systems and manage the data pipeline to your Data Lake</p>
+          </div>
+          <button 
+            onClick={fetchData}
+            disabled={loading}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 transition-colors"
+            data-testid="refresh-btn"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
         {/* Integration Cards */}
@@ -831,7 +905,7 @@ const IntegrationHub = () => {
               <h3 className="font-semibold text-white">Raw Zone</h3>
             </div>
             <p className="text-sm text-slate-400 mb-3">Immutable source data archive</p>
-            <div className="text-2xl font-bold text-blue-400">1,247</div>
+            <div className="text-2xl font-bold text-blue-400" data-testid="raw-zone-count">{dataLakeStats.raw.records.toLocaleString()}</div>
             <div className="text-xs text-slate-500">records stored</div>
           </div>
 
@@ -843,7 +917,7 @@ const IntegrationHub = () => {
               <h3 className="font-semibold text-white">Canonical Zone</h3>
             </div>
             <p className="text-sm text-slate-400 mb-3">Unified normalized entities</p>
-            <div className="text-2xl font-bold text-green-400">892</div>
+            <div className="text-2xl font-bold text-green-400" data-testid="canonical-zone-count">{dataLakeStats.canonical.records.toLocaleString()}</div>
             <div className="text-xs text-slate-500">canonical records</div>
           </div>
 
@@ -855,7 +929,7 @@ const IntegrationHub = () => {
               <h3 className="font-semibold text-white">Serving Zone</h3>
             </div>
             <p className="text-sm text-slate-400 mb-3">Dashboard-optimized views</p>
-            <div className="text-2xl font-bold text-purple-400">24</div>
+            <div className="text-2xl font-bold text-purple-400" data-testid="serving-zone-count">{dataLakeStats.serving.aggregates.toLocaleString()}</div>
             <div className="text-xs text-slate-500">pre-computed aggregates</div>
           </div>
         </div>
