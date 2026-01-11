@@ -180,6 +180,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/integration-hub"
+        element={
+          <ProtectedRoute>
+            <IntegrationHub />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
