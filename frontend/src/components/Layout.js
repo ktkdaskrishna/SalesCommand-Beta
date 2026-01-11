@@ -126,6 +126,28 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <span>{item.label}</span>
                   </Link>
                 ))}
+                
+                {/* Integration Sub-menu */}
+                <div className="pt-3 pb-1 px-3">
+                  <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    Integrations
+                  </span>
+                </div>
+                {integrationItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={onClose}
+                    className={cn(
+                      "sidebar-link text-sm pl-6",
+                      location.pathname === item.path && "active"
+                    )}
+                    data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
               </>
             )}
 
