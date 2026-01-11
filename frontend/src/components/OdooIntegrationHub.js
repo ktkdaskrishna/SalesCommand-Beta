@@ -18,6 +18,7 @@ import {
   CheckCircle,
   XCircle,
   ChevronRight,
+  ChevronDown,
   Building2,
   Calendar,
   Zap,
@@ -33,6 +34,8 @@ import {
   Sparkles,
   Info,
   ExternalLink,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 // ===================== MAIN INTEGRATION HUB =====================
@@ -220,7 +223,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Normalize URL (remove trailing /odoo or /web if present)
   const normalizeUrl = (url) => {
     let normalized = url.trim();
     normalized = normalized.replace(/\/(odoo|web|jsonrpc)\/?$/i, "");
@@ -240,7 +242,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
       url: normalizeUrl(formData.url),
     };
     
-    // Only include api_key if user entered a new one
     if (!formData.api_key && config?.connection?.api_key) {
       delete normalizedData.api_key;
     }
@@ -249,13 +250,11 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
     setSaving(false);
     
     if (success) {
-      // Auto-test after saving
       onTest();
     }
   };
 
   const handleQuickFill = () => {
-    // Pre-fill with the provided credentials
     setFormData({
       url: "https://securadotest.odoo.com",
       database: "securadotest",
@@ -267,7 +266,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Connection Form */}
       <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-6">
         <div className="flex items-start justify-between">
           <div>
@@ -291,7 +289,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
         </div>
 
         <div className="grid gap-5">
-          {/* URL Field */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Globe className="w-4 h-4 text-slate-400" />
@@ -311,7 +308,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
             </p>
           </div>
 
-          {/* Database Field */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Server className="w-4 h-4 text-slate-400" />
@@ -325,13 +321,8 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
               placeholder="your_database_name"
               data-testid="odoo-database-input"
             />
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
-              <Info className="w-3 h-3" />
-              Usually visible in your Odoo URL or Settings
-            </p>
           </div>
 
-          {/* Username Field */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <User className="w-4 h-4 text-slate-400" />
@@ -347,7 +338,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
             />
           </div>
 
-          {/* API Key Field */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Key className="w-4 h-4 text-slate-400" />
@@ -378,7 +368,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
           </div>
         </div>
 
-        {/* Connection Status */}
         {status && (
           <div className={cn(
             "p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2",
@@ -398,16 +387,10 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
               <p className={cn("text-sm mt-0.5", status.success ? "text-green-600" : "text-red-600")}>
                 {status.message}
               </p>
-              {status.version && (
-                <p className="text-sm text-green-600 mt-1">
-                  Odoo Version: {status.version}
-                </p>
-              )}
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-3 pt-2">
           <button
             onClick={handleSave}
@@ -415,11 +398,7 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
             className="btn-primary flex-1 flex items-center justify-center gap-2 py-3"
             data-testid="save-connection-btn"
           >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save & Connect
           </button>
           <button
@@ -428,17 +407,12 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
             className="btn-secondary flex items-center gap-2 px-6"
             data-testid="test-connection-btn"
           >
-            {testing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <TestTube className="w-4 h-4" />
-            )}
+            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube className="w-4 h-4" />}
             Test
           </button>
         </div>
       </div>
 
-      {/* Help Card */}
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5">
         <h4 className="font-semibold text-blue-900 flex items-center gap-2 mb-3">
           <Key className="w-4 h-4" />
@@ -477,7 +451,6 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
         </a>
       </div>
 
-      {/* Connected Info */}
       {config?.connection?.is_connected && config?.connection?.last_connected_at && (
         <div className="bg-white rounded-xl border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -525,12 +498,13 @@ const FieldMappingsTab = ({ config, onRefresh }) => {
     setLoadingFields(true);
     try {
       const response = await api.get(`/odoo/fields/${model}`);
-      setOdooFields(response.data.dynamic_fields.length > 0 
+      setOdooFields(response.data.dynamic_fields?.length > 0 
         ? response.data.dynamic_fields 
-        : response.data.static_fields
+        : response.data.static_fields || []
       );
     } catch (error) {
       toast.error("Failed to fetch Odoo fields");
+      setOdooFields([]);
     } finally {
       setLoadingFields(false);
     }
@@ -576,22 +550,18 @@ const FieldMappingsTab = ({ config, onRefresh }) => {
                   onClick={() => handleSelectMapping(mapping)}
                   className={cn(
                     "w-full p-4 text-left hover:bg-slate-50 transition-all",
-                    selectedMapping?.id === mapping.id && `bg-${color}-50 border-l-4 border-${color}-500`
+                    selectedMapping?.id === mapping.id && `bg-purple-50 border-l-4 border-purple-500`
                   )}
                   data-testid={`mapping-${mapping.id}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-11 h-11 rounded-xl flex items-center justify-center",
-                      mapping.sync_enabled 
-                        ? `bg-${color}-100` 
-                        : "bg-slate-100"
+                      mapping.sync_enabled ? "bg-purple-100" : "bg-slate-100"
                     )}>
                       <Icon className={cn(
                         "w-5 h-5", 
-                        mapping.sync_enabled 
-                          ? `text-${color}-600` 
-                          : "text-slate-400"
+                        mapping.sync_enabled ? "text-purple-600" : "text-slate-400"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -650,6 +620,152 @@ const FieldMappingsTab = ({ config, onRefresh }) => {
   );
 };
 
+// ===================== AI MAPPING CONFIRMATION MODAL =====================
+
+const AiMappingConfirmModal = ({ suggestions, onConfirm, onCancel }) => {
+  const [selectedMappings, setSelectedMappings] = useState(
+    suggestions.map((s, idx) => ({ ...s, selected: true, id: idx }))
+  );
+
+  const toggleMapping = (id) => {
+    setSelectedMappings(prev => 
+      prev.map(m => m.id === id ? { ...m, selected: !m.selected } : m)
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedMappings(prev => prev.map(m => ({ ...m, selected: true })));
+  };
+
+  const deselectAll = () => {
+    setSelectedMappings(prev => prev.map(m => ({ ...m, selected: false })));
+  };
+
+  const handleConfirm = () => {
+    const selected = selectedMappings.filter(m => m.selected);
+    onConfirm(selected);
+  };
+
+  const selectedCount = selectedMappings.filter(m => m.selected).length;
+
+  const getConfidenceColor = (confidence) => {
+    if (confidence >= 0.8) return "text-green-600 bg-green-100";
+    if (confidence >= 0.5) return "text-amber-600 bg-amber-100";
+    return "text-red-600 bg-red-100";
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              AI Mapping Suggestions
+            </h3>
+            <button onClick={onCancel} className="p-1 hover:bg-slate-100 rounded-lg">
+              <X className="w-5 h-5 text-slate-400" />
+            </button>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Review the AI-suggested field mappings before applying them
+          </p>
+        </div>
+
+        {/* Selection Controls */}
+        <div className="px-5 py-3 border-b bg-slate-50 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={selectAll}
+              className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+            >
+              Select All
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              onClick={deselectAll}
+              className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+            >
+              Deselect All
+            </button>
+          </div>
+          <span className="text-sm text-slate-600">
+            {selectedCount} of {suggestions.length} selected
+          </span>
+        </div>
+
+        {/* Suggestions List */}
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="space-y-3">
+            {selectedMappings.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all cursor-pointer",
+                  suggestion.selected 
+                    ? "border-purple-300 bg-purple-50/50" 
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                )}
+                onClick={() => toggleMapping(suggestion.id)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
+                    suggestion.selected 
+                      ? "bg-purple-600 border-purple-600" 
+                      : "bg-white border-slate-300"
+                  )}>
+                    {suggestion.selected && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <code className="text-sm font-medium text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                        {suggestion.source_field}
+                      </code>
+                      <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <code className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
+                        {suggestion.target_field}
+                      </code>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full font-medium",
+                        getConfidenceColor(suggestion.confidence)
+                      )}>
+                        {Math.round(suggestion.confidence * 100)}% match
+                      </span>
+                    </div>
+                    {suggestion.reasoning && (
+                      <p className="text-xs text-slate-500 mt-2 line-clamp-2">
+                        {suggestion.reasoning}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-5 border-t bg-slate-50 rounded-b-2xl flex justify-end gap-3 flex-shrink-0">
+          <button onClick={onCancel} className="btn-secondary">
+            Cancel
+          </button>
+          <button 
+            onClick={handleConfirm} 
+            disabled={selectedCount === 0}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            Apply {selectedCount} Mapping{selectedCount !== 1 ? 's' : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ===================== VISUAL FIELD MAPPER (XSOAR-Style) =====================
 
 const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
@@ -659,12 +775,15 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiMapping, setAiMapping] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState(null);
   const [showAiConfirmModal, setShowAiConfirmModal] = useState(false);
   const [pendingAiMappings, setPendingAiMappings] = useState([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({
+    odoo: false,
+    mappings: false,
+    local: false,
+  });
 
-  // Update field mappings when mapping changes
   useEffect(() => {
     setFieldMappings(mapping.field_mappings || []);
   }, [mapping.id, mapping.field_mappings]);
@@ -684,7 +803,7 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
   ];
 
   const filteredOdooFields = odooFields.filter(f => 
-    f.name.toLowerCase().includes(searchOdoo.toLowerCase()) ||
+    f.name?.toLowerCase().includes(searchOdoo.toLowerCase()) ||
     f.label?.toLowerCase().includes(searchOdoo.toLowerCase())
   );
 
@@ -721,13 +840,10 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
     setSaving(false);
   };
 
-  // AI Auto-Mapping - Get suggestions first
   const handleAiAutoMap = async () => {
     setAiMapping(true);
-    setAiSuggestions(null);
     
     try {
-      // Prepare source fields from Odoo fields
       const sourceFields = odooFields.map(f => ({
         name: f.name,
         type: f.type || "string",
@@ -735,7 +851,6 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
         description: f.label || null
       }));
 
-      // Get entity type from mapping
       let entityType = "contacts";
       if (mapping.local_collection?.includes("account")) entityType = "accounts";
       else if (mapping.local_collection?.includes("opportunit")) entityType = "opportunities";
@@ -747,9 +862,6 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
         source_fields: sourceFields
       });
 
-      setAiSuggestions(response.data);
-      
-      // Show confirmation modal instead of applying directly
       if (response.data.suggestions?.length > 0) {
         setPendingAiMappings(response.data.suggestions);
         setShowAiConfirmModal(true);
@@ -764,7 +876,6 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
     }
   };
 
-  // Apply confirmed AI mappings
   const handleConfirmAiMappings = (selectedMappings) => {
     const updatedMappings = [...fieldMappings];
     
@@ -777,6 +888,7 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
         updatedMappings[existingIdx] = {
           ...updatedMappings[existingIdx],
           local_field: suggestion.target_field,
+          target_field: suggestion.target_field,
           enabled: true,
           ai_confidence: suggestion.confidence,
           ai_reasoning: suggestion.reasoning
@@ -785,7 +897,9 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
         updatedMappings.push({
           id: `ai_${Date.now()}_${suggestion.source_field}`,
           odoo_field: suggestion.source_field,
+          source_field: suggestion.source_field,
           local_field: suggestion.target_field,
+          target_field: suggestion.target_field,
           enabled: true,
           is_system: false,
           ai_confidence: suggestion.confidence,
@@ -798,6 +912,10 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
     setShowAiConfirmModal(false);
     setPendingAiMappings([]);
     toast.success(`Applied ${selectedMappings.length} AI-suggested mappings!`);
+  };
+
+  const toggleSection = (section) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   const enabledCount = fieldMappings.filter(m => m.enabled).length;
@@ -859,13 +977,12 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
             title={isExpanded ? "Collapse" : "Expand"}
+            data-testid="expand-collapse-btn"
           >
             {isExpanded ? (
-              <X className="w-5 h-5 text-slate-600" />
+              <Minimize2 className="w-5 h-5 text-slate-600" />
             ) : (
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-              </svg>
+              <Maximize2 className="w-5 h-5 text-slate-600" />
             )}
           </button>
         </div>
@@ -882,226 +999,245 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
           }}
         />
       )}
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {mapping.odoo_model} → {mapping.local_collection} • {enabledCount} active mappings
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleAiAutoMap}
-            disabled={aiMapping || loadingFields}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
-            data-testid="ai-auto-map-btn"
-          >
-            {aiMapping ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            AI Auto-Map
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-secondary text-sm flex items-center gap-1.5"
-          >
-            <Link2 className="w-4 h-4" /> Add Mapping
-          </button>
-          <button 
-            onClick={handleSave} 
-            disabled={saving}
-            className="btn-primary text-sm flex items-center gap-1.5"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Mappings
-          </button>
-        </div>
-      </div>
 
       {/* Three-Panel Mapper */}
       <div className="flex-1 overflow-hidden flex">
         {/* Odoo Fields (Source) - Left Panel */}
-        <div className="w-1/3 border-r flex flex-col bg-purple-50/30">
-          <div className="p-3 border-b bg-purple-100/50">
-            <div className="flex items-center gap-2 mb-2">
+        <div className={cn(
+          "border-r flex flex-col bg-purple-50/30 transition-all",
+          collapsedSections.odoo ? "w-12" : "w-1/3"
+        )}>
+          <div 
+            className="p-3 border-b bg-purple-100/50 flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('odoo')}
+          >
+            <div className={cn("flex items-center gap-2", collapsedSections.odoo && "hidden")}>
               <Database className="w-4 h-4 text-purple-600" />
               <span className="font-medium text-purple-900 text-sm">Odoo Fields</span>
               <span className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full">
                 {filteredOdooFields.length}
               </span>
             </div>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchOdoo}
-                onChange={(e) => setSearchOdoo(e.target.value)}
-                className="input w-full pl-9 text-sm py-2"
-                placeholder="Search Odoo fields..."
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {loadingFields ? (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-              </div>
+            {collapsedSections.odoo ? (
+              <ChevronRight className="w-4 h-4 text-purple-600 mx-auto" />
             ) : (
-              <div className="space-y-1">
-                {filteredOdooFields.map((field) => {
-                  const isMapped = fieldMappings.some(m => m.source_field === field.name && m.enabled);
-                  return (
-                    <div
-                      key={field.name}
-                      className={cn(
-                        "p-2.5 rounded-lg text-sm transition-all",
-                        isMapped 
-                          ? "bg-green-100 border border-green-300" 
-                          : "bg-white hover:bg-slate-50 border border-slate-200"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-700 truncate">
-                          {field.label || field.name}
-                        </span>
-                        {isMapped && <Check className="w-4 h-4 text-green-600 flex-shrink-0" />}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                          {field.name}
-                        </code>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                          {field.type}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ChevronDown className="w-4 h-4 text-purple-600" />
             )}
           </div>
+          {!collapsedSections.odoo && (
+            <>
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchOdoo}
+                    onChange={(e) => setSearchOdoo(e.target.value)}
+                    className="input w-full pl-9 text-sm py-2"
+                    placeholder="Search Odoo fields..."
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                {loadingFields ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredOdooFields.map((field) => {
+                      const isMapped = fieldMappings.some(m => 
+                        (m.source_field === field.name || m.odoo_field === field.name) && m.enabled
+                      );
+                      return (
+                        <div
+                          key={field.name}
+                          className={cn(
+                            "p-2.5 rounded-lg text-sm transition-all",
+                            isMapped 
+                              ? "bg-green-100 border border-green-300" 
+                              : "bg-white hover:bg-slate-50 border border-slate-200"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-slate-700 truncate">
+                              {field.label || field.name}
+                            </span>
+                            {isMapped && <Check className="w-4 h-4 text-green-600 flex-shrink-0" />}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <code className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate">
+                              {field.name}
+                            </code>
+                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                              {field.type}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Mapping Lines (Center Panel) */}
-        <div className="w-1/3 border-r flex flex-col bg-slate-50">
-          <div className="p-3 border-b">
-            <div className="flex items-center gap-2">
+        <div className={cn(
+          "border-r flex flex-col bg-slate-50 transition-all",
+          collapsedSections.mappings ? "w-12" : "w-1/3"
+        )}>
+          <div 
+            className="p-3 border-b flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('mappings')}
+          >
+            <div className={cn("flex items-center gap-2", collapsedSections.mappings && "hidden")}>
               <ArrowRight className="w-4 h-4 text-slate-500" />
               <span className="font-medium text-slate-700 text-sm">Active Mappings</span>
               <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
                 {enabledCount}
               </span>
             </div>
+            {collapsedSections.mappings ? (
+              <ChevronRight className="w-4 h-4 text-slate-600 mx-auto" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-600" />
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            <div className="space-y-2">
-              {fieldMappings.map((fm) => (
-                <div
-                  key={fm.id}
-                  className={cn(
-                    "p-3 rounded-lg border transition-all",
-                    fm.enabled 
-                      ? "bg-white border-slate-200 shadow-sm" 
-                      : "bg-slate-100 border-dashed border-slate-300 opacity-60"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleMapping(fm.id, !fm.enabled)}
-                        className={cn(
-                          "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                          fm.enabled 
-                            ? "bg-green-500 border-green-500" 
-                            : "bg-white border-slate-300 hover:border-slate-400"
-                        )}
-                      >
-                        {fm.enabled && <Check className="w-3 h-3 text-white" />}
-                      </button>
-                      {fm.is_key_field && (
-                        <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
-                          KEY
-                        </span>
-                      )}
-                      {fm.is_required && (
-                        <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
-                          REQ
-                        </span>
-                      )}
-                    </div>
-                    {!fm.is_system && (
-                      <button
-                        onClick={() => handleRemoveMapping(fm.id)}
-                        className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded truncate max-w-[90px]" title={fm.source_field}>
-                      {fm.source_field}
-                    </span>
-                    <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                    <span className="font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded truncate max-w-[90px]" title={fm.target_field}>
-                      {fm.target_field}
-                    </span>
-                  </div>
-                  {fm.transform_type && fm.transform_type !== "direct" && (
-                    <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      Transform: {fm.transform_type}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Local Fields (Target) - Right Panel */}
-        <div className="w-1/3 flex flex-col bg-blue-50/30">
-          <div className="p-3 border-b bg-blue-100/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Database className="w-4 h-4 text-blue-600" />
-              <span className="font-medium text-blue-900 text-sm">Local Fields</span>
-            </div>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchLocal}
-                onChange={(e) => setSearchLocal(e.target.value)}
-                className="input w-full pl-9 text-sm py-2"
-                placeholder="Search local fields..."
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            <div className="space-y-1">
-              {fieldMappings
-                .filter(m => m.target_field.toLowerCase().includes(searchLocal.toLowerCase()))
-                .map((fm) => (
+          {!collapsedSections.mappings && (
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-2">
+                {fieldMappings.map((fm) => (
                   <div
                     key={fm.id}
                     className={cn(
-                      "p-2.5 rounded-lg text-sm border transition-all",
+                      "p-3 rounded-lg border transition-all",
                       fm.enabled 
-                        ? "bg-green-100 border-green-300" 
-                        : "bg-white border-slate-200 opacity-60"
+                        ? "bg-white border-slate-200 shadow-sm" 
+                        : "bg-slate-100 border-dashed border-slate-300 opacity-60"
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">{fm.target_field}</span>
-                      {fm.enabled && <Check className="w-4 h-4 text-green-600" />}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleMapping(fm.id, !fm.enabled)}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                            fm.enabled 
+                              ? "bg-green-500 border-green-500" 
+                              : "bg-white border-slate-300 hover:border-slate-400"
+                          )}
+                        >
+                          {fm.enabled && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                        {fm.is_key_field && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                            KEY
+                          </span>
+                        )}
+                        {fm.is_required && (
+                          <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
+                            REQ
+                          </span>
+                        )}
+                        {fm.ai_confidence && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+                            AI
+                          </span>
+                        )}
+                      </div>
+                      {!fm.is_system && (
+                        <button
+                          onClick={() => handleRemoveMapping(fm.id)}
+                          className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded mt-1 inline-block">
-                      {fm.target_field_type}
-                    </span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded truncate max-w-[90px]" title={fm.source_field || fm.odoo_field}>
+                        {fm.source_field || fm.odoo_field}
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                      <span className="font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded truncate max-w-[90px]" title={fm.target_field || fm.local_field}>
+                        {fm.target_field || fm.local_field}
+                      </span>
+                    </div>
+                    {fm.transform_type && fm.transform_type !== "direct" && (
+                      <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        Transform: {fm.transform_type}
+                      </div>
+                    )}
                   </div>
-              ))}
+                ))}
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Local Fields (Target) - Right Panel */}
+        <div className={cn(
+          "flex flex-col bg-blue-50/30 transition-all",
+          collapsedSections.local ? "w-12" : "w-1/3"
+        )}>
+          <div 
+            className="p-3 border-b bg-blue-100/50 flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('local')}
+          >
+            <div className={cn("flex items-center gap-2", collapsedSections.local && "hidden")}>
+              <Database className="w-4 h-4 text-blue-600" />
+              <span className="font-medium text-blue-900 text-sm">Local Fields</span>
+            </div>
+            {collapsedSections.local ? (
+              <ChevronRight className="w-4 h-4 text-blue-600 mx-auto" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-blue-600" />
+            )}
           </div>
+          {!collapsedSections.local && (
+            <>
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchLocal}
+                    onChange={(e) => setSearchLocal(e.target.value)}
+                    className="input w-full pl-9 text-sm py-2"
+                    placeholder="Search local fields..."
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                <div className="space-y-1">
+                  {fieldMappings
+                    .filter(m => (m.target_field || m.local_field)?.toLowerCase().includes(searchLocal.toLowerCase()))
+                    .map((fm) => (
+                      <div
+                        key={fm.id}
+                        className={cn(
+                          "p-2.5 rounded-lg text-sm border transition-all",
+                          fm.enabled 
+                            ? "bg-green-100 border-green-300" 
+                            : "bg-white border-slate-200 opacity-60"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-700">{fm.target_field || fm.local_field}</span>
+                          {fm.enabled && <Check className="w-4 h-4 text-green-600" />}
+                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded mt-1 inline-block">
+                          {fm.target_field_type || "text"}
+                        </span>
+                      </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1317,6 +1453,7 @@ const SyncTab = ({ config, onRefresh }) => {
             onClick={handleSyncAll}
             disabled={syncing.all || !config?.connection?.is_connected}
             className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="sync-all-btn"
           >
             {syncing.all ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -1364,6 +1501,7 @@ const SyncTab = ({ config, onRefresh }) => {
                   onClick={() => handlePreview(mapping.id)}
                   disabled={previewing[mapping.id] || !config?.connection?.is_connected}
                   className="btn-secondary flex items-center gap-2"
+                  data-testid={`preview-btn-${mapping.id}`}
                 >
                   {previewing[mapping.id] ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1376,6 +1514,7 @@ const SyncTab = ({ config, onRefresh }) => {
                   onClick={() => handleSync(mapping.id)}
                   disabled={syncing[mapping.id] || !mapping.sync_enabled || !config?.connection?.is_connected}
                   className="btn-primary flex items-center gap-2"
+                  data-testid={`sync-btn-${mapping.id}`}
                 >
                   {syncing[mapping.id] ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1516,11 +1655,17 @@ const SyncLogsTab = () => {
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-10 h-10 rounded-full flex items-center justify-center",
-                        `bg-${status.color}-100`
+                        status.color === "green" && "bg-green-100",
+                        status.color === "red" && "bg-red-100",
+                        status.color === "amber" && "bg-amber-100",
+                        status.color === "blue" && "bg-blue-100"
                       )}>
                         <StatusIcon className={cn(
                           "w-5 h-5",
-                          `text-${status.color}-600`,
+                          status.color === "green" && "text-green-600",
+                          status.color === "red" && "text-red-600",
+                          status.color === "amber" && "text-amber-600",
+                          status.color === "blue" && "text-blue-600",
                           log.status === "running" && "animate-spin"
                         )} />
                       </div>
