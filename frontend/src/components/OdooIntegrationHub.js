@@ -660,6 +660,9 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [aiMapping, setAiMapping] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState(null);
+  const [showAiConfirmModal, setShowAiConfirmModal] = useState(false);
+  const [pendingAiMappings, setPendingAiMappings] = useState([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Update field mappings when mapping changes
   useEffect(() => {
@@ -718,7 +721,7 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
     setSaving(false);
   };
 
-  // AI Auto-Mapping
+  // AI Auto-Mapping - Get suggestions first
   const handleAiAutoMap = async () => {
     setAiMapping(true);
     setAiSuggestions(null);
@@ -746,60 +749,139 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
 
       setAiSuggestions(response.data);
       
-      // Apply AI suggestions to field mappings
+      // Show confirmation modal instead of applying directly
       if (response.data.suggestions?.length > 0) {
-        const updatedMappings = [...fieldMappings];
-        
-        response.data.suggestions.forEach(suggestion => {
-          // Find existing mapping with this source field
-          const existingIdx = updatedMappings.findIndex(
-            m => m.odoo_field === suggestion.source_field || m.source_field === suggestion.source_field
-          );
-          
-          if (existingIdx >= 0) {
-            // Update existing mapping
-            updatedMappings[existingIdx] = {
-              ...updatedMappings[existingIdx],
-              local_field: suggestion.target_field,
-              enabled: true,
-              ai_confidence: suggestion.confidence,
-              ai_reasoning: suggestion.reasoning
-            };
-          } else {
-            // Add new mapping
-            updatedMappings.push({
-              id: `ai_${Date.now()}_${suggestion.source_field}`,
-              odoo_field: suggestion.source_field,
-              local_field: suggestion.target_field,
-              enabled: true,
-              is_system: false,
-              ai_confidence: suggestion.confidence,
-              ai_reasoning: suggestion.reasoning
-            });
-          }
-        });
-        
-        setFieldMappings(updatedMappings);
-        toast.success(`AI suggested ${response.data.suggestions.length} field mappings!`);
+        setPendingAiMappings(response.data.suggestions);
+        setShowAiConfirmModal(true);
+      } else {
+        toast.info("No mapping suggestions found");
       }
     } catch (error) {
       console.error("AI mapping error:", error);
-      toast.error("AI mapping failed. Using rule-based fallback.");
+      toast.error("AI mapping failed. Please try again.");
     } finally {
       setAiMapping(false);
     }
   };
 
+  // Apply confirmed AI mappings
+  const handleConfirmAiMappings = (selectedMappings) => {
+    const updatedMappings = [...fieldMappings];
+    
+    selectedMappings.forEach(suggestion => {
+      const existingIdx = updatedMappings.findIndex(
+        m => m.odoo_field === suggestion.source_field || m.source_field === suggestion.source_field
+      );
+      
+      if (existingIdx >= 0) {
+        updatedMappings[existingIdx] = {
+          ...updatedMappings[existingIdx],
+          local_field: suggestion.target_field,
+          enabled: true,
+          ai_confidence: suggestion.confidence,
+          ai_reasoning: suggestion.reasoning
+        };
+      } else {
+        updatedMappings.push({
+          id: `ai_${Date.now()}_${suggestion.source_field}`,
+          odoo_field: suggestion.source_field,
+          local_field: suggestion.target_field,
+          enabled: true,
+          is_system: false,
+          ai_confidence: suggestion.confidence,
+          ai_reasoning: suggestion.reasoning
+        });
+      }
+    });
+    
+    setFieldMappings(updatedMappings);
+    setShowAiConfirmModal(false);
+    setPendingAiMappings([]);
+    toast.success(`Applied ${selectedMappings.length} AI-suggested mappings!`);
+  };
+
   const enabledCount = fieldMappings.filter(m => m.enabled).length;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden h-full flex flex-col">
+    <div className={cn(
+      "bg-white rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-all duration-300",
+      isExpanded ? "fixed inset-4 z-50" : "h-full"
+    )}>
+      {/* Backdrop for expanded mode */}
+      {isExpanded && (
+        <div 
+          className="fixed inset-0 bg-black/50 -z-10" 
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+      
       {/* Header */}
-      <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-slate-100 flex items-center justify-between">
-        <div>
+      <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-slate-100 flex items-center justify-between flex-shrink-0">
+        <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-            <ArrowLeftRight className="w-4 h-4 text-purple-600" />
-            {mapping.name} - Field Mapping
+            <ArrowLeftRight className="w-4 h-4 text-purple-600 flex-shrink-0" />
+            <span className="truncate">{mapping.name} - Field Mapping</span>
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5 truncate">
+            {mapping.odoo_model} → {mapping.local_collection} • {enabledCount} active mappings
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleAiAutoMap}
+            disabled={aiMapping || loadingFields}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
+            data-testid="ai-auto-map-btn"
+          >
+            {aiMapping ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">AI Auto-Map</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-secondary text-sm flex items-center gap-1 px-3 py-1.5"
+          >
+            <Link2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Add</span>
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={saving}
+            className="btn-primary text-sm flex items-center gap-1 px-3 py-1.5"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span className="hidden sm:inline">Save</span>
+          </button>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
+            title={isExpanded ? "Collapse" : "Expand"}
+          >
+            {isExpanded ? (
+              <X className="w-5 h-5 text-slate-600" />
+            ) : (
+              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* AI Confirmation Modal */}
+      {showAiConfirmModal && (
+        <AiMappingConfirmModal
+          suggestions={pendingAiMappings}
+          onConfirm={handleConfirmAiMappings}
+          onCancel={() => {
+            setShowAiConfirmModal(false);
+            setPendingAiMappings([]);
+          }}
+        />
+      )}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
             {mapping.odoo_model} → {mapping.local_collection} • {enabledCount} active mappings
