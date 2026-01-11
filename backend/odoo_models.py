@@ -225,6 +225,15 @@ def get_default_partner_mapping() -> EntityMapping:
                 enabled=False  # May not exist in all Odoo versions
             ),
             FieldMapping(
+                id="partner_salesperson",
+                source_field="user_id",
+                source_field_type="many2one",
+                target_field="odoo_salesperson_id",
+                target_field_type="relationship",
+                transform_type=FieldTransformType.LOOKUP,
+                enabled=True
+            ),
+            FieldMapping(
                 id="partner_odoo_id",
                 source_field="id",
                 source_field_type="integer",
