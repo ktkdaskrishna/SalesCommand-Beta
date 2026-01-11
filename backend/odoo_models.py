@@ -202,14 +202,16 @@ def get_default_partner_mapping() -> EntityMapping:
                 source_field="employee",
                 source_field_type="integer",
                 target_field="employee_count",
-                target_field_type="number"
+                target_field_type="number",
+                enabled=False  # May not exist in all Odoo versions
             ),
             FieldMapping(
                 id="partner_revenue",
                 source_field="annual_revenue",
                 source_field_type="float",
                 target_field="annual_revenue",
-                target_field_type="currency"
+                target_field_type="currency",
+                enabled=False  # May not exist in all Odoo versions
             ),
             FieldMapping(
                 id="partner_odoo_id",
