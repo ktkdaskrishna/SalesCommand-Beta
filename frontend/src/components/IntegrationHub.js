@@ -529,17 +529,16 @@ const PipelinePanel = ({ integration, onSync, config }) => {
         addLog(`Entity types: ${syncResult.entity_types?.join(', ')}`);
       } else if (integration?.id === 'odoo') {
         addLog('Triggering Odoo sync...');
-        // Use the existing Odoo sync endpoint
-        syncResult = await apiCall('/api/odoo/sync', {
-          method: 'POST',
-          body: JSON.stringify({
-            sync_type: 'full'
-          })
+        // Use the existing Odoo sync-all endpoint
+        syncResult = await apiCall('/api/odoo/sync-all', {
+          method: 'POST'
         });
         addLog(`✓ Odoo sync completed`);
-        if (syncResult.accounts) addLog(`✓ Synced ${syncResult.accounts.synced || 0} accounts`);
-        if (syncResult.opportunities) addLog(`✓ Synced ${syncResult.opportunities.synced || 0} opportunities`);
-        if (syncResult.activities) addLog(`✓ Synced ${syncResult.activities.synced || 0} activities`);
+        if (syncResult.results) {
+          syncResult.results.forEach(result => {
+            addLog(`✓ ${result.entity}: ${result.synced || 0} synced, ${result.errors || 0} errors`);
+          });
+        }
       } else {
         // Generic sync using sync engine
         addLog('Triggering sync via Sync Engine...');
