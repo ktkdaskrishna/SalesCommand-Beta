@@ -188,11 +188,11 @@ class OpportunityCreate(BaseModel):
 class OpportunityResponse(BaseModel):
     id: str
     name: str
-    account_id: str
+    account_id: Optional[str] = None
     account_name: Optional[str] = None
-    value: float
-    stage: str
-    probability: int
+    value: float = 0
+    stage: str = "discovery"
+    probability: int = 0
     expected_close_date: Optional[datetime] = None
     product_lines: List[str] = []
     description: Optional[str] = None
@@ -202,9 +202,9 @@ class OpportunityResponse(BaseModel):
     red_flags: List[str] = []
     strengths: List[str] = []
     competition: Optional[str] = None
-    owner_id: str
+    owner_id: Optional[str] = None
     owner_name: Optional[str] = None
-    odoo_id: Optional[str] = None
+    odoo_id: Optional[Any] = None  # Can be int or str
     created_at: datetime
     updated_at: datetime
 
