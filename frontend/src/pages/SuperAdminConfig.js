@@ -2845,39 +2845,8 @@ const UITab = ({ config, onConfigUpdate }) => {
 
 // Integrations Tab
 const IntegrationsTab = ({ config, onConfigUpdate }) => {
-  const integrations = [
-    {
-      id: "odoo",
-      name: "Odoo ERP",
-      description: "Sync accounts, opportunities, and invoices",
-      icon: "🏢",
-      status: "mocked",
-    },
-    {
-      id: "office365",
-      name: "Microsoft 365",
-      description: "Sync emails and calendar events",
-      icon: "📧",
-      status: "mocked",
-    },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">Integrations</h3>
-        <p className="text-sm text-slate-500">
-          Configure external system integrations
-        </p>
-      </div>
-
-      <div className="grid gap-4">
-        {integrations.map((integration) => (
-          <div
-            key={integration.id}
-            className="card p-4 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
+  return <OdooIntegrationHub />;
+};
               <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-2xl">
                 {integration.icon}
               </div>
