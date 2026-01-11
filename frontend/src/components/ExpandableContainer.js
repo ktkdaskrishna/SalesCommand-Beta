@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { cn } from "../lib/utils";
