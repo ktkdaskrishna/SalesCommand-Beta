@@ -52,7 +52,11 @@ class OdooClient:
             
             if "error" in result:
                 error_data = result["error"]
-                raise Exception(f"Odoo Error: {error_data.get('message', 'Unknown error')}")
+                # Log the full error for debugging
+                error_message = error_data.get('message', 'Unknown error')
+                error_debug = error_data.get('data', {}).get('message', '')
+                full_error = f"{error_message}: {error_debug}" if error_debug else error_message
+                raise Exception(f"Odoo Error: {full_error}")
             
             return result.get("result")
     
