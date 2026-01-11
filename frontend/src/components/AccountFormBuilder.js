@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import api from "../services/api";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
+import ExpandableContainer from "./ExpandableContainer";
 import {
   GripVertical,
   Plus,
@@ -30,6 +31,7 @@ import {
   Loader2,
   Columns,
   PanelLeft,
+  Layers,
 } from "lucide-react";
 
 // Field type configuration
