@@ -617,11 +617,11 @@ def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role)
         if "id" not in odoo_fields:
             odoo_fields.append("id")
         
-        # Build domain filter
+        # Build domain filter - Odoo expects list of tuples/lists like [("field", "op", "value")]
         domain = []
         if mapping.sync_filter:
             for key, value in mapping.sync_filter.items():
-                domain.append([key, "=", value])
+                domain.append((key, "=", value))
         
         # Fetch sample records
         odoo_records = await client.search_read(
