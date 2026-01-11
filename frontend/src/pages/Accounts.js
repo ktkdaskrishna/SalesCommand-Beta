@@ -357,127 +357,239 @@ const Accounts = () => {
         )}
       </div>
 
-      {/* Create Account Modal - Only visible to admins */}
+      {/* Create Account Modal - Dynamic fields from config */}
       {showModal && canCreateAccount && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Create New Account</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+        <DynamicAccountForm
+          accountFields={accountFields}
+          onSave={handleSubmit}
+          onCancel={() => setShowModal(false)}
+          saving={saving}
+        />
+      )}
+    </div>
+  );
+};
+
+// Dynamic Account Form Component - Uses Account Fields Config
+const DynamicAccountForm = ({ accountFields, onSave, onCancel, saving }) => {
+  const [formData, setFormData] = useState({});
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    // Fetch users for relationship fields
+    const fetchUsers = async () => {
+      try {
+        const response = await api.get("/config/users");
+        setUsers(response.data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Convert numeric fields
+    const processedData = { ...formData };
+    accountFields?.fields?.forEach(field => {
+      if ((field.field_type === "number" || field.field_type === "currency") && processedData[field.id]) {
+        processedData[field.id] = parseFloat(processedData[field.id]);
+      }
+    });
+    onSave(e, processedData);
+  };
+
+  const renderField = (field) => {
+    const value = formData[field.id] || "";
+    const onChange = (val) => setFormData({ ...formData, [field.id]: val });
+
+    // Skip computed fields in create form
+    if (field.field_type === "computed") return null;
+
+    switch (field.field_type) {
+      case "textarea":
+      case "rich_text":
+        return (
+          <div key={field.id} className="col-span-2">
+            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="input w-full h-24"
+              placeholder={field.placeholder || field.description}
+              required={field.validation?.required}
+            />
+          </div>
+        );
+      case "number":
+      case "currency":
+      case "percentage":
+        return (
+          <div key={field.id}>
+            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="input w-full"
+              placeholder={field.placeholder || "0"}
+              required={field.validation?.required}
+            />
+          </div>
+        );
+      case "date":
+        return (
+          <div key={field.id}>
+            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+            <input
+              type="date"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="input w-full"
+              required={field.validation?.required}
+            />
+          </div>
+        );
+      case "dropdown":
+        return (
+          <div key={field.id}>
+            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+            <select
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="input w-full"
+              required={field.validation?.required}
+            >
+              <option value="">Select {field.name}...</option>
+              {field.options?.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        );
+      case "checkbox":
+        return (
+          <div key={field.id} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={!!value}
+              onChange={(e) => onChange(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            <label className="text-sm text-slate-600">{field.name}</label>
+          </div>
+        );
+      case "relationship":
+        if (field.related_entity === "users") {
+          return (
+            <div key={field.id}>
+              <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+              <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="input w-full"
+                required={field.validation?.required}
+              >
+                <option value="">Select User...</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                ))}
+              </select>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Basic Info Section */}
-              <div>
-                <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Basic Information
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="text-sm text-slate-600">Company Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="input w-full"
-                      data-testid="account-name-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Industry</label>
-                    <select
-                      value={formData.industry}
-                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                      className="input w-full"
-                    >
-                      <option value="">Select Industry</option>
-                      <option value="technology">Technology</option>
-                      <option value="cybersecurity">Cybersecurity</option>
-                      <option value="financial_services">Financial Services</option>
-                      <option value="healthcare">Healthcare</option>
-                      <option value="manufacturing">Manufacturing</option>
-                      <option value="retail">Retail</option>
-                      <option value="government">Government</option>
-                      <option value="education">Education</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Website</label>
-                    <input
-                      type="url"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      placeholder="https://company.com"
-                      className="input w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Relationship Status</label>
-                    <select
-                      value={formData.relationship_maturity}
-                      onChange={(e) => setFormData({ ...formData, relationship_maturity: e.target.value })}
-                      className="input w-full"
-                    >
-                      <option value="new">New</option>
-                      <option value="developing">Developing</option>
-                      <option value="established">Established</option>
-                      <option value="strategic">Strategic</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Employee Count</label>
-                    <input
-                      type="number"
-                      value={formData.employee_count}
-                      onChange={(e) => setFormData({ ...formData, employee_count: e.target.value })}
-                      className="input w-full"
-                    />
+          );
+        }
+        return null;
+      default:
+        return (
+          <div key={field.id}>
+            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
+            <input
+              type={field.field_type === "email" ? "email" : field.field_type === "url" ? "url" : "text"}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="input w-full"
+              placeholder={field.placeholder || field.description}
+              required={field.validation?.required}
+            />
+          </div>
+        );
+    }
+  };
+
+  const fields = accountFields?.fields || [];
+  const sections = accountFields?.layout?.sections || [];
+
+  // Section icons mapping
+  const sectionIcons = {
+    basic: Building2,
+    financial: DollarSign,
+    contacts: Users,
+    address: MapPin,
+    notes: FileText,
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
+        <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-semibold">Create New Account</h2>
+          <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Render sections from config */}
+          {sections
+            .filter(section => section.id !== "erp_summary") // Skip computed fields section
+            .sort((a, b) => a.order - b.order)
+            .map((section) => {
+              const sectionFields = fields.filter(
+                f => f.section_id === section.id && 
+                f.editable !== false && 
+                f.field_type !== "computed"
+              );
+              if (sectionFields.length === 0) return null;
+
+              const SectionIcon = sectionIcons[section.id] || FileText;
+
+              return (
+                <div key={section.id}>
+                  <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
+                    <SectionIcon className="w-4 h-4" />
+                    {section.name}
+                  </h3>
+                  <div className={cn("grid gap-4", `grid-cols-${Math.min(section.columns || 2, 2)}`)}>
+                    {sectionFields.sort((a, b) => a.order - b.order).map(renderField)}
                   </div>
                 </div>
-              </div>
+              );
+            })}
 
-              {/* Financial Section */}
-              <div>
-                <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" /> Financial
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-slate-600">Total Budget</label>
-                    <input
-                      type="number"
-                      value={formData.total_budget}
-                      onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
-                      className="input w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-600">Annual Revenue</label>
-                    <input
-                      type="number"
-                      value={formData.annual_revenue}
-                      onChange={(e) => setFormData({ ...formData, annual_revenue: e.target.value })}
-                      className="input w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button type="button" onClick={onCancel} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Create Account
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
-              {/* Notes Section */}
-              <div>
-                <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> Notes
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-slate-600">Business Overview</label>
-                    <textarea
-                      value={formData.business_overview}
+// Add missing icon import
+const MapPin = ({ className }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+    <circle cx="12" cy="10" r="3"></circle>
+  </svg>
+);
+
+export default Accounts;
                       onChange={(e) => setFormData({ ...formData, business_overview: e.target.value })}
                       className="input w-full h-24"
                       placeholder="Brief description of the company..."
