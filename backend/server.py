@@ -666,6 +666,12 @@ async def get_account(account_id: str, user: dict = Depends(get_current_user)):
         am = await db.users.find_one({"id": account["assigned_am_id"]})
         account["assigned_am_name"] = am["name"] if am else None
     
+    # Handle type conversions for Odoo-synced records
+    if account.get("industry") is False or account.get("industry") is True:
+        account["industry"] = None
+    if account.get("odoo_id") is not None:
+        account["odoo_id"] = str(account["odoo_id"])
+    
     # Return full account with all fields including enriched orders/invoices
     return account
 
