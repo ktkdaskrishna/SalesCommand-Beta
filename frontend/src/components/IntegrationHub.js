@@ -100,21 +100,79 @@ const IntegrationCard = ({ integration, onSelect, isSelected }) => {
 };
 
 // Connector Configuration Panel
-const ConnectorPanel = ({ integration, config, onConfigChange, onTest }) => {
+const ConnectorPanel = ({ integration, config, onConfigChange, onTest, onSaveConfig }) => {
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      // Simulate test - in production call actual API
-      await new Promise(r => setTimeout(r, 1500));
-      setTestResult({ success: true, message: 'Connection successful!' });
+      let result;
+      if (integration?.id === 'salesforce') {
+        result = await apiCall('/api/salesforce/test-connection', {
+          method: 'POST',
+          body: JSON.stringify({
+            instance_url: config.instance_url || '',
+            access_token: config.access_token || '',
+            api_version: config.api_version || 'v58.0'
+          })
+        });
+      } else if (integration?.id === 'odoo') {
+        result = await apiCall('/api/odoo/test-connection', {
+          method: 'POST',
+          body: JSON.stringify({
+            url: config.url || '',
+            database: config.database || '',
+            username: config.username || '',
+            api_key: config.api_key || ''
+          })
+        });
+      } else {
+        // Generic test - simulate delay
+        await new Promise(r => setTimeout(r, 1500));
+        result = { success: true, message: `${integration?.name} connection test pending (integration not yet implemented)` };
+      }
+      setTestResult({ success: result.success !== false, message: result.message || 'Connection successful!' });
+      if (onTest) onTest(result);
     } catch (err) {
-      setTestResult({ success: false, message: err.message });
+      setTestResult({ success: false, message: err.message || 'Connection failed' });
     }
     setTesting(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (integration?.id === 'salesforce') {
+        await apiCall('/api/salesforce/config', {
+          method: 'POST',
+          body: JSON.stringify({
+            instance_url: config.instance_url || '',
+            access_token: config.access_token || '',
+            api_version: config.api_version || 'v58.0'
+          })
+        });
+      }
+      // Save to integrations endpoint
+      await apiCall('/api/integrations', {
+        method: 'POST',
+        body: JSON.stringify({
+          integration_type: integration?.id,
+          enabled: true,
+          api_url: config.url || config.instance_url || '',
+          api_key: config.api_key || config.access_token || '',
+          settings: config,
+          sync_interval_minutes: 60
+        })
+      });
+      setTestResult({ success: true, message: 'Configuration saved successfully!' });
+      if (onSaveConfig) onSaveConfig(config);
+    } catch (err) {
+      setTestResult({ success: false, message: err.message || 'Failed to save configuration' });
+    }
+    setSaving(false);
   };
 
   const fields = {
@@ -132,6 +190,11 @@ const ConnectorPanel = ({ integration, config, onConfigChange, onTest }) => {
     hubspot: [
       { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'HubSpot API key' },
       { key: 'portal_id', label: 'Portal ID', placeholder: '12345678' }
+    ],
+    ms365: [
+      { key: 'tenant_id', label: 'Tenant ID', placeholder: 'Azure AD Tenant ID' },
+      { key: 'client_id', label: 'Client ID', placeholder: 'App Client ID' },
+      { key: 'client_secret', label: 'Client Secret', type: 'password', placeholder: 'App Client Secret' }
     ]
   };
 
@@ -164,19 +227,34 @@ const ConnectorPanel = ({ integration, config, onConfigChange, onTest }) => {
         ))}
       </div>
 
-      <button
-        onClick={handleTest}
-        disabled={testing}
-        className="mt-4 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
-        data-testid="test-connection-btn"
-      >
-        {testing ? (
-          <RefreshCw className="w-4 h-4 animate-spin" />
-        ) : (
-          <Play className="w-4 h-4" />
-        )}
-        Test Connection
-      </button>
+      <div className="flex gap-3 mt-4">
+        <button
+          onClick={handleTest}
+          disabled={testing || saving}
+          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
+          data-testid="test-connection-btn"
+        >
+          {testing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Play className="w-4 h-4" />
+          )}
+          Test Connection
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={testing || saving}
+          className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
+          data-testid="save-config-btn"
+        >
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <CheckCircle className="w-4 h-4" />
+          )}
+          Save Config
+        </button>
+      </div>
 
       {testResult && (
         <div className={`mt-3 p-3 rounded-lg ${testResult.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
