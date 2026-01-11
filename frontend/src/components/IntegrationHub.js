@@ -374,7 +374,10 @@ const IntegrationHub = () => {
 // ===================== CONNECTION TAB =====================
 
 const ConnectionTab = ({ integration, config, onUpdate, onTest, testing, status, meta }) => {
-  const getDefaultFormData = () => {
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const getDefaultFormData = useCallback(() => {
     if (integration === "odoo") {
       return {
         url: config?.connection?.url || "",
@@ -401,15 +404,13 @@ const ConnectionTab = ({ integration, config, onUpdate, onTest, testing, status,
       };
     }
     return {};
-  };
+  }, [integration, config]);
 
-  const [formData, setFormData] = useState(getDefaultFormData());
-  const [showSecret, setShowSecret] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState(getDefaultFormData);
 
   useEffect(() => {
     setFormData(getDefaultFormData());
-  }, [integration, config]);
+  }, [getDefaultFormData]);
 
   const handleSave = async () => {
     setSaving(true);
