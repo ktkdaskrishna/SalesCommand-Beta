@@ -192,6 +192,38 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/integrations/odoo"
+        element={
+          <ProtectedRoute>
+            <OdooIntegrationHub />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/integrations/salesforce"
+        element={
+          <ProtectedRoute>
+            <SalesforceIntegrationHub />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/integrations/hubspot"
+        element={
+          <ProtectedRoute>
+            <HubSpotIntegrationHub />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/integrations/ms365"
+        element={
+          <ProtectedRoute>
+            <MS365IntegrationHub />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
