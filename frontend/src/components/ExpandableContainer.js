@@ -108,7 +108,7 @@ const ExpandableContainer = ({
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isExpanded]);
+  }, [isExpanded, handleClose]);
 
   // Normal (non-expanded) view
   const NormalView = (
