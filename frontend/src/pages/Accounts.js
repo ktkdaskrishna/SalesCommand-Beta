@@ -78,16 +78,18 @@ const Accounts = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, dynamicFormData) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await accountsAPI.create({
+      // Use dynamic form data if provided, otherwise use local formData
+      const dataToSubmit = dynamicFormData || {
         ...formData,
         annual_revenue: formData.annual_revenue ? parseFloat(formData.annual_revenue) : null,
         employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
         total_budget: formData.total_budget ? parseFloat(formData.total_budget) : null,
-      });
+      };
+      await accountsAPI.create(dataToSubmit);
       toast.success("Account created successfully");
       setShowModal(false);
       setFormData({
