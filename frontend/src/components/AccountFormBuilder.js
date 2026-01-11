@@ -530,6 +530,7 @@ const AccountFormBuilder = ({ onClose }) => {
         />
       )}
     </div>
+    </ExpandableContainer>
   );
 };
 
