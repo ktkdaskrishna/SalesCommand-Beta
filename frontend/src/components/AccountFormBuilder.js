@@ -233,13 +233,11 @@ const AccountFormBuilder = ({ onClose }) => {
   const unassignedFields = fields.filter(f => !f.section_id || !sections.find(s => s.id === f.section_id));
 
   return (
-    <div className="h-full flex flex-col" data-testid="account-form-builder">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-white">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Account Form Builder</h2>
-          <p className="text-sm text-slate-500">Drag and drop to customize account fields and layout</p>
-        </div>
+    <ExpandableContainer
+      title="Account Form Builder"
+      subtitle="Drag and drop to customize account fields and layout"
+      icon={Layers}
+      headerActions={
         <div className="flex items-center gap-3">
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
@@ -262,7 +260,9 @@ const AccountFormBuilder = ({ onClose }) => {
             Save Changes
           </button>
         </div>
-      </div>
+      }
+    >
+    <div className="h-full flex flex-col" data-testid="account-form-builder">
 
       {/* Builder View */}
       {activeView === "builder" && (
