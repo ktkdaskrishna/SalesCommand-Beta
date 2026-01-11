@@ -107,11 +107,22 @@ class SyncLog(BaseModel):
     errors: List[Dict[str, Any]] = []
     triggered_by: str = "manual"     # manual, scheduled, webhook
 
+class UserMapping(BaseModel):
+    """Maps Odoo user to platform user"""
+    odoo_user_id: int
+    odoo_user_name: str
+    odoo_user_email: str
+    platform_user_id: Optional[str] = None
+    platform_user_email: Optional[str] = None
+    auto_created: bool = False
+
 class OdooIntegrationConfig(BaseModel):
     """Complete Odoo integration configuration"""
     id: str = "odoo_integration"
     connection: OdooConnectionConfig = OdooConnectionConfig()
     entity_mappings: List[EntityMapping] = []
+    user_mappings: List[UserMapping] = []  # Odoo user -> Platform user mapping
+    auto_create_users: bool = True  # Auto-create platform users from Odoo
     global_settings: Dict[str, Any] = {
         "sync_batch_size": 100,
         "retry_attempts": 3,
