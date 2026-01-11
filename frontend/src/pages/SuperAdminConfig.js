@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { cn } from "../lib/utils";
+import AccountFormBuilder from "../components/AccountFormBuilder";
 import {
   Settings,
   Users,
@@ -44,10 +45,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Sidebar navigation items - Phase 3 enhanced with Account Fields
+// Sidebar navigation items - Phase 3 enhanced with Account Form Builder
 const navItems = [
   { id: "organization", label: "Organization", icon: Building2 },
-  { id: "account-fields", label: "Account Fields", icon: Database },
+  { id: "account-fields", label: "Account Form Builder", icon: Database },
   { id: "departments", label: "Departments", icon: FolderTree },
   { id: "users", label: "User Management", icon: Users },
   { id: "roles", label: "Roles & Permissions", icon: Shield },
