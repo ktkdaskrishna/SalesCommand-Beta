@@ -658,6 +658,8 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
   const [searchLocal, setSearchLocal] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiMapping, setAiMapping] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState(null);
 
   // Update field mappings when mapping changes
   useEffect(() => {
@@ -716,6 +718,78 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
     setSaving(false);
   };
 
+  // AI Auto-Mapping
+  const handleAiAutoMap = async () => {
+    setAiMapping(true);
+    setAiSuggestions(null);
+    
+    try {
+      // Prepare source fields from Odoo fields
+      const sourceFields = odooFields.map(f => ({
+        name: f.name,
+        type: f.type || "string",
+        sample_value: f.sample_value || null,
+        description: f.label || null
+      }));
+
+      // Get entity type from mapping
+      let entityType = "contacts";
+      if (mapping.local_collection?.includes("account")) entityType = "accounts";
+      else if (mapping.local_collection?.includes("opportunit")) entityType = "opportunities";
+      else if (mapping.local_collection?.includes("activit")) entityType = "activities";
+
+      const response = await api.post("/ai-mapping/suggest", {
+        source_name: "Odoo",
+        entity_type: entityType,
+        source_fields: sourceFields
+      });
+
+      setAiSuggestions(response.data);
+      
+      // Apply AI suggestions to field mappings
+      if (response.data.suggestions?.length > 0) {
+        const updatedMappings = [...fieldMappings];
+        
+        response.data.suggestions.forEach(suggestion => {
+          // Find existing mapping with this source field
+          const existingIdx = updatedMappings.findIndex(
+            m => m.odoo_field === suggestion.source_field || m.source_field === suggestion.source_field
+          );
+          
+          if (existingIdx >= 0) {
+            // Update existing mapping
+            updatedMappings[existingIdx] = {
+              ...updatedMappings[existingIdx],
+              local_field: suggestion.target_field,
+              enabled: true,
+              ai_confidence: suggestion.confidence,
+              ai_reasoning: suggestion.reasoning
+            };
+          } else {
+            // Add new mapping
+            updatedMappings.push({
+              id: `ai_${Date.now()}_${suggestion.source_field}`,
+              odoo_field: suggestion.source_field,
+              local_field: suggestion.target_field,
+              enabled: true,
+              is_system: false,
+              ai_confidence: suggestion.confidence,
+              ai_reasoning: suggestion.reasoning
+            });
+          }
+        });
+        
+        setFieldMappings(updatedMappings);
+        toast.success(`AI suggested ${response.data.suggestions.length} field mappings!`);
+      }
+    } catch (error) {
+      console.error("AI mapping error:", error);
+      toast.error("AI mapping failed. Using rule-based fallback.");
+    } finally {
+      setAiMapping(false);
+    }
+  };
+
   const enabledCount = fieldMappings.filter(m => m.enabled).length;
 
   return (
@@ -732,6 +806,19 @@ const VisualFieldMapper = ({ mapping, odooFields, loadingFields, onSave }) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleAiAutoMap}
+            disabled={aiMapping || loadingFields}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
+            data-testid="ai-auto-map-btn"
+          >
+            {aiMapping ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            AI Auto-Map
+          </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-secondary text-sm flex items-center gap-1.5"
