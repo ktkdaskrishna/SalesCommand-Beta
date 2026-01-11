@@ -642,6 +642,12 @@ async def get_accounts(user: dict = Depends(get_current_user)):
             am = await db.users.find_one({"id": acc["assigned_am_id"]})
             acc["assigned_am_name"] = am["name"] if am else None
         
+        # Handle type conversions for Odoo-synced records
+        if acc.get("industry") is False or acc.get("industry") is True:
+            acc["industry"] = None
+        if acc.get("odoo_id") is not None:
+            acc["odoo_id"] = str(acc["odoo_id"])
+        
         result.append(AccountResponse(**acc))
     return result
 
