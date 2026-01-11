@@ -642,8 +642,9 @@ async def get_accounts(user: dict = Depends(get_current_user)):
         result.append(AccountResponse(**acc))
     return result
 
-@api_router.get("/accounts/{account_id}", response_model=AccountResponse)
+@api_router.get("/accounts/{account_id}")
 async def get_account(account_id: str, user: dict = Depends(get_current_user)):
+    """Get a single account with all fields including enriched data"""
     account = await db.accounts.find_one({"id": account_id}, {"_id": 0})
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -656,7 +657,8 @@ async def get_account(account_id: str, user: dict = Depends(get_current_user)):
         am = await db.users.find_one({"id": account["assigned_am_id"]})
         account["assigned_am_name"] = am["name"] if am else None
     
-    return AccountResponse(**account)
+    # Return full account with all fields including enriched orders/invoices
+    return account
 
 @api_router.put("/accounts/{account_id}", response_model=AccountResponse)
 async def update_account(account_id: str, account_data: AccountCreate, user: dict = Depends(get_current_user)):
