@@ -2847,46 +2847,6 @@ const UITab = ({ config, onConfigUpdate }) => {
 const IntegrationsTab = ({ config, onConfigUpdate }) => {
   return <OdooIntegrationHub />;
 };
-              <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-2xl">
-                {integration.icon}
-              </div>
-              <div>
-                <h4 className="font-medium text-slate-900">{integration.name}</h4>
-                <p className="text-sm text-slate-500">{integration.description}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "text-xs px-2 py-1 rounded-full",
-                  integration.status === "connected"
-                    ? "bg-green-100 text-green-700"
-                    : integration.status === "mocked"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-slate-100 text-slate-600"
-                )}
-              >
-                {integration.status === "mocked" ? "Mocked" : integration.status}
-              </span>
-              <button className="btn-secondary text-sm">Configure</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
-        <div>
-          <h4 className="font-medium text-amber-900">Integration Note</h4>
-          <p className="text-sm text-amber-700">
-            Odoo and Microsoft 365 integrations are currently mocked. To enable real
-            data synchronization, provide API credentials and configure sync settings.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Main Super Admin Config Page
 const SuperAdminConfig = () => {
