@@ -1058,11 +1058,7 @@ const SyncLogsTab = ({ integration }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchLogs();
-  }, [integration]);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get(`/${integration}/sync-logs?limit=50`);
@@ -1073,7 +1069,11 @@ const SyncLogsTab = ({ integration }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [integration]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const statusConfig = {
     success: { icon: CheckCircle, color: "green", label: "Success" },
