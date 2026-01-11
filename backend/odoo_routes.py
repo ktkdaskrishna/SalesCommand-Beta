@@ -322,6 +322,64 @@ class OdooSyncEngine:
         await self.db.odoo_sync_logs.insert_one(log.model_dump())
         
         return log
+    
+    async def sync_users_from_odoo(self, config: "OdooIntegrationConfig") -> Dict[int, str]:
+        """Fetch Odoo users and create/map to platform users"""
+        user_map = {}  # odoo_user_id -> platform_user_id
+        
+        if not self.client:
+            return user_map
+        
+        # Fetch Odoo users
+        odoo_users = await self.client.search_read(
+            "res.users",
+            domain=[("share", "=", False)],  # Only internal users
+            fields=["id", "name", "login", "email"],
+            limit=100
+        )
+        
+        for odoo_user in odoo_users:
+            odoo_id = odoo_user.get("id")
+            email = odoo_user.get("email") or odoo_user.get("login")
+            name = odoo_user.get("name")
+            
+            if not email:
+                continue
+            
+            # Check if platform user exists with this email
+            platform_user = await self.db.users.find_one({"email": email.lower()})
+            
+            if platform_user:
+                # Map to existing user
+                user_map[odoo_id] = platform_user["id"]
+                # Update odoo_user_id on the platform user
+                await self.db.users.update_one(
+                    {"id": platform_user["id"]},
+                    {"$set": {"odoo_user_id": odoo_id}}
+                )
+            elif config.auto_create_users:
+                # Create new platform user
+                from passlib.context import CryptContext
+                pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+                
+                new_user_id = str(uuid.uuid4())
+                new_user = {
+                    "id": new_user_id,
+                    "email": email.lower(),
+                    "name": name,
+                    "password_hash": pwd_context.hash("changeme123"),  # Default password
+                    "role": "account_manager",  # Default role for Odoo users
+                    "department_id": None,
+                    "is_active": True,
+                    "odoo_user_id": odoo_id,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                }
+                await self.db.users.insert_one(new_user)
+                user_map[odoo_id] = new_user_id
+                print(f"Created platform user: {name} ({email})")
+            
+        return user_map
 
 
 # ===================== API ROUTES =====================
