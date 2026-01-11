@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import AccountManagerDashboard from "./pages/AccountManagerDashboard";
 import Accounts from "./pages/Accounts";
+import AccountDetail from "./pages/AccountDetail";
 import Opportunities from "./pages/Opportunities";
 import Activities from "./pages/Activities";
 import KPIs from "./pages/KPIs";
