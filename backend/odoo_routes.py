@@ -1,0 +1,650 @@
+# ===================== ODOO API CLIENT & SYNC ENGINE =====================
+# JSON-RPC based Odoo client compatible with Odoo 17/18
+
+import json
+import uuid
+import httpx
+from typing import Optional, List, Dict, Any, Tuple
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from odoo_models import (
+    OdooIntegrationConfig, OdooConnectionConfig, EntityMapping, FieldMapping,
+    SyncLog, OdooModel, SyncDirection, FieldTransformType,
+    get_default_odoo_integration, get_odoo_fields_for_model,
+    ODOO_PARTNER_FIELDS, ODOO_LEAD_FIELDS, ODOO_ACTIVITY_FIELDS
+)
+
+# ===================== ODOO JSON-RPC CLIENT =====================
+
+class OdooClient:
+    """Odoo JSON-RPC API Client - Compatible with Odoo 17/18"""
+    
+    def __init__(self, url: str, database: str, username: str, api_key: str):
+        self.url = url.rstrip('/')
+        self.database = database
+        self.username = username
+        self.api_key = api_key
+        self.uid = None
+        self.version = None
+        
+    async def _jsonrpc_call(self, endpoint: str, service: str, method: str, args: List[Any]) -> Any:
+        """Make a JSON-RPC call to Odoo"""
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": service,
+                "method": method,
+                "args": args
+            },
+            "id": str(uuid.uuid4())
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{self.url}{endpoint}",
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            result = response.json()
+            
+            if "error" in result:
+                error_data = result["error"]
+                raise Exception(f"Odoo Error: {error_data.get('message', 'Unknown error')}")
+            
+            return result.get("result")
+    
+    async def authenticate(self) -> Tuple[bool, str]:
+        """Authenticate with Odoo and get UID"""
+        try:
+            # Get version info first
+            version_info = await self._jsonrpc_call(
+                "/jsonrpc", "common", "version", []
+            )
+            self.version = version_info.get("server_version", "Unknown")
+            
+            # Authenticate
+            self.uid = await self._jsonrpc_call(
+                "/jsonrpc", "common", "authenticate",
+                [self.database, self.username, self.api_key, {}]
+            )
+            
+            if not self.uid:
+                return False, "Authentication failed. Check credentials."
+            
+            return True, f"Connected to Odoo {self.version}"
+            
+        except Exception as e:
+            return False, str(e)
+    
+    async def search_read(
+        self, 
+        model: str, 
+        domain: List[Any] = None, 
+        fields: List[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+        order: str = None
+    ) -> List[Dict]:
+        """Search and read records from Odoo"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+        
+        kwargs = {"limit": limit, "offset": offset}
+        if fields:
+            kwargs["fields"] = fields
+        if order:
+            kwargs["order"] = order
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "search_read", [domain or []], kwargs]
+        )
+    
+    async def read(self, model: str, ids: List[int], fields: List[str] = None) -> List[Dict]:
+        """Read specific records by ID"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+            
+        kwargs = {}
+        if fields:
+            kwargs["fields"] = fields
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "read", [ids], kwargs]
+        )
+    
+    async def create(self, model: str, values: Dict) -> int:
+        """Create a record in Odoo"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "create", [values]]
+        )
+    
+    async def write(self, model: str, ids: List[int], values: Dict) -> bool:
+        """Update records in Odoo"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "write", [ids, values]]
+        )
+    
+    async def get_model_fields(self, model: str) -> Dict[str, Any]:
+        """Get field definitions for a model (for dynamic field discovery)"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "fields_get", [], {"attributes": ["string", "type", "relation", "required", "selection"]}]
+        )
+    
+    async def count(self, model: str, domain: List[Any] = None) -> int:
+        """Count records matching domain"""
+        if not self.uid:
+            raise Exception("Not authenticated")
+            
+        return await self._jsonrpc_call(
+            "/jsonrpc", "object", "execute_kw",
+            [self.database, self.uid, self.api_key, model, "search_count", [domain or []]]
+        )
+
+
+# ===================== SYNC ENGINE =====================
+
+class OdooSyncEngine:
+    """Engine for syncing data between Odoo and local database"""
+    
+    def __init__(self, db: AsyncIOMotorDatabase, client: OdooClient):
+        self.db = db
+        self.client = client
+    
+    async def transform_value(self, value: Any, mapping: FieldMapping, odoo_record: Dict) -> Any:
+        """Transform a value according to field mapping rules"""
+        if value is None:
+            return mapping.default_value
+        
+        transform_type = mapping.transform_type
+        config = mapping.transform_config
+        
+        if transform_type == FieldTransformType.DIRECT:
+            return value
+        
+        elif transform_type == FieldTransformType.LOOKUP:
+            # Handle many2one fields (returns [id, name])
+            if isinstance(value, list) and len(value) == 2:
+                lookup_field = config.get("lookup_field", "name")
+                if lookup_field == "name":
+                    return value[1]  # Return the name
+                elif lookup_field == "id":
+                    return value[0]  # Return the ID
+                
+                # Check for value mapping
+                value_mapping = config.get("value_mapping", {})
+                if value[1] in value_mapping:
+                    return value_mapping[value[1]]
+                return value[1]
+            elif isinstance(value, (int, str)):
+                return value
+            return None
+        
+        elif transform_type == FieldTransformType.FORMAT:
+            # Format transformations
+            if config.get("strip_html"):
+                import re
+                return re.sub('<[^<]+?>', '', str(value)) if value else None
+            return value
+        
+        elif transform_type == FieldTransformType.DEFAULT:
+            return value if value else mapping.default_value
+        
+        elif transform_type == FieldTransformType.CONCATENATE:
+            # Concatenate multiple fields
+            fields_to_concat = config.get("fields", [])
+            separator = config.get("separator", " ")
+            values = [str(odoo_record.get(f, "")) for f in fields_to_concat]
+            return separator.join(filter(None, values))
+        
+        return value
+    
+    async def map_record(self, odoo_record: Dict, entity_mapping: EntityMapping) -> Dict:
+        """Map an Odoo record to local format"""
+        local_record = {
+            "odoo_id": str(odoo_record.get("id")),
+            "odoo_model": entity_mapping.odoo_model.value,
+            "last_synced_at": datetime.now(timezone.utc),
+        }
+        
+        for field_mapping in entity_mapping.field_mappings:
+            if not field_mapping.enabled:
+                continue
+            
+            odoo_value = odoo_record.get(field_mapping.source_field)
+            local_value = await self.transform_value(odoo_value, field_mapping, odoo_record)
+            
+            if local_value is not None or field_mapping.is_required:
+                local_record[field_mapping.target_field] = local_value
+        
+        return local_record
+    
+    async def sync_entity(self, entity_mapping: EntityMapping, batch_size: int = 100) -> SyncLog:
+        """Sync a single entity type from Odoo"""
+        log = SyncLog(
+            id=str(uuid.uuid4()),
+            entity_mapping_id=entity_mapping.id,
+            started_at=datetime.now(timezone.utc),
+            status="running"
+        )
+        
+        try:
+            # Get fields to fetch from Odoo
+            odoo_fields = [m.source_field for m in entity_mapping.field_mappings if m.enabled]
+            if "id" not in odoo_fields:
+                odoo_fields.append("id")
+            
+            # Build domain filter
+            domain = []
+            if entity_mapping.sync_filter:
+                for key, value in entity_mapping.sync_filter.items():
+                    domain.append([key, "=", value])
+            
+            # Count total records
+            total_count = await self.client.count(entity_mapping.odoo_model.value, domain)
+            
+            # Fetch and process in batches
+            offset = 0
+            while offset < total_count:
+                odoo_records = await self.client.search_read(
+                    entity_mapping.odoo_model.value,
+                    domain=domain,
+                    fields=odoo_fields,
+                    limit=batch_size,
+                    offset=offset,
+                    order="id asc"
+                )
+                
+                for odoo_record in odoo_records:
+                    try:
+                        log.records_processed += 1
+                        local_record = await self.map_record(odoo_record, entity_mapping)
+                        
+                        # Find existing record by odoo_id
+                        existing = await self.db[entity_mapping.local_collection].find_one(
+                            {"odoo_id": local_record["odoo_id"]}
+                        )
+                        
+                        if existing:
+                            # Update existing
+                            local_record["updated_at"] = datetime.now(timezone.utc)
+                            await self.db[entity_mapping.local_collection].update_one(
+                                {"odoo_id": local_record["odoo_id"]},
+                                {"$set": local_record}
+                            )
+                            log.records_updated += 1
+                        else:
+                            # Create new
+                            local_record["id"] = str(uuid.uuid4())
+                            local_record["created_at"] = datetime.now(timezone.utc)
+                            local_record["updated_at"] = datetime.now(timezone.utc)
+                            await self.db[entity_mapping.local_collection].insert_one(local_record)
+                            log.records_created += 1
+                            
+                    except Exception as e:
+                        log.records_failed += 1
+                        log.errors.append({
+                            "odoo_id": odoo_record.get("id"),
+                            "error": str(e)
+                        })
+                
+                offset += batch_size
+            
+            log.status = "success" if log.records_failed == 0 else "partial"
+            log.completed_at = datetime.now(timezone.utc)
+            
+        except Exception as e:
+            log.status = "failed"
+            log.completed_at = datetime.now(timezone.utc)
+            log.errors.append({"error": str(e)})
+        
+        # Save sync log
+        await self.db.odoo_sync_logs.insert_one(log.model_dump())
+        
+        return log
+
+
+# ===================== API ROUTES =====================
+
+def create_odoo_routes(db: AsyncIOMotorDatabase, get_current_user, require_role) -> APIRouter:
+    """Create Odoo integration API routes"""
+    
+    router = APIRouter(prefix="/odoo", tags=["Odoo Integration"])
+    
+    async def get_odoo_config() -> OdooIntegrationConfig:
+        """Get Odoo integration config from database"""
+        config = await db.system_config.find_one({"id": "system_config"})
+        odoo_config = config.get("odoo_integration") if config else None
+        if not odoo_config:
+            return get_default_odoo_integration()
+        return OdooIntegrationConfig(**odoo_config)
+    
+    async def save_odoo_config(config: OdooIntegrationConfig):
+        """Save Odoo integration config"""
+        await db.system_config.update_one(
+            {"id": "system_config"},
+            {"$set": {"odoo_integration": config.model_dump()}},
+            upsert=True
+        )
+    
+    @router.get("/config")
+    async def get_integration_config(user: dict = Depends(require_role(["super_admin"]))):
+        """Get Odoo integration configuration"""
+        config = await get_odoo_config()
+        # Mask API key for security
+        if config.connection.api_key:
+            config.connection.api_key = "***" + config.connection.api_key[-4:] if len(config.connection.api_key) > 4 else "****"
+        return config.model_dump()
+    
+    @router.put("/config/connection")
+    async def update_connection(
+        connection_data: dict,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Update Odoo connection settings"""
+        config = await get_odoo_config()
+        
+        # Update connection fields
+        for key, value in connection_data.items():
+            if hasattr(config.connection, key) and value is not None:
+                # Don't update if it's a masked API key
+                if key == "api_key" and value.startswith("***"):
+                    continue
+                setattr(config.connection, key, value)
+        
+        config.updated_at = datetime.now(timezone.utc)
+        await save_odoo_config(config)
+        return {"message": "Connection settings updated"}
+    
+    @router.post("/test-connection")
+    async def test_connection(user: dict = Depends(require_role(["super_admin"]))):
+        """Test Odoo connection"""
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        if not conn.url or not conn.database or not conn.username or not conn.api_key:
+            raise HTTPException(status_code=400, detail="Missing connection settings")
+        
+        client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+        success, message = await client.authenticate()
+        
+        if success:
+            # Update connection status
+            config.connection.is_connected = True
+            config.connection.last_connected_at = datetime.now(timezone.utc)
+            config.connection.odoo_version = client.version
+            await save_odoo_config(config)
+        
+        return {
+            "success": success,
+            "message": message,
+            "version": client.version if success else None
+        }
+    
+    @router.get("/fields/{model}")
+    async def get_model_fields(
+        model: OdooModel,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Get available fields for an Odoo model"""
+        # First return static field definitions
+        static_fields = get_odoo_fields_for_model(model)
+        
+        # Try to get dynamic fields from Odoo if connected
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        dynamic_fields = []
+        if conn.is_connected and conn.url and conn.api_key:
+            try:
+                client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+                success, _ = await client.authenticate()
+                if success:
+                    fields_info = await client.get_model_fields(model.value)
+                    dynamic_fields = [
+                        {
+                            "name": name,
+                            "type": info.get("type", "char"),
+                            "label": info.get("string", name),
+                            "required": info.get("required", False),
+                            "relation": info.get("relation"),
+                            "options": [opt[0] for opt in info.get("selection", [])] if info.get("selection") else None
+                        }
+                        for name, info in fields_info.items()
+                        if not name.startswith("__")  # Skip internal fields
+                    ]
+            except Exception:
+                pass  # Fall back to static fields
+        
+        return {
+            "model": model.value,
+            "static_fields": static_fields,
+            "dynamic_fields": dynamic_fields,
+            "from_odoo": len(dynamic_fields) > 0
+        }
+    
+    @router.get("/mappings")
+    async def get_entity_mappings(user: dict = Depends(require_role(["super_admin"]))):
+        """Get all entity mappings"""
+        config = await get_odoo_config()
+        return [m.model_dump() for m in config.entity_mappings]
+    
+    @router.get("/mappings/{mapping_id}")
+    async def get_entity_mapping(
+        mapping_id: str,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Get a specific entity mapping"""
+        config = await get_odoo_config()
+        mapping = next((m for m in config.entity_mappings if m.id == mapping_id), None)
+        if not mapping:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        return mapping.model_dump()
+    
+    @router.put("/mappings/{mapping_id}")
+    async def update_entity_mapping(
+        mapping_id: str,
+        mapping_data: dict,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Update an entity mapping"""
+        config = await get_odoo_config()
+        mapping_idx = next((i for i, m in enumerate(config.entity_mappings) if m.id == mapping_id), None)
+        
+        if mapping_idx is None:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        
+        # Update mapping
+        existing = config.entity_mappings[mapping_idx].model_dump()
+        existing.update(mapping_data)
+        config.entity_mappings[mapping_idx] = EntityMapping(**existing)
+        config.updated_at = datetime.now(timezone.utc)
+        await save_odoo_config(config)
+        
+        return {"message": "Mapping updated"}
+    
+    @router.put("/mappings/{mapping_id}/fields")
+    async def update_field_mappings(
+        mapping_id: str,
+        field_mappings: List[dict],
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Update field mappings for an entity"""
+        config = await get_odoo_config()
+        mapping = next((m for m in config.entity_mappings if m.id == mapping_id), None)
+        
+        if not mapping:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        
+        # Update field mappings
+        mapping.field_mappings = [FieldMapping(**fm) for fm in field_mappings]
+        config.updated_at = datetime.now(timezone.utc)
+        await save_odoo_config(config)
+        
+        return {"message": "Field mappings updated"}
+    
+    @router.post("/sync/{mapping_id}")
+    async def sync_entity(
+        mapping_id: str,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Trigger sync for an entity mapping"""
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        if not conn.is_connected:
+            raise HTTPException(status_code=400, detail="Odoo not connected")
+        
+        mapping = next((m for m in config.entity_mappings if m.id == mapping_id), None)
+        if not mapping:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        
+        if not mapping.sync_enabled:
+            raise HTTPException(status_code=400, detail="Sync disabled for this mapping")
+        
+        # Create client and sync engine
+        client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+        success, message = await client.authenticate()
+        
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
+        
+        engine = OdooSyncEngine(db, client)
+        log = await engine.sync_entity(mapping, config.global_settings.get("sync_batch_size", 100))
+        
+        # Update last sync time
+        mapping.last_sync_at = datetime.now(timezone.utc)
+        await save_odoo_config(config)
+        
+        return {
+            "status": log.status,
+            "processed": log.records_processed,
+            "created": log.records_created,
+            "updated": log.records_updated,
+            "failed": log.records_failed,
+            "errors": log.errors[:10] if log.errors else []  # Return first 10 errors
+        }
+    
+    @router.post("/sync-all")
+    async def sync_all_entities(user: dict = Depends(require_role(["super_admin"]))):
+        """Sync all enabled entity mappings"""
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        if not conn.is_connected:
+            raise HTTPException(status_code=400, detail="Odoo not connected")
+        
+        # Create client
+        client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+        success, message = await client.authenticate()
+        
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
+        
+        engine = OdooSyncEngine(db, client)
+        results = []
+        
+        for mapping in config.entity_mappings:
+            if mapping.sync_enabled:
+                log = await engine.sync_entity(mapping, config.global_settings.get("sync_batch_size", 100))
+                mapping.last_sync_at = datetime.now(timezone.utc)
+                results.append({
+                    "entity": mapping.name,
+                    "status": log.status,
+                    "processed": log.records_processed,
+                    "created": log.records_created,
+                    "updated": log.records_updated,
+                    "failed": log.records_failed
+                })
+        
+        await save_odoo_config(config)
+        return {"results": results}
+    
+    @router.get("/sync-logs")
+    async def get_sync_logs(
+        limit: int = 20,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Get recent sync logs"""
+        logs = await db.odoo_sync_logs.find(
+            {},
+            {"_id": 0}
+        ).sort("started_at", -1).limit(limit).to_list(limit)
+        return logs
+    
+    @router.get("/preview/{mapping_id}")
+    async def preview_sync(
+        mapping_id: str,
+        limit: int = 5,
+        user: dict = Depends(require_role(["super_admin"]))
+    ):
+        """Preview data that would be synced (without actually syncing)"""
+        config = await get_odoo_config()
+        conn = config.connection
+        
+        if not conn.is_connected:
+            raise HTTPException(status_code=400, detail="Odoo not connected")
+        
+        mapping = next((m for m in config.entity_mappings if m.id == mapping_id), None)
+        if not mapping:
+            raise HTTPException(status_code=404, detail="Mapping not found")
+        
+        # Create client
+        client = OdooClient(conn.url, conn.database, conn.username, conn.api_key)
+        success, message = await client.authenticate()
+        
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Authentication failed: {message}")
+        
+        # Get fields to fetch
+        odoo_fields = [m.source_field for m in mapping.field_mappings if m.enabled]
+        if "id" not in odoo_fields:
+            odoo_fields.append("id")
+        
+        # Build domain filter
+        domain = []
+        if mapping.sync_filter:
+            for key, value in mapping.sync_filter.items():
+                domain.append([key, "=", value])
+        
+        # Fetch sample records
+        odoo_records = await client.search_read(
+            mapping.odoo_model.value,
+            domain=domain,
+            fields=odoo_fields,
+            limit=limit
+        )
+        
+        # Transform records
+        engine = OdooSyncEngine(db, client)
+        preview_data = []
+        
+        for odoo_record in odoo_records:
+            local_record = await engine.map_record(odoo_record, mapping)
+            preview_data.append({
+                "odoo": odoo_record,
+                "mapped": local_record
+            })
+        
+        return {
+            "total_in_odoo": await client.count(mapping.odoo_model.value, domain),
+            "preview": preview_data
+        }
+    
+    return router
