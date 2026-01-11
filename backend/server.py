@@ -2266,12 +2266,14 @@ from api.sync import router as sync_router
 from api.dashboard import router as dashboard_router_v2
 from api.auth_ms365 import router as ms365_router
 from api.salesforce import router as salesforce_router
+from api.ai_mapping import router as ai_mapping_router
 
 api_router.include_router(data_lake_router)
 api_router.include_router(sync_router)
 api_router.include_router(dashboard_router_v2)
 api_router.include_router(ms365_router)
 api_router.include_router(salesforce_router)
+api_router.include_router(ai_mapping_router)
 
 app.include_router(api_router)
 
