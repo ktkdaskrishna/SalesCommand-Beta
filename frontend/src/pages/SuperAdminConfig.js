@@ -2845,7 +2845,7 @@ const UITab = ({ config, onConfigUpdate }) => {
 
 // Integrations Tab
 const IntegrationsTab = ({ config, onConfigUpdate }) => {
-  return <OdooIntegrationHub />;
+  return <VisualDataFlowHub />;
 };
 
 // Main Super Admin Config Page
