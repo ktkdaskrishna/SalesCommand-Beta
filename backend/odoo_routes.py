@@ -250,11 +250,11 @@ class OdooSyncEngine:
             if "id" not in odoo_fields:
                 odoo_fields.append("id")
             
-            # Build domain filter
+            # Build domain filter - Odoo expects list of tuples like [("field", "op", "value")]
             domain = []
             if entity_mapping.sync_filter:
                 for key, value in entity_mapping.sync_filter.items():
-                    domain.append([key, "=", value])
+                    domain.append((key, "=", value))
             
             # Count total records
             total_count = await self.client.count(entity_mapping.odoo_model.value, domain)
