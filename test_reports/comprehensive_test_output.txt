@@ -1,0 +1,63 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /root/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /app/backend
+plugins: anyio-4.12.0
+collecting ... collected 46 items
+
+tests/test_comprehensive_workflow.py::TestAuthentication::test_login_valid_superadmin PASSED [  2%]
+tests/test_comprehensive_workflow.py::TestAuthentication::test_login_valid_account_manager PASSED [  4%]
+tests/test_comprehensive_workflow.py::TestAuthentication::test_login_invalid_credentials PASSED [  6%]
+tests/test_comprehensive_workflow.py::TestAuthentication::test_login_missing_fields PASSED [  8%]
+tests/test_comprehensive_workflow.py::TestAuthentication::test_protected_route_without_token PASSED [ 10%]
+tests/test_comprehensive_workflow.py::TestAuthentication::test_protected_route_with_token PASSED [ 13%]
+tests/test_comprehensive_workflow.py::TestUserManagement::test_get_users_list PASSED [ 15%]
+tests/test_comprehensive_workflow.py::TestUserManagement::test_get_current_user PASSED [ 17%]
+tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_get_accounts_list PASSED [ 19%]
+tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_create_account PASSED [ 21%]
+tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_get_single_account PASSED [ 23%]
+tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_update_account PASSED [ 26%]
+tests/test_comprehensive_workflow.py::TestOpportunitiesCRUD::test_get_opportunities_list PASSED [ 28%]
+tests/test_comprehensive_workflow.py::TestOpportunitiesCRUD::test_create_opportunity PASSED [ 30%]
+tests/test_comprehensive_workflow.py::TestOpportunitiesCRUD::test_update_opportunity PASSED [ 32%]
+tests/test_comprehensive_workflow.py::TestActivitiesCRUD::test_get_activities_list PASSED [ 34%]
+tests/test_comprehensive_workflow.py::TestActivitiesCRUD::test_create_activity PASSED [ 36%]
+tests/test_comprehensive_workflow.py::TestActivitiesCRUD::test_update_activity_status SKIPPED [ 39%]
+tests/test_comprehensive_workflow.py::TestDashboard::test_get_dashboard_stats PASSED [ 41%]
+tests/test_comprehensive_workflow.py::TestDashboard::test_get_pipeline_by_stage PASSED [ 43%]
+tests/test_comprehensive_workflow.py::TestDashboard::test_get_activities_by_status PASSED [ 45%]
+tests/test_comprehensive_workflow.py::TestDashboard::test_get_revenue_trend PASSED [ 47%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_sync_status PASSED [ 50%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_sync_jobs_list PASSED [ 52%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_sync_history PASSED [ 54%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_data_lake_health PASSED [ 56%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_data_lake_stats PASSED [ 58%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_data_lake_entities_contact PASSED [ 60%]
+tests/test_comprehensive_workflow.py::TestIntegrationHub::test_data_lake_entities_opportunity PASSED [ 63%]
+tests/test_comprehensive_workflow.py::TestOdooIntegration::test_odoo_config PASSED [ 65%]
+tests/test_comprehensive_workflow.py::TestOdooIntegration::test_odoo_sync_logs PASSED [ 67%]
+tests/test_comprehensive_workflow.py::TestOdooIntegration::test_odoo_entity_mappings PASSED [ 69%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_get_system_config PASSED [ 71%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_get_modules PASSED [ 73%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_get_roles PASSED [ 76%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_create_role PASSED [ 78%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_get_llm_config PASSED [ 80%]
+tests/test_comprehensive_workflow.py::TestConfiguration::test_get_ui_config PASSED [ 82%]
+tests/test_comprehensive_workflow.py::TestKPIsAndIncentives::test_get_kpis PASSED [ 84%]
+tests/test_comprehensive_workflow.py::TestKPIsAndIncentives::test_create_kpi PASSED [ 86%]
+tests/test_comprehensive_workflow.py::TestKPIsAndIncentives::test_get_incentives PASSED [ 89%]
+tests/test_comprehensive_workflow.py::TestNotifications::test_get_notifications PASSED [ 91%]
+tests/test_comprehensive_workflow.py::TestIntegrationsManagement::test_get_integrations PASSED [ 93%]
+tests/test_comprehensive_workflow.py::TestIntegrationsManagement::test_save_integration PASSED [ 95%]
+tests/test_comprehensive_workflow.py::TestEndToEndWorkflow::test_complete_sales_workflow PASSED [ 97%]
+tests/test_comprehensive_workflow.py::TestEndToEndWorkflow::test_integration_workflow PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_create_account
+  /root/.venv/lib/python3.11/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_comprehensive_workflow.py::TestAccountsCRUD::test_create_account returned <class 'dict'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 45 passed, 1 skipped, 1 warning in 9.69s ===================
