@@ -433,7 +433,7 @@ const ConnectionTab = ({ config, onUpdate, onTest, testing, status }) => {
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
-            Click <strong>"Account Security"</strong> tab → <strong>"New API Key"</strong>
+            Click <strong>&ldquo;Account Security&rdquo;</strong> tab → <strong>&ldquo;New API Key&rdquo;</strong>
           </li>
           <li className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">5</span>
