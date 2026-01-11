@@ -714,9 +714,9 @@ const ConnectionSettings = ({ config, onRefresh }) => {
         </h4>
         <ol className="text-sm text-amber-700 space-y-2">
           <li>1. Log into your Odoo instance as Administrator</li>
-          <li>2. Go to <strong>Settings → Users & Companies → Users</strong></li>
+          <li>2. Go to <strong>Settings → Users &amp; Companies → Users</strong></li>
           <li>3. Select your user account</li>
-          <li>4. Click <strong>"Account Security"</strong> tab → <strong>"New API Key"</strong></li>
+          <li>4. Click <strong>&quot;Account Security&quot;</strong> tab → <strong>&quot;New API Key&quot;</strong></li>
           <li>5. Copy the generated key and paste it above</li>
         </ol>
       </div>
@@ -728,13 +728,18 @@ const ConnectionSettings = ({ config, onRefresh }) => {
 
 const IssuesPanel = () => {
   const [issues, setIssues] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Fetch sync issues/conflicts
-    setLoading(false);
-    // Mock data for now
-    setIssues([]);
+    // Placeholder for fetching sync issues/conflicts
+    // In a real implementation, this would call an API
+    const fetchIssues = async () => {
+      // setLoading(true);
+      // const response = await api.get("/odoo/sync-issues");
+      // setIssues(response.data);
+      // setLoading(false);
+    };
+    fetchIssues();
   }, []);
 
   if (loading) {
