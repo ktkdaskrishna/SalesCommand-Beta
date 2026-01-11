@@ -13,6 +13,7 @@ import Activities from "./pages/Activities";
 import KPIs from "./pages/KPIs";
 import Incentives from "./pages/Incentives";
 import Integrations from "./pages/Integrations";
+import IntegrationHub from "./components/IntegrationHub";
 import AIInsights from "./pages/AIInsights";
 import UsersPage from "./pages/Users";
 import SuperAdminConfig from "./pages/SuperAdminConfig";
