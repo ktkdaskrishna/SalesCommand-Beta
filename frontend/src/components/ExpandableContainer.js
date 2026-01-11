@@ -4,6 +4,57 @@ import { Maximize2, Minimize2, X } from "lucide-react";
 import { cn } from "../lib/utils";
 
 /**
+ * Header Component for ExpandableContainer
+ */
+const ExpandableHeader = ({ 
+  title, 
+  subtitle, 
+  Icon, 
+  headerClassName, 
+  headerActions, 
+  isExpanded, 
+  onToggle, 
+  onClose 
+}) => (
+  <div className={cn(
+    "flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-slate-50 to-slate-100",
+    headerClassName
+  )}>
+    <div className="flex items-center gap-3">
+      {Icon && (
+        <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
+          <Icon className="w-5 h-5 text-purple-600" />
+        </div>
+      )}
+      <div>
+        <h3 className="font-semibold text-slate-900">{title}</h3>
+        {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+      </div>
+    </div>
+    <div className="flex items-center gap-2">
+      {headerActions}
+      <button
+        onClick={onToggle}
+        className="p-2 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+        title={isExpanded ? "Exit fullscreen (Esc)" : "Expand to fullscreen"}
+        data-testid="expand-toggle-btn"
+      >
+        {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+      </button>
+      {isExpanded && (
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-500 hover:text-red-600"
+          title="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+/**
  * ExpandableContainer - Wraps any content with expand-to-fullscreen capability
  * 
  * Usage:
@@ -43,61 +94,37 @@ const ExpandableContainer = ({
     onExpandChange?.(newState);
   };
 
+  const handleClose = () => {
+    setIsExpanded(false);
+    onExpandChange?.(false);
+  };
+
   // Handle escape key to close
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && isExpanded) {
-        setIsExpanded(false);
-        onExpandChange?.(false);
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isExpanded, onExpandChange]);
-
-  const Header = () => (
-    <div className={cn(
-      "flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-slate-50 to-slate-100",
-      headerClassName
-    )}>
-      <div className="flex items-center gap-3">
-        {Icon && (
-          <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
-            <Icon className="w-5 h-5 text-purple-600" />
-          </div>
-        )}
-        <div>
-          <h3 className="font-semibold text-slate-900">{title}</h3>
-          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {headerActions}
-        <button
-          onClick={toggleExpand}
-          className="p-2 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-slate-700"
-          title={isExpanded ? "Exit fullscreen (Esc)" : "Expand to fullscreen"}
-          data-testid="expand-toggle-btn"
-        >
-          {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-        </button>
-        {isExpanded && (
-          <button
-            onClick={() => { setIsExpanded(false); onExpandChange?.(false); }}
-            className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-500 hover:text-red-600"
-            title="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
+  }, [isExpanded]);
 
   // Normal (non-expanded) view
   const NormalView = (
     <div className={cn("bg-white rounded-xl border shadow-sm overflow-hidden", className)}>
-      {showHeader && <Header />}
+      {showHeader && (
+        <ExpandableHeader
+          title={title}
+          subtitle={subtitle}
+          Icon={Icon}
+          headerClassName={headerClassName}
+          headerActions={headerActions}
+          isExpanded={false}
+          onToggle={toggleExpand}
+          onClose={handleClose}
+        />
+      )}
       <div className="overflow-auto">
         {children}
       </div>
@@ -114,7 +141,18 @@ const ExpandableContainer = ({
         "absolute inset-4 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200",
         expandedClassName
       )}>
-        {showHeader && <Header />}
+        {showHeader && (
+          <ExpandableHeader
+            title={title}
+            subtitle={subtitle}
+            Icon={Icon}
+            headerClassName={headerClassName}
+            headerActions={headerActions}
+            isExpanded={true}
+            onToggle={toggleExpand}
+            onClose={handleClose}
+          />
+        )}
         <div className="flex-1 overflow-auto">
           {children}
         </div>
