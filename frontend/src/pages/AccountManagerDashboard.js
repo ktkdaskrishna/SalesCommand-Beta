@@ -8,6 +8,7 @@ import {
 } from "../services/api";
 import api from "../services/api";
 import KPICard from "../components/KPICard";
+import ExpandableContainer from "../components/ExpandableContainer";
 import { StageBadge, PriorityBadge } from "../components/Badge";
 import { formatCurrency, formatDate, cn, getInitials } from "../lib/utils";
 import {
@@ -28,6 +29,7 @@ import {
   FileText,
   Users,
   BarChart3,
+  Kanban,
 } from "lucide-react";
 import {
   BarChart,
