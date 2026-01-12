@@ -140,6 +140,17 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - [x] **Popup/Redirect Fallback** - MSAL popup with fallback to redirect if blocked
 - [x] **Error Handling** - Proper handling for user cancellation and popup blocked scenarios
 
+### Phase 2.3: RBAC & Admin Panel ✅ (Jan 12, 2026)
+- [x] **Database-Driven Roles** - Roles stored in `roles` collection, fully configurable
+- [x] **42 Permissions** - Granular permissions for CRM, Data Lake, Integrations, Admin
+- [x] **5 Default Departments** - Sales, Presales, Product, Strategy, Operations
+- [x] **7 Default Roles** - Super Admin, CEO, Sales Director, Product Director, Account Manager, Presales, Strategy
+- [x] **Data Scoping** - Own, Team, Department, All - controls data visibility per role
+- [x] **Admin Panel UI** - System Config page with User Management, Roles & Permissions, Departments
+- [x] **User Management** - View/Edit users, assign roles and departments
+- [x] **is_super_admin Flag** - Separate admin privilege from business role
+- [x] **Permission-Based Navigation** - Admin section only visible to super admins
+
 ---
 
 ## Upcoming Phases
@@ -150,6 +161,18 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - [ ] UI options for sync method (Manual, Webhook, Scheduled)
 - [ ] Incremental sync with `write_date` tracking
 
+### Phase 3.1: O365 User Directory Sync 🔜
+- [ ] Admin-initiated sync of Azure AD user directory (identity info only)
+- [ ] Field mapping for Azure AD → User schema
+- [ ] Auto-populate user list for role assignment
+- [ ] NO personal emails/calendar in admin sync
+
+### Phase 3.2: Personal "My Outlook" Page 🔜
+- [ ] User-scoped email/calendar view
+- [ ] Each user sees only their own data
+- [ ] Stored with owner_user_id for isolation
+- [ ] Super Admin CANNOT see other users' emails
+
 ### Phase 4: GPT-5.2 AI Mapping
 - [ ] Integrate GPT-5.2 via `integration_playbook_expert_v2`
 - [ ] BYOK (Bring Your Own Key) functionality
@@ -159,7 +182,7 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 ### Phase 5: Dashboard & Serving Layer
 - [ ] Aggregate accounts/opportunities to Serving Zone
 - [ ] Sales dashboard from gold zone
-- [ ] Role-based data visibility (RBAC)
+- [x] Role-based data visibility (RBAC) - COMPLETED
 
 ### Phase 6: Additional Integrations
 - [x] **Microsoft 365 SSO** - MSAL-based authentication (COMPLETED)
