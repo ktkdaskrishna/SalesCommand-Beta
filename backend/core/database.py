@@ -52,19 +52,27 @@ class Database:
         if cls.db is None:
             return
             
-        # Raw Zone indexes
+        # Raw Zone indexes - unique on source + source_id + entity_type
         await cls.db[cls.RAW_ZONE].create_index([("source", 1), ("entity_type", 1)])
         await cls.db[cls.RAW_ZONE].create_index([("ingested_at", -1)])
-        await cls.db[cls.RAW_ZONE].create_index([("source_id", 1), ("source", 1)], unique=True, sparse=True)
+        await cls.db[cls.RAW_ZONE].create_index(
+            [("source", 1), ("source_id", 1), ("entity_type", 1)], 
+            unique=True, 
+            name="source_sourceid_entitytype"
+        )
         
         # Canonical Zone indexes
         await cls.db[cls.CANONICAL_ZONE].create_index([("entity_type", 1)])
         await cls.db[cls.CANONICAL_ZONE].create_index([("canonical_id", 1)], unique=True)
         await cls.db[cls.CANONICAL_ZONE].create_index([("source_refs.source", 1), ("source_refs.source_id", 1)])
         
-        # Serving Zone indexes
+        # Serving Zone indexes - unique on entity_type + serving_id
         await cls.db[cls.SERVING_ZONE].create_index([("entity_type", 1)])
-        await cls.db[cls.SERVING_ZONE].create_index([("serving_id", 1)], unique=True)
+        await cls.db[cls.SERVING_ZONE].create_index(
+            [("entity_type", 1), ("serving_id", 1)], 
+            unique=True,
+            name="entitytype_servingid"
+        )
         await cls.db[cls.SERVING_ZONE].create_index([("last_aggregated", -1)])
         
         logger.info("Data Lake indexes initialized")
