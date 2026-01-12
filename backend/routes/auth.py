@@ -239,19 +239,26 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
                 token_result = await response.json()
                 
                 if "error" in token_result:
+                    error_desc = token_result.get("error_description", token_result.get("error", "Token exchange failed"))
+                    logger.error(f"Microsoft token exchange failed: {error_desc}")
                     raise HTTPException(
                         status_code=400,
-                        detail=token_result.get("error_description", "Token exchange failed")
+                        detail=error_desc
                     )
                 
                 access_token = token_result.get("access_token")
                 refresh_token = token_result.get("refresh_token")
+                
+                if not access_token:
+                    raise HTTPException(status_code=400, detail="No access token received from Microsoft")
             
             # Get user info from Microsoft Graph
             headers = {"Authorization": f"Bearer {access_token}"}
             async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as user_response:
                 if user_response.status != 200:
-                    raise HTTPException(status_code=400, detail="Failed to get user info")
+                    error_text = await user_response.text()
+                    logger.error(f"Microsoft Graph API error: {error_text}")
+                    raise HTTPException(status_code=400, detail="Failed to get user info from Microsoft")
                 
                 ms_user = await user_response.json()
         
