@@ -23,12 +23,26 @@ class OdooConnector:
         username: str,
         api_key: str
     ):
-        self.url = url.rstrip('/')
+        # Normalize URL - extract base URL without paths like /odoo, /web, etc.
+        self.url = self._normalize_url(url)
         self.database = database
         self.username = username
         self.api_key = api_key
         self.uid: Optional[int] = None
         self._client: Optional[httpx.AsyncClient] = None
+    
+    def _normalize_url(self, url: str) -> str:
+        """
+        Normalize Odoo URL to base URL.
+        Handles: https://example.odoo.com/odoo -> https://example.odoo.com
+        """
+        url = url.rstrip('/')
+        # Remove common Odoo path suffixes
+        suffixes_to_remove = ['/odoo', '/web', '/jsonrpc', '/xmlrpc']
+        for suffix in suffixes_to_remove:
+            if url.lower().endswith(suffix):
+                url = url[:-len(suffix)]
+        return url
     
     async def __aenter__(self):
         """Async context manager entry"""
