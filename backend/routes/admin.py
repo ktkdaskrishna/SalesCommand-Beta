@@ -9,6 +9,7 @@ API endpoints for Super Admin functionality
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from datetime import datetime, timezone
+from pydantic import BaseModel
 
 from models.rbac import (
     RoleCreateRequest, RoleUpdateRequest,
