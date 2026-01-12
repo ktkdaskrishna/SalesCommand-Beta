@@ -81,6 +81,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/:type" element={<Integrations />} />
+        <Route path="field-mapping" element={<FieldMapping />} />
         <Route path="data-lake" element={<DataLake />} />
       </Route>
 
