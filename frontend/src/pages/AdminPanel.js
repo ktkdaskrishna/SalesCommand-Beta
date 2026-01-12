@@ -106,6 +106,32 @@ const AdminPanel = () => {
     }
   };
 
+  const syncAzureUsers = async () => {
+    setSyncingAzure(true);
+    setError('');
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/sync-azure-users`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        // Show success and refresh users
+        alert(`Azure AD Sync Complete!\n\nFetched: ${data.total_fetched}\nCreated: ${data.created}\nUpdated: ${data.updated}\nSkipped: ${data.skipped}`);
+        fetchData();
+      } else {
+        setError(data.detail || 'Azure AD sync failed');
+      }
+    } catch (err) {
+      setError('Failed to sync Azure AD users');
+    } finally {
+      setSyncingAzure(false);
+    }
+  };
+
   const tabs = [
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'roles', label: 'Roles & Permissions', icon: Shield },
