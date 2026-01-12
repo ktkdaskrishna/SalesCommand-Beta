@@ -226,30 +226,35 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             )
             user = existing_user
             user_id = existing_user["id"]
+            approval_status = existing_user.get("approval_status", "approved")
         else:
-            # Create new user for SSO
+            # Create new user for SSO - PENDING APPROVAL
             user_id = str(uuid.uuid4())
             user = {
                 "id": user_id,
                 "email": email,
                 "password_hash": "",  # No password for SSO users
                 "name": name,
-                "role": UserRole.ADMIN.value,  # Default role for SSO users
-                "department": None,
-                "product_line": None,
+                "role_id": None,  # No role until admin assigns
+                "department_id": None,
+                "is_super_admin": False,
                 "is_active": True,
+                "approval_status": "pending",  # NEW: Requires admin approval
                 "avatar_url": None,
                 "ms_id": ms_id,
                 "ms_access_token": request.access_token,
                 "auth_provider": "microsoft",
+                "job_title": ms_user.get("jobTitle"),
                 "created_at": now,
                 "updated_at": now,
                 "last_login": now
             }
             await db.users.insert_one(user)
+            approval_status = "pending"
+            logger.info(f"New SSO user created (pending approval): {email}")
         
         # Create our application JWT token
-        jwt_token = create_access_token(user_id, email, user["role"])
+        jwt_token = create_access_token(user_id, email, user.get("role", "pending"))
         
         logger.info(f"Microsoft SSO login successful for: {email}")
         
@@ -258,6 +263,18 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             user=UserResponse(
                 id=user_id,
                 email=email,
+                name=user.get("name", name),
+                role=user.get("role", "pending"),
+                department=user.get("department"),
+                product_line=user.get("product_line"),
+                is_active=user.get("is_active", True),
+                is_super_admin=user.get("is_super_admin", False),
+                avatar_url=user.get("avatar_url"),
+                created_at=user.get("created_at", now),
+                updated_at=user.get("updated_at", now),
+                approval_status=approval_status
+            )
+        )
                 name=user.get("name", name),
                 role=user["role"],
                 department=user.get("department"),
