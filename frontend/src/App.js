@@ -85,6 +85,7 @@ function AppRoutes() {
         <Route path="integrations/:type" element={<Integrations />} />
         <Route path="field-mapping" element={<FieldMapping />} />
         <Route path="data-lake" element={<DataLake />} />
+        <Route path="my-outlook" element={<MyOutlook />} />
         <Route path="admin" element={<AdminPanel />} />
       </Route>
 
