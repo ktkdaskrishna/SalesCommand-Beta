@@ -12,6 +12,23 @@ import { Database, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
+// PKCE Helper functions
+const generateCodeVerifier = () => {
+  const array = new Uint8Array(32);
+  window.crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
+const generateCodeChallenge = async (verifier) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +47,8 @@ const Login = () => {
     
     if (errorParam) {
       setError(errorDesc || 'Microsoft login failed');
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/login');
       return;
     }
     
@@ -42,13 +61,25 @@ const Login = () => {
     setMsLoading(true);
     setError('');
     
+    // Get the code_verifier from sessionStorage
+    const codeVerifier = sessionStorage.getItem('ms_code_verifier');
+    sessionStorage.removeItem('ms_code_verifier');
+    
+    if (!codeVerifier) {
+      setError('PKCE verification failed. Please try logging in again.');
+      setMsLoading(false);
+      window.history.replaceState({}, document.title, '/login');
+      return;
+    }
+    
     try {
       const response = await fetch(`${API_URL}/api/auth/microsoft/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           code,
-          redirect_uri: `${window.location.origin}/login`
+          redirect_uri: `${window.location.origin}/login`,
+          code_verifier: codeVerifier
         }),
       });
       
@@ -64,6 +95,7 @@ const Login = () => {
       setError('Failed to complete Microsoft login');
     } finally {
       setMsLoading(false);
+      window.history.replaceState({}, document.title, '/login');
     }
   };
 
@@ -72,15 +104,24 @@ const Login = () => {
     setError('');
     
     try {
-      // Get the authorization URL from backend
-      const response = await fetch(`${API_URL}/api/auth/microsoft/login`);
+      // Generate PKCE code_verifier and code_challenge
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      
+      // Store code_verifier in sessionStorage for callback
+      sessionStorage.setItem('ms_code_verifier', codeVerifier);
+      
+      // Get the authorization URL from backend with PKCE
+      const response = await fetch(
+        `${API_URL}/api/auth/microsoft/login?code_challenge=${encodeURIComponent(codeChallenge)}`
+      );
       const data = await response.json();
       
       if (data.auth_url) {
         // Redirect to Microsoft login
         window.location.href = data.auth_url;
       } else {
-        setError('Microsoft SSO not configured. Please configure O365 integration first.');
+        setError(data.message || 'Microsoft SSO not configured. Please configure O365 integration first.');
         setMsLoading(false);
       }
     } catch (err) {
