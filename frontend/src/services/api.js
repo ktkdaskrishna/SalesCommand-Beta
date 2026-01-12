@@ -79,7 +79,7 @@ export const integrationsAPI = {
   
   // Sync
   triggerSync: (integrationType, entityTypes) => 
-    api.post(`/integrations/sync/${integrationType}`, null, { params: { entity_types: entityTypes } }),
+    api.post(`/integrations/sync/${integrationType}`, { entity_types: entityTypes }),
   getSyncStatus: () => api.get('/integrations/sync/status'),
   getSyncJob: (jobId) => api.get(`/integrations/sync/${jobId}`),
 };
