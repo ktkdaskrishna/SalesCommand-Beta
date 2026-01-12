@@ -242,6 +242,108 @@ async def get_odoo_fields(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ===================== MICROSOFT 365 ROUTES =====================
+
+@router.post("/ms365/configure")
+async def configure_ms365(
+    config: O365ConfigRequest,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
+):
+    """Configure Microsoft 365 integration"""
+    db = Database.get_db()
+    
+    now = datetime.now(timezone.utc)
+    intg_id = str(uuid.uuid4())
+    
+    # Check if already exists
+    existing = await db.integrations.find_one({"integration_type": "ms365"})
+    
+    intg_doc = {
+        "id": existing["id"] if existing else intg_id,
+        "integration_type": "ms365",
+        "enabled": True,
+        "config": {
+            "client_id": config.client_id,
+            "tenant_id": config.tenant_id,
+            "client_secret": config.client_secret,  # Should encrypt in production
+        },
+        "sync_status": "pending",
+        "updated_at": now
+    }
+    
+    if existing:
+        await db.integrations.update_one(
+            {"integration_type": "ms365"},
+            {"$set": intg_doc}
+        )
+    else:
+        intg_doc["created_at"] = now
+        await db.integrations.insert_one(intg_doc)
+    
+    return {"message": "Microsoft 365 integration configured", "id": intg_doc["id"]}
+
+
+@router.post("/ms365/test", response_model=TestConnectionResponse)
+async def test_ms365_connection(
+    config: O365ConfigRequest,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
+):
+    """Test Microsoft 365 connection by validating credentials with Azure AD"""
+    import aiohttp
+    
+    try:
+        # Try to get an access token from Azure AD using client credentials
+        token_url = f"https://login.microsoftonline.com/{config.tenant_id}/oauth2/v2.0/token"
+        
+        data = {
+            "client_id": config.client_id,
+            "client_secret": config.client_secret,
+            "scope": "https://graph.microsoft.com/.default",
+            "grant_type": "client_credentials"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(token_url, data=data) as response:
+                result = await response.json()
+                
+                if response.status == 200 and "access_token" in result:
+                    # Test the token by calling Graph API
+                    headers = {"Authorization": f"Bearer {result['access_token']}"}
+                    async with session.get(
+                        "https://graph.microsoft.com/v1.0/organization",
+                        headers=headers
+                    ) as org_response:
+                        if org_response.status == 200:
+                            org_data = await org_response.json()
+                            org_name = org_data.get("value", [{}])[0].get("displayName", "Unknown")
+                            return TestConnectionResponse(
+                                success=True,
+                                message=f"Connected to Microsoft 365 - Organization: {org_name}",
+                                details={
+                                    "organization": org_name,
+                                    "tenant_id": config.tenant_id
+                                }
+                            )
+                        else:
+                            return TestConnectionResponse(
+                                success=True,
+                                message="Connected to Azure AD (Graph API access may need admin consent)",
+                                details={"tenant_id": config.tenant_id}
+                            )
+                else:
+                    error_desc = result.get("error_description", result.get("error", "Unknown error"))
+                    return TestConnectionResponse(
+                        success=False,
+                        message=f"Authentication failed: {error_desc}"
+                    )
+                    
+    except Exception as e:
+        return TestConnectionResponse(
+            success=False,
+            message=f"Connection error: {str(e)}"
+        )
+
+
 # ===================== FIELD MAPPING ROUTES =====================
 
 @router.get("/mappings/{integration_type}/{entity_type}")
