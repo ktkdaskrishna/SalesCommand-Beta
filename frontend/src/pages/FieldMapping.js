@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { integrationsAPI } from '../services/api';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import {
   Wand2,
@@ -18,6 +19,13 @@ import {
   Layers,
   Info,
   ChevronDown,
+  ChevronUp,
+  Edit3,
+  Trash2,
+  Plus,
+  List,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   Dialog,
@@ -45,6 +53,20 @@ const FieldMapping = () => {
   const [autoMapping, setAutoMapping] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMappedData, setShowMappedData] = useState(true);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editForm, setEditForm] = useState({ source_field: '', target_field: '', transform: '' });
+
+  // Transform options for field mapping
+  const TRANSFORM_OPTIONS = [
+    { value: '', label: 'None (Direct)' },
+    { value: 'extract_id', label: 'Extract ID (Many2One)' },
+    { value: 'extract_name', label: 'Extract Name (Many2One)' },
+    { value: 'to_string', label: 'Convert to String' },
+    { value: 'to_float', label: 'Convert to Number' },
+    { value: 'to_int', label: 'Convert to Integer' },
+    { value: 'boolean', label: 'Convert to Boolean' },
+  ];
 
   useEffect(() => {
     loadMappingData();
@@ -67,11 +89,10 @@ const FieldMapping = () => {
 
       // Load existing mappings and canonical schema
       const mappingsRes = await integrationsAPI.getMappings('odoo', selectedEntity);
-      setCanonicalSchema(mappingsRes.data.canonical_schema || {});
+      setCanonicalSchema(mappingsRes.data.canonical_schema || getDefaultCanonicalSchema(selectedEntity));
       setMappings(mappingsRes.data.mappings || []);
     } catch (error) {
       console.error('Failed to load mapping data:', error);
-      // Use default canonical schema
       setCanonicalSchema(getDefaultCanonicalSchema(selectedEntity));
     } finally {
       setLoading(false);
@@ -85,14 +106,12 @@ const FieldMapping = () => {
         name: { string: 'Name', type: 'char' },
         email: { string: 'Email', type: 'char' },
         phone: { string: 'Phone', type: 'char' },
-        mobile: { string: 'Mobile', type: 'char' },
         website: { string: 'Website', type: 'char' },
         street: { string: 'Street', type: 'char' },
         city: { string: 'City', type: 'char' },
         zip: { string: 'ZIP', type: 'char' },
         state_id: { string: 'State', type: 'many2one' },
         country_id: { string: 'Country', type: 'many2one' },
-        industry_id: { string: 'Industry', type: 'many2one' },
         user_id: { string: 'Salesperson', type: 'many2one' },
         create_date: { string: 'Created', type: 'datetime' },
         write_date: { string: 'Modified', type: 'datetime' },
@@ -115,7 +134,6 @@ const FieldMapping = () => {
         name: { string: 'Name', type: 'char' },
         email: { string: 'Email', type: 'char' },
         phone: { string: 'Phone', type: 'char' },
-        mobile: { string: 'Mobile', type: 'char' },
         parent_id: { string: 'Company', type: 'many2one' },
         function: { string: 'Job Position', type: 'char' },
         create_date: { string: 'Created', type: 'datetime' },
@@ -218,7 +236,6 @@ const FieldMapping = () => {
     } catch (error) {
       console.error('Auto-map failed:', error);
       toast.error('AI mapping failed. Using rule-based defaults.');
-      // Apply default mappings
       applyDefaultMappings();
     } finally {
       setAutoMapping(false);
@@ -228,47 +245,47 @@ const FieldMapping = () => {
   const applyDefaultMappings = () => {
     const defaultMaps = {
       opportunity: [
-        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'expected_revenue', target_field: 'value', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'probability', target_field: 'probability', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'stage_id', target_field: 'stage', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'date_deadline', target_field: 'close_date', confidence: 0.95, is_ai_suggested: false },
+        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'expected_revenue', target_field: 'value', confidence: 0.95, is_ai_suggested: false, transform: 'to_float' },
+        { source_field: 'probability', target_field: 'probability', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'stage_id', target_field: 'stage', confidence: 0.95, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'date_deadline', target_field: 'close_date', confidence: 0.95, is_ai_suggested: false, transform: '' },
       ],
       account: [
-        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'email', target_field: 'email', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'phone', target_field: 'phone', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'website', target_field: 'website', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'street', target_field: 'address_street', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'city', target_field: 'address_city', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'industry_id', target_field: 'industry', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false },
+        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'email', target_field: 'email', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'phone', target_field: 'phone', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'website', target_field: 'website', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'street', target_field: 'address_street', confidence: 0.95, is_ai_suggested: false, transform: '' },
+        { source_field: 'city', target_field: 'address_city', confidence: 0.95, is_ai_suggested: false, transform: '' },
+        { source_field: 'state_id', target_field: 'address_state', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'country_id', target_field: 'address_country', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
       ],
       contact: [
-        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'email', target_field: 'email', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'phone', target_field: 'phone', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'mobile', target_field: 'mobile', confidence: 1.0, is_ai_suggested: false },
-        { source_field: 'parent_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'function', target_field: 'title', confidence: 0.85, is_ai_suggested: false },
+        { source_field: 'name', target_field: 'name', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'email', target_field: 'email', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'phone', target_field: 'phone', confidence: 1.0, is_ai_suggested: false, transform: '' },
+        { source_field: 'parent_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'function', target_field: 'title', confidence: 0.85, is_ai_suggested: false, transform: '' },
       ],
       order: [
-        { source_field: 'name', target_field: 'order_number', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'amount_total', target_field: 'total_amount', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'state', target_field: 'status', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'date_order', target_field: 'order_date', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false },
+        { source_field: 'name', target_field: 'order_number', confidence: 0.95, is_ai_suggested: false, transform: '' },
+        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'amount_total', target_field: 'total_amount', confidence: 0.95, is_ai_suggested: false, transform: 'to_float' },
+        { source_field: 'state', target_field: 'status', confidence: 0.9, is_ai_suggested: false, transform: '' },
+        { source_field: 'date_order', target_field: 'order_date', confidence: 0.95, is_ai_suggested: false, transform: '' },
+        { source_field: 'user_id', target_field: 'owner_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
       ],
       invoice: [
-        { source_field: 'name', target_field: 'invoice_number', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'amount_total', target_field: 'total_amount', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'amount_residual', target_field: 'amount_due', confidence: 0.95, is_ai_suggested: false },
-        { source_field: 'state', target_field: 'status', confidence: 0.9, is_ai_suggested: false },
-        { source_field: 'invoice_date', target_field: 'invoice_date', confidence: 1.0, is_ai_suggested: false },
+        { source_field: 'name', target_field: 'invoice_number', confidence: 0.95, is_ai_suggested: false, transform: '' },
+        { source_field: 'partner_id', target_field: 'account_name', confidence: 0.9, is_ai_suggested: false, transform: 'extract_name' },
+        { source_field: 'amount_total', target_field: 'total_amount', confidence: 0.95, is_ai_suggested: false, transform: 'to_float' },
+        { source_field: 'amount_residual', target_field: 'amount_due', confidence: 0.95, is_ai_suggested: false, transform: 'to_float' },
+        { source_field: 'state', target_field: 'status', confidence: 0.9, is_ai_suggested: false, transform: '' },
+        { source_field: 'invoice_date', target_field: 'invoice_date', confidence: 1.0, is_ai_suggested: false, transform: '' },
       ],
     };
     setMappings(defaultMaps[selectedEntity] || []);
@@ -291,27 +308,64 @@ const FieldMapping = () => {
     }
   };
 
-  const updateMapping = (index, field, value) => {
-    const updated = [...mappings];
-    updated[index] = { ...updated[index], [field]: value };
-    setMappings(updated);
-  };
-
   const removeMapping = (index) => {
     setMappings(mappings.filter((_, i) => i !== index));
+    toast.success('Mapping removed');
   };
 
-  const addMapping = () => {
+  const startEditing = (index) => {
+    const mapping = mappings[index];
+    setEditForm({
+      source_field: mapping.source_field,
+      target_field: mapping.target_field,
+      transform: mapping.transform || '',
+    });
+    setEditingIndex(index);
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(null);
+    setEditForm({ source_field: '', target_field: '', transform: '' });
+  };
+
+  const saveEditing = () => {
+    if (!editForm.source_field || !editForm.target_field) {
+      toast.error('Please select both source and target fields');
+      return;
+    }
+    
+    const updated = [...mappings];
+    updated[editingIndex] = {
+      ...updated[editingIndex],
+      source_field: editForm.source_field,
+      target_field: editForm.target_field,
+      transform: editForm.transform,
+      is_ai_suggested: false,
+    };
+    setMappings(updated);
+    setEditingIndex(null);
+    setEditForm({ source_field: '', target_field: '', transform: '' });
+    toast.success('Mapping updated');
+  };
+
+  const addNewMapping = () => {
     setMappings([
       ...mappings,
-      { source_field: '', target_field: '', confidence: 0.5, is_ai_suggested: false },
+      { source_field: '', target_field: '', confidence: 0.5, is_ai_suggested: false, transform: '' },
     ]);
+    setEditingIndex(mappings.length);
+    setEditForm({ source_field: '', target_field: '', transform: '' });
   };
 
   const getConfidenceColor = (confidence) => {
     if (confidence >= 0.9) return 'text-emerald-400 bg-emerald-500/20';
     if (confidence >= 0.7) return 'text-yellow-400 bg-yellow-500/20';
     return 'text-red-400 bg-red-500/20';
+  };
+
+  const getTransformLabel = (transform) => {
+    const option = TRANSFORM_OPTIONS.find(t => t.value === transform);
+    return option ? option.label : 'None';
   };
 
   return (
@@ -355,8 +409,218 @@ const FieldMapping = () => {
         </div>
       </div>
 
-      {/* Mapping Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Current Mappings Section - Expandable */}
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowMappedData(!showMappedData)}
+          className="w-full p-4 flex items-center justify-between hover:bg-zinc-800/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-cyan-500/20">
+              <List className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div className="text-left">
+              <h3 className="text-white font-medium">Current Field Mappings</h3>
+              <p className="text-sm text-zinc-500">{mappings.length} mappings configured for {ODOO_MODELS[selectedEntity]?.label}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-500">Click to {showMappedData ? 'collapse' : 'expand'}</span>
+            {showMappedData ? (
+              <ChevronUp className="w-5 h-5 text-zinc-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-zinc-400" />
+            )}
+          </div>
+        </button>
+
+        {showMappedData && (
+          <div className="border-t border-zinc-800 p-4">
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-4">
+              <Button
+                onClick={handleAutoMap}
+                disabled={autoMapping}
+                size="sm"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500"
+                data-testid="auto-map-btn"
+              >
+                {autoMapping ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4 mr-2" />
+                )}
+                AI Auto-Map
+              </Button>
+              <Button
+                onClick={addNewMapping}
+                variant="outline"
+                size="sm"
+                className="border-zinc-700 text-zinc-300"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Mapping
+              </Button>
+              <Button
+                onClick={applyDefaultMappings}
+                variant="outline"
+                size="sm"
+                className="border-zinc-700 text-zinc-300"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset to Defaults
+              </Button>
+            </div>
+
+            {/* Mappings Table */}
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="w-6 h-6 text-zinc-500 animate-spin" />
+              </div>
+            ) : mappings.length === 0 ? (
+              <div className="text-center py-8 bg-zinc-800/30 rounded-lg">
+                <Sparkles className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
+                <p className="text-zinc-400">No mappings configured yet</p>
+                <p className="text-zinc-500 text-sm mt-1">Click &quot;AI Auto-Map&quot; or &quot;Add Mapping&quot; to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Table Header */}
+                <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-500 font-medium">
+                  <div className="col-span-3">SOURCE FIELD (Odoo)</div>
+                  <div className="col-span-1 text-center">→</div>
+                  <div className="col-span-3">TARGET FIELD (Canonical)</div>
+                  <div className="col-span-2">TRANSFORM</div>
+                  <div className="col-span-1 text-center">CONFIDENCE</div>
+                  <div className="col-span-2 text-right">ACTIONS</div>
+                </div>
+
+                {/* Mapping Rows */}
+                {mappings.map((mapping, index) => (
+                  <div
+                    key={index}
+                    className={`grid grid-cols-12 gap-4 px-4 py-3 rounded-lg border transition-colors ${
+                      editingIndex === index
+                        ? 'bg-cyan-500/10 border-cyan-500/30'
+                        : 'bg-zinc-800/30 border-zinc-700/50 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    {editingIndex === index ? (
+                      /* Edit Mode */
+                      <>
+                        <div className="col-span-3">
+                          <select
+                            value={editForm.source_field}
+                            onChange={(e) => setEditForm({ ...editForm, source_field: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-600 rounded text-sm text-white focus:border-cyan-500 focus:outline-none"
+                          >
+                            <option value="">Select source field...</option>
+                            {Object.entries(sourceFields).map(([field, info]) => (
+                              <option key={field} value={field}>
+                                {field} ({info.type})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center">
+                          <ArrowRight className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <div className="col-span-3">
+                          <select
+                            value={editForm.target_field}
+                            onChange={(e) => setEditForm({ ...editForm, target_field: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-600 rounded text-sm text-white focus:border-cyan-500 focus:outline-none"
+                          >
+                            <option value="">Select target field...</option>
+                            {Object.entries(canonicalSchema).map(([field, info]) => (
+                              <option key={field} value={field}>
+                                {field} ({info.type})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <select
+                            value={editForm.transform}
+                            onChange={(e) => setEditForm({ ...editForm, transform: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-600 rounded text-sm text-white focus:border-cyan-500 focus:outline-none"
+                          >
+                            {TRANSFORM_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-1"></div>
+                        <div className="col-span-2 flex items-center justify-end gap-2">
+                          <Button
+                            onClick={saveEditing}
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 h-8"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={cancelEditing}
+                            size="sm"
+                            variant="outline"
+                            className="border-zinc-600 px-3 py-1 h-8"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      /* View Mode */
+                      <>
+                        <div className="col-span-3 flex items-center">
+                          <span className="text-purple-400 font-mono text-sm">{mapping.source_field || '—'}</span>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center">
+                          <ArrowRight className="w-4 h-4 text-zinc-500" />
+                        </div>
+                        <div className="col-span-3 flex items-center">
+                          <span className="text-emerald-400 font-mono text-sm">{mapping.target_field || '—'}</span>
+                        </div>
+                        <div className="col-span-2 flex items-center">
+                          <span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-1 rounded">
+                            {getTransformLabel(mapping.transform)}
+                          </span>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(mapping.confidence)}`}>
+                            {Math.round(mapping.confidence * 100)}%
+                          </span>
+                        </div>
+                        <div className="col-span-2 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => startEditing(index)}
+                            className="p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
+                            title="Edit mapping"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => removeMapping(index)}
+                            className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                            title="Delete mapping"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Source Fields & Target Schema Reference */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Source Fields (Odoo) */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -364,116 +628,38 @@ const FieldMapping = () => {
               <Database className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-white font-medium">Odoo Fields</h3>
-              <p className="text-xs text-zinc-500">{ODOO_MODELS[selectedEntity]?.model}</p>
+              <h3 className="text-white font-medium">Available Odoo Fields</h3>
+              <p className="text-xs text-zinc-500">{ODOO_MODELS[selectedEntity]?.model} - Reference</p>
             </div>
           </div>
           
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <RefreshCw className="w-6 h-6 text-zinc-500 animate-spin" />
               </div>
             ) : (
-              Object.entries(sourceFields).slice(0, 20).map(([field, info]) => (
+              Object.entries(sourceFields).slice(0, 15).map(([field, info]) => (
                 <div
                   key={field}
-                  className="p-3 bg-zinc-800/50 rounded-lg hover:bg-zinc-800 transition-colors"
+                  className={`p-3 rounded-lg transition-colors ${
+                    mappings.some(m => m.source_field === field)
+                      ? 'bg-purple-500/10 border border-purple-500/30'
+                      : 'bg-zinc-800/50 hover:bg-zinc-800'
+                  }`}
                 >
-                  <p className="text-sm text-white font-mono">{field}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-white font-mono">{field}</p>
+                    {mappings.some(m => m.source_field === field) && (
+                      <CheckCircle2 className="w-4 h-4 text-purple-400" />
+                    )}
+                  </div>
                   <p className="text-xs text-zinc-500">
                     {info.string || field} ({info.type})
                   </p>
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        {/* Mappings */}
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-cyan-500/20">
-                <ArrowRight className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div>
-                <h3 className="text-white font-medium">Field Mappings</h3>
-                <p className="text-xs text-zinc-500">{mappings.length} mappings</p>
-              </div>
-            </div>
-            <Button
-              onClick={handleAutoMap}
-              disabled={autoMapping}
-              size="sm"
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500"
-              data-testid="auto-map-btn"
-            >
-              {autoMapping ? (
-                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <Wand2 className="w-4 h-4 mr-1" />
-              )}
-              AI Auto-Map
-            </Button>
-          </div>
-
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {mappings.length === 0 ? (
-              <div className="text-center py-8">
-                <Sparkles className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-                <p className="text-zinc-500 text-sm">No mappings configured</p>
-                <p className="text-zinc-600 text-xs">Click "AI Auto-Map" to start</p>
-              </div>
-            ) : (
-              mappings.map((mapping, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {mapping.is_ai_suggested && (
-                        <Sparkles className="w-3 h-3 text-purple-400" />
-                      )}
-                      <span className={`px-2 py-0.5 rounded text-xs ${getConfidenceColor(mapping.confidence)}`}>
-                        {Math.round(mapping.confidence * 100)}%
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => removeMapping(index)}
-                      className="text-zinc-500 hover:text-red-400"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-purple-400 font-mono">{mapping.source_field}</span>
-                    <ArrowRight className="w-4 h-4 text-zinc-500" />
-                    <span className="text-emerald-400 font-mono">{mapping.target_field}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="mt-4 flex gap-2">
-            <Button
-              onClick={addMapping}
-              variant="outline"
-              size="sm"
-              className="flex-1 border-zinc-700 text-zinc-300"
-            >
-              + Add Mapping
-            </Button>
-            <Button
-              onClick={applyDefaultMappings}
-              variant="outline"
-              size="sm"
-              className="border-zinc-700 text-zinc-300"
-            >
-              Reset to Defaults
-            </Button>
           </div>
         </div>
 
@@ -485,11 +671,11 @@ const FieldMapping = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">Canonical Schema</h3>
-              <p className="text-xs text-zinc-500">Your standard fields</p>
+              <p className="text-xs text-zinc-500">Your standard fields - Reference</p>
             </div>
           </div>
           
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {Object.entries(canonicalSchema).map(([field, info]) => (
               <div
                 key={field}
@@ -548,7 +734,7 @@ const FieldMapping = () => {
           <DialogHeader>
             <DialogTitle className="text-white">Field Mapping Guide</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Understanding how AI field mapping works
+              Understanding how to configure field mappings
             </DialogDescription>
           </DialogHeader>
           
@@ -556,10 +742,29 @@ const FieldMapping = () => {
             <div className="bg-zinc-800/50 rounded-lg p-4">
               <h4 className="text-white font-medium mb-2">What is Field Mapping?</h4>
               <p className="text-zinc-400 text-sm">
-                Field mapping translates data from Odoo's format to your standardized canonical schema.
+                Field mapping translates data from Odoo&apos;s format to your standardized canonical schema.
                 For example, Odoo uses <code className="text-purple-400">partner_id</code> but your 
                 system uses <code className="text-emerald-400">account_name</code>.
               </p>
+            </div>
+            
+            <div className="bg-zinc-800/50 rounded-lg p-4">
+              <h4 className="text-white font-medium mb-2">How to Edit Mappings</h4>
+              <ol className="text-zinc-400 text-sm space-y-2 list-decimal list-inside">
+                <li>Click the <Edit3 className="w-4 h-4 inline text-cyan-400" /> edit icon on any mapping row</li>
+                <li>Select new source field, target field, and transform</li>
+                <li>Click <CheckCircle2 className="w-4 h-4 inline text-emerald-400" /> to save or <XCircle className="w-4 h-4 inline text-red-400" /> to cancel</li>
+                <li>Click &quot;Save Mappings&quot; to persist all changes</li>
+              </ol>
+            </div>
+
+            <div className="bg-zinc-800/50 rounded-lg p-4">
+              <h4 className="text-white font-medium mb-2">Transform Options</h4>
+              <div className="space-y-1 text-sm">
+                <p className="text-zinc-400"><span className="text-cyan-400">Extract ID</span> - Gets ID from Odoo Many2One fields like [1, &quot;Name&quot;]</p>
+                <p className="text-zinc-400"><span className="text-cyan-400">Extract Name</span> - Gets Name from Odoo Many2One fields</p>
+                <p className="text-zinc-400"><span className="text-cyan-400">To String/Number</span> - Converts field to specific type</p>
+              </div>
             </div>
             
             <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
@@ -568,39 +773,9 @@ const FieldMapping = () => {
                 AI Auto-Mapping
               </h4>
               <p className="text-zinc-400 text-sm">
-                Uses GPT-5.2 to intelligently analyze field names, types, and descriptions 
-                to suggest optimal mappings. Each suggestion includes a confidence score 
-                (higher = more certain).
+                Uses AI to intelligently analyze field names and suggest optimal mappings 
+                with confidence scores. You can then review and adjust as needed.
               </p>
-            </div>
-            
-            <div className="bg-zinc-800/50 rounded-lg p-4">
-              <h4 className="text-white font-medium mb-2">Confidence Scores</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">90%+</span>
-                  <span className="text-zinc-400">High confidence - likely correct</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400">70-89%</span>
-                  <span className="text-zinc-400">Medium confidence - review recommended</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400">&lt;70%</span>
-                  <span className="text-zinc-400">Low confidence - manual review needed</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-zinc-800/50 rounded-lg p-4">
-              <h4 className="text-white font-medium mb-2">Workflow</h4>
-              <ol className="text-zinc-400 text-sm space-y-1 list-decimal list-inside">
-                <li>Select an entity type (Opportunity, Account, etc.)</li>
-                <li>Click "AI Auto-Map" to generate suggestions</li>
-                <li>Review and adjust mappings as needed</li>
-                <li>Click "Save Mappings" to store configuration</li>
-                <li>Run Sync to apply mappings to data</li>
-              </ol>
             </div>
           </div>
         </DialogContent>
