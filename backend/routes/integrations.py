@@ -370,12 +370,17 @@ async def trigger_sync(
     token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
 ):
     """Trigger a sync job for an integration"""
+    from services.sync.service import run_sync_job
+    
     db = Database.get_db()
     
     # Get integration config
     intg = await db.integrations.find_one({"integration_type": integration_type.value})
     if not intg or not intg.get("enabled"):
         raise HTTPException(status_code=400, detail=f"{integration_type.value} not enabled")
+    
+    if not intg.get("config") or not intg["config"].get("url"):
+        raise HTTPException(status_code=400, detail=f"{integration_type.value} not configured")
     
     # Create sync job
     job_id = str(uuid.uuid4())
@@ -398,10 +403,10 @@ async def trigger_sync(
         {"$set": {"sync_status": "in_progress"}}
     )
     
-    # TODO: Add background task for actual sync
-    # background_tasks.add_task(run_sync_job, job_id)
+    # Run sync in background
+    background_tasks.add_task(run_sync_job, job_id)
     
-    return {"message": "Sync job created", "job_id": job_id}
+    return {"message": "Sync job started", "job_id": job_id}
 
 
 @router.get("/sync/status")
