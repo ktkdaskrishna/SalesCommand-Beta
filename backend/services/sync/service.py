@@ -218,21 +218,27 @@ class SyncService:
                     record["_sync_job_id"] = job_id
                     record["_synced_at"] = datetime.now(timezone.utc).isoformat()
                     
+                    source_id = record.get("source_id", str(uuid.uuid4()))
+                    
                     # Ingest to Raw zone
-                    raw_id = await self.data_lake.ingest_raw(
-                        source="ms365",
-                        source_id=record.get("source_id", str(uuid.uuid4())),
+                    await self.data_lake.ingest_raw(
+                        source=IntegrationType.MS365,
+                        source_id=source_id,
                         entity_type=entity_type,
-                        data=record
+                        raw_data=record,
+                        sync_batch_id=job_id
                     )
                     
                     # Normalize and move to Canonical zone
                     canonical_data = self._normalize_ms365_record(record, entity_type)
-                    canonical_id = await self.data_lake.ingest_canonical(
-                        source="ms365",
-                        source_id=record.get("source_id", str(uuid.uuid4())),
-                        entity_type=entity_type,
-                        data=canonical_data
+                    await self.data_lake.normalize_to_canonical(
+                        raw_record={
+                            "source": "ms365",
+                            "source_id": source_id,
+                            "entity_type": entity_type.value
+                        },
+                        normalized_data=canonical_data,
+                        validation_result={"status": "valid", "errors": [], "quality_score": 1.0}
                     )
                     
                     result["processed"] += 1
