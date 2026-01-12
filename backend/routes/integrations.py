@@ -57,6 +57,10 @@ class AutoMapRequest(BaseModel):
     entity_type: EntityType
 
 
+class SyncRequest(BaseModel):
+    entity_types: Optional[List[EntityType]] = None
+
+
 # ===================== INTEGRATION CONFIG ROUTES =====================
 
 @router.get("/", response_model=List[IntegrationResponse])
