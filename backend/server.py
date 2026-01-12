@@ -94,11 +94,13 @@ async def api_health_check():
 from routes.auth import router as auth_router
 from routes.data_lake import router as data_lake_router
 from routes.integrations import router as integrations_router
+from routes.webhooks import router as webhooks_router
 
 # Register routes
 api_router.include_router(auth_router)
 api_router.include_router(data_lake_router)
 api_router.include_router(integrations_router)
+api_router.include_router(webhooks_router)
 
 # Mount API router
 app.include_router(api_router)
