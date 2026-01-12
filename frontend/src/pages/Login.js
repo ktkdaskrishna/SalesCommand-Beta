@@ -47,7 +47,6 @@ const Login = () => {
     
     if (errorParam) {
       setError(errorDesc || 'Microsoft login failed');
-      // Clean up URL
       window.history.replaceState({}, document.title, '/login');
       return;
     }
@@ -61,25 +60,72 @@ const Login = () => {
     setMsLoading(true);
     setError('');
     
-    // Get the code_verifier from sessionStorage
+    // Get stored values from sessionStorage
     const codeVerifier = sessionStorage.getItem('ms_code_verifier');
-    sessionStorage.removeItem('ms_code_verifier');
+    const clientId = sessionStorage.getItem('ms_client_id');
+    const tenantId = sessionStorage.getItem('ms_tenant_id');
     
-    if (!codeVerifier) {
-      setError('PKCE verification failed. Please try logging in again.');
+    // Clean up sessionStorage
+    sessionStorage.removeItem('ms_code_verifier');
+    sessionStorage.removeItem('ms_client_id');
+    sessionStorage.removeItem('ms_tenant_id');
+    
+    if (!codeVerifier || !clientId || !tenantId) {
+      setError('Session expired. Please try logging in again.');
       setMsLoading(false);
       window.history.replaceState({}, document.title, '/login');
       return;
     }
     
     try {
-      const response = await fetch(`${API_URL}/api/auth/microsoft/callback`, {
+      // Exchange code for tokens directly from browser (required for SPA)
+      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+      const redirectUri = `${window.location.origin}/login`;
+      
+      const tokenParams = new URLSearchParams({
+        client_id: clientId,
+        code: code,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+        code_verifier: codeVerifier,
+      });
+      
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenParams.toString(),
+      });
+      
+      const tokenData = await tokenResponse.json();
+      
+      if (tokenData.error) {
+        setError(tokenData.error_description || 'Token exchange failed');
+        setMsLoading(false);
+        window.history.replaceState({}, document.title, '/login');
+        return;
+      }
+      
+      const accessToken = tokenData.access_token;
+      
+      // Get user info from Microsoft Graph
+      const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      
+      const msUser = await userResponse.json();
+      
+      // Send user info to our backend to create/login user
+      const response = await fetch(`${API_URL}/api/auth/microsoft/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          code,
-          redirect_uri: `${window.location.origin}/login`,
-          code_verifier: codeVerifier
+        body: JSON.stringify({
+          ms_user: msUser,
+          ms_access_token: accessToken,
+          ms_refresh_token: tokenData.refresh_token,
         }),
       });
       
@@ -89,9 +135,10 @@ const Login = () => {
         loginWithToken(data.access_token, data.user);
         navigate('/dashboard');
       } else {
-        setError(data.detail || 'Microsoft login failed');
+        setError(data.detail || 'Failed to complete login');
       }
     } catch (err) {
+      console.error('Microsoft login error:', err);
       setError('Failed to complete Microsoft login');
     } finally {
       setMsLoading(false);
@@ -104,27 +151,53 @@ const Login = () => {
     setError('');
     
     try {
+      // Get Microsoft config from backend
+      const configResponse = await fetch(`${API_URL}/api/auth/microsoft/config`);
+      const config = await configResponse.json();
+      
+      if (!config.client_id || !config.tenant_id) {
+        setError(config.message || 'Microsoft SSO not configured. Please configure O365 integration first.');
+        setMsLoading(false);
+        return;
+      }
+      
       // Generate PKCE code_verifier and code_challenge
       const codeVerifier = generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
       
-      // Store code_verifier in sessionStorage for callback
+      // Store values in sessionStorage for callback
       sessionStorage.setItem('ms_code_verifier', codeVerifier);
+      sessionStorage.setItem('ms_client_id', config.client_id);
+      sessionStorage.setItem('ms_tenant_id', config.tenant_id);
       
-      // Get the authorization URL from backend with PKCE
-      const response = await fetch(
-        `${API_URL}/api/auth/microsoft/login?code_challenge=${encodeURIComponent(codeChallenge)}`
-      );
-      const data = await response.json();
+      const redirectUri = `${window.location.origin}/login`;
+      const scopes = [
+        'openid',
+        'profile',
+        'email',
+        'User.Read',
+        'Mail.Read',
+        'Mail.Send',
+        'Calendars.Read',
+        'Calendars.ReadWrite',
+        'offline_access'
+      ].join(' ');
       
-      if (data.auth_url) {
-        // Redirect to Microsoft login
-        window.location.href = data.auth_url;
-      } else {
-        setError(data.message || 'Microsoft SSO not configured. Please configure O365 integration first.');
-        setMsLoading(false);
-      }
+      // Build authorization URL
+      const authUrl = `https://login.microsoftonline.com/${config.tenant_id}/oauth2/v2.0/authorize?` +
+        `client_id=${config.client_id}&` +
+        `response_type=code&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_mode=query&` +
+        `scope=${encodeURIComponent(scopes)}&` +
+        `code_challenge=${codeChallenge}&` +
+        `code_challenge_method=S256&` +
+        `state=salesintel`;
+      
+      // Redirect to Microsoft login
+      window.location.href = authUrl;
     } catch (err) {
+      console.error('Microsoft login init error:', err);
       setError('Failed to initiate Microsoft login');
       setMsLoading(false);
     }
