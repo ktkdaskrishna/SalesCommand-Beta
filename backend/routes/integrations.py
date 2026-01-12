@@ -491,11 +491,25 @@ async def trigger_sync(
     if not intg or not intg.get("enabled"):
         raise HTTPException(status_code=400, detail=f"{integration_type.value} not enabled")
     
-    if not intg.get("config") or not intg["config"].get("url"):
+    if not intg.get("config"):
         raise HTTPException(status_code=400, detail=f"{integration_type.value} not configured")
     
-    # Get entity types from request body or use defaults
-    entity_types = request.entity_types if request and request.entity_types else [EntityType.ACCOUNT, EntityType.OPPORTUNITY]
+    # Validate config based on integration type
+    config = intg["config"]
+    if integration_type == IntegrationType.ODOO:
+        if not config.get("url"):
+            raise HTTPException(status_code=400, detail="Odoo URL not configured")
+    elif integration_type == IntegrationType.MS365:
+        if not config.get("client_id") or not config.get("tenant_id"):
+            raise HTTPException(status_code=400, detail="Microsoft 365 credentials not configured")
+    
+    # Get entity types from request body or use defaults based on integration type
+    if request and request.entity_types:
+        entity_types = request.entity_types
+    elif integration_type == IntegrationType.MS365:
+        entity_types = [EntityType.EMAIL, EntityType.CALENDAR]
+    else:
+        entity_types = [EntityType.ACCOUNT, EntityType.OPPORTUNITY]
     
     # Create sync job
     job_id = str(uuid.uuid4())
