@@ -25,6 +25,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 class MicrosoftCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
+    code_verifier: str
 
 
 @router.post("/register", response_model=TokenResponse)
