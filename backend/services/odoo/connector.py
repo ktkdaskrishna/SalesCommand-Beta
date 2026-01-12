@@ -224,12 +224,12 @@ class OdooConnector:
         if modified_since:
             domain.append(("write_date", ">=", modified_since.isoformat()))
         
+        # Core fields that should exist in all Odoo versions
         fields = [
-            "id", "name", "email", "phone", "mobile",
+            "id", "name", "email", "phone",
             "street", "street2", "city", "state_id", "country_id", "zip",
-            "website", "industry_id", "company_type", "is_company",
+            "website", "company_type", "is_company",
             "parent_id", "child_ids", "user_id",
-            "credit_limit", "total_invoiced", "total_due",
             "create_date", "write_date"
         ]
         
