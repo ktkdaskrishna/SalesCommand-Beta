@@ -228,15 +228,16 @@ const Integrations = () => {
 
       {/* Odoo Configuration Modal */}
       <Dialog open={configModal} onOpenChange={setConfigModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg p-0 flex flex-col max-h-[85vh]">
+          <DialogHeader className="p-6 pb-4">
             <DialogTitle className="text-white">Configure Odoo Integration</DialogTitle>
             <DialogDescription className="text-zinc-400">
               Connect to your Odoo instance using REST API credentials
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-4">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-6 space-y-4">
             <div className="space-y-2">
               <Label className="text-zinc-300">Odoo URL</Label>
               <Input
@@ -247,7 +248,7 @@ const Integrations = () => {
                 data-testid="odoo-url-input"
               />
               <p className="text-xs text-zinc-500">
-                Base URL only (e.g., https://yourcompany.odoo.com). No /web or /odoo suffix needed.
+                Base URL only. No /web or /odoo suffix needed.
               </p>
             </div>
 
@@ -261,7 +262,7 @@ const Integrations = () => {
                 data-testid="odoo-database-input"
               />
               <p className="text-xs text-zinc-500">
-                Usually your subdomain (e.g., "securadotest" from securadotest.odoo.com)
+                Usually your subdomain (e.g., "securadotest")
               </p>
             </div>
 
@@ -287,7 +288,7 @@ const Integrations = () => {
                 data-testid="odoo-apikey-input"
               />
               <p className="text-xs text-zinc-500">
-                Generate an API key in Odoo: Settings → Users → API Keys
+                Generate in Odoo: Settings → Users → API Keys
               </p>
             </div>
 
@@ -311,39 +312,39 @@ const Integrations = () => {
                     {testResult.message}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-red-400">
-                    <XCircle className="w-4 h-4" />
-                    {testResult.message}
+                  <div className="flex items-start gap-2 text-red-400">
+                    <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span className="text-sm">{testResult.message}</span>
                   </div>
                 )}
               </div>
             )}
+          </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                onClick={handleTestConnection}
-                variant="outline"
-                className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                data-testid="test-odoo-connection-btn"
-              >
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Test Connection
-              </Button>
-              <Button
-                onClick={handleSaveConfig}
-                disabled={saving || !testResult?.success}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500"
-                data-testid="save-odoo-config-btn"
-              >
-                {saving ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save & Connect
-              </Button>
-            </div>
+          {/* Sticky Footer Actions */}
+          <div className="p-6 pt-4 border-t border-zinc-800 flex gap-3">
+            <Button
+              onClick={handleTestConnection}
+              variant="outline"
+              className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              data-testid="test-odoo-connection-btn"
+            >
+              <AlertCircle className="w-4 h-4 mr-2" />
+              Test Connection
+            </Button>
+            <Button
+              onClick={handleSaveConfig}
+              disabled={saving || !testResult?.success}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+              data-testid="save-odoo-config-btn"
+            >
+              {saving ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Save & Connect
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
