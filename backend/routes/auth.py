@@ -144,3 +144,174 @@ async def get_users(
     
     users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
     return [UserResponse(**u) for u in users]
+
+
+# ===================== MICROSOFT SSO ROUTES =====================
+
+@router.get("/microsoft/login")
+async def microsoft_login():
+    """Get Microsoft OAuth authorization URL"""
+    db = Database.get_db()
+    
+    # Get O365 config
+    intg = await db.integrations.find_one({"integration_type": "ms365"})
+    if not intg or not intg.get("config") or not intg.get("enabled"):
+        return {"auth_url": None, "message": "Microsoft 365 not configured"}
+    
+    config = intg["config"]
+    client_id = config.get("client_id")
+    tenant_id = config.get("tenant_id")
+    
+    if not client_id or not tenant_id:
+        return {"auth_url": None, "message": "Missing client_id or tenant_id"}
+    
+    # Get frontend URL for redirect
+    frontend_url = os.environ.get("FRONTEND_URL", "https://unruffled-hermann-2.preview.emergentagent.com")
+    redirect_uri = f"{frontend_url}/login"
+    
+    # Microsoft OAuth scopes
+    scopes = [
+        "openid",
+        "profile", 
+        "email",
+        "User.Read",
+        "Mail.Read",
+        "Mail.Send",
+        "Calendars.Read",
+        "Calendars.ReadWrite",
+        "offline_access"
+    ]
+    
+    auth_url = (
+        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?"
+        f"client_id={client_id}&"
+        f"response_type=code&"
+        f"redirect_uri={redirect_uri}&"
+        f"response_mode=query&"
+        f"scope={' '.join(scopes)}&"
+        f"state=salesintel"
+    )
+    
+    return {"auth_url": auth_url}
+
+
+@router.post("/microsoft/callback", response_model=TokenResponse)
+async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
+    """Handle Microsoft OAuth callback and create/login user"""
+    db = Database.get_db()
+    
+    # Get O365 config
+    intg = await db.integrations.find_one({"integration_type": "ms365"})
+    if not intg or not intg.get("config"):
+        raise HTTPException(status_code=400, detail="Microsoft 365 not configured")
+    
+    config = intg["config"]
+    client_id = config.get("client_id")
+    client_secret = config.get("client_secret")
+    tenant_id = config.get("tenant_id")
+    
+    # Exchange code for tokens
+    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+    
+    token_data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": callback_data.code,
+        "redirect_uri": callback_data.redirect_uri,
+        "grant_type": "authorization_code"
+    }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Get tokens
+            async with session.post(token_url, data=token_data) as response:
+                token_result = await response.json()
+                
+                if "error" in token_result:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=token_result.get("error_description", "Token exchange failed")
+                    )
+                
+                access_token = token_result.get("access_token")
+                refresh_token = token_result.get("refresh_token")
+            
+            # Get user info from Microsoft Graph
+            headers = {"Authorization": f"Bearer {access_token}"}
+            async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as user_response:
+                if user_response.status != 200:
+                    raise HTTPException(status_code=400, detail="Failed to get user info")
+                
+                ms_user = await user_response.json()
+        
+        # Extract user info
+        email = ms_user.get("mail") or ms_user.get("userPrincipalName")
+        name = ms_user.get("displayName", email.split("@")[0])
+        ms_id = ms_user.get("id")
+        
+        # Check if user exists
+        existing_user = await db.users.find_one({"email": email})
+        
+        now = datetime.now(timezone.utc)
+        
+        if existing_user:
+            # Update user with Microsoft tokens
+            await db.users.update_one(
+                {"email": email},
+                {"$set": {
+                    "ms_id": ms_id,
+                    "ms_access_token": access_token,
+                    "ms_refresh_token": refresh_token,
+                    "updated_at": now,
+                    "last_login": now
+                }}
+            )
+            user = existing_user
+        else:
+            # Create new user
+            user_id = str(uuid.uuid4())
+            user = {
+                "id": user_id,
+                "email": email,
+                "password_hash": "",  # No password for SSO users
+                "name": name,
+                "role": UserRole.ADMIN.value,  # Default role for SSO users
+                "department": None,
+                "product_line": None,
+                "is_active": True,
+                "avatar_url": None,
+                "ms_id": ms_id,
+                "ms_access_token": access_token,
+                "ms_refresh_token": refresh_token,
+                "auth_provider": "microsoft",
+                "created_at": now,
+                "updated_at": now,
+                "last_login": now
+            }
+            await db.users.insert_one(user)
+        
+        # Create our JWT token
+        jwt_token = create_access_token(user["id"], email, user["role"])
+        
+        return TokenResponse(
+            access_token=jwt_token,
+            user=UserResponse(
+                id=user["id"],
+                email=email,
+                name=user.get("name", name),
+                role=user["role"],
+                department=user.get("department"),
+                product_line=user.get("product_line"),
+                is_active=user.get("is_active", True),
+                avatar_url=user.get("avatar_url"),
+                created_at=user.get("created_at", now),
+                updated_at=user.get("updated_at", now)
+            )
+        )
+        
+    except aiohttp.ClientError as e:
+        raise HTTPException(status_code=500, detail=f"Network error: {str(e)}")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
