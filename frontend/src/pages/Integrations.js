@@ -228,7 +228,7 @@ const Integrations = () => {
 
       {/* Odoo Configuration Modal */}
       <Dialog open={configModal} onOpenChange={setConfigModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">Configure Odoo Integration</DialogTitle>
             <DialogDescription className="text-zinc-400">
@@ -242,10 +242,13 @@ const Integrations = () => {
               <Input
                 value={odooConfig.url}
                 onChange={(e) => setOdooConfig({ ...odooConfig, url: e.target.value })}
-                placeholder="https://your-instance.odoo.com"
+                placeholder="https://yourcompany.odoo.com"
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-url-input"
               />
+              <p className="text-xs text-zinc-500">
+                Base URL only (e.g., https://yourcompany.odoo.com). No /web or /odoo suffix needed.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -253,18 +256,21 @@ const Integrations = () => {
               <Input
                 value={odooConfig.database}
                 onChange={(e) => setOdooConfig({ ...odooConfig, database: e.target.value })}
-                placeholder="your_database"
+                placeholder="yourcompany"
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-database-input"
               />
+              <p className="text-xs text-zinc-500">
+                Usually your subdomain (e.g., "securadotest" from securadotest.odoo.com)
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-300">Username</Label>
+              <Label className="text-zinc-300">Username / Email</Label>
               <Input
                 value={odooConfig.username}
                 onChange={(e) => setOdooConfig({ ...odooConfig, username: e.target.value })}
-                placeholder="admin@example.com"
+                placeholder="admin@yourcompany.com"
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-username-input"
               />
