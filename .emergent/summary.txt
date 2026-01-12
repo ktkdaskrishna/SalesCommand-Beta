@@ -8,80 +8,103 @@ The user has mandated a complete architectural rebuild of the application from s
 4.  **AI-Powered Field Mapping:** Utilize AI (specifically GPT-5.2) to map fields between Odoo and a new database, with a Bring Your Own Key (BYOK) configuration.
 5.  **Data Sync:** Implement robust data synchronization from Odoo, including real-time updates.
 6.  **REST API:** A comprehensive REST API for all functionalities.
+7.  **Office 365 Integration:** Full integration including SSO, Email Sync, and Calendar Sync.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A completely new, clean, enterprise-grade application has been built from the ground up. The backend is a modular FastAPI monolith (designed for future microservice conversion) featuring services for auth, Odoo connectivity, a three-zone data lake, and data synchronization. The frontend is a modern, dark-themed React application built with shadcn/ui, including pages for Login, a Dashboard, a consolidated Integrations hub, an interactive Data Lake explorer, and a fully functional AI Field Mapping UI. The backend supports multiple Odoo object types (Accounts, Contacts, Opportunities, etc.).
+A completely new, clean, enterprise-grade application has been built from the ground up. The backend is a modular FastAPI monolith (designed for future microservice conversion) featuring services for auth, Odoo connectivity, a three-zone data lake, and data synchronization. The frontend is a modern, dark-themed React application built with shadcn/ui.
+
+Key implemented features include:
+- A fully functional Odoo integration with multi-entity sync (Accounts, Contacts, Opportunities, Orders, Invoices).
+- An interactive Data Lake explorer UI.
+- A comprehensive AI Field Mapping UI with inline editing and transformation logic.
+- The canonical data schema has been aligned with Odoo's naming conventions.
+- UI and backend stubs for Microsoft 365 integration, including a configuration modal and a Sign in with Microsoft button.
 
 **Last working item**:
-    - Last item agent was working: The agent was implementing a user request to allow the selection of specific object types (e.g., Accounts, Contacts) to be included in a sync job. This involved creating a new modal on the frontend and adding stubs for real-time/scheduled sync on the backend.
+    - Last item agent was working: The agent was attempting to fix the Sign in with Microsoft feature. The login flow fails after the user authenticates with Microsoft. The root cause identified is that for a Single-Page Application (SPA), the OAuth token exchange must happen on the frontend, but the current implementation attempts it on the backend.
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: (P0) The  page is likely broken due to a large, untested code addition for the new sync modal.
-  - Issue 2: (P1) The data sync process does not use the custom field mappings saved by the user.
+  - Issue 1: (P0) Sign in with Microsoft is not working due to an incorrect OAuth flow.
+  - Issue 2: (P1) The Microsoft 365 data sync is not implemented.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent added a large block of JSX and associated logic to  to create a modal for selecting entities to sync. This change was not linted or tested.
+     - Attempted fixes: The agent correctly implemented PKCE but kept the token exchange logic on the backend. This violates Microsoft's security requirements for SPAs, resulting in the error: 
      - Next debug checklist: 
-        1. Run  on  to find syntax errors.
-        2. Fix any linting errors.
-        3. Restart the frontend and take a screenshot of the  page to ensure it loads.
-        4. Test clicking the Sync Now button to verify the new modal opens correctly.
-     - Why fix this issue and what will be achieved with the fix? This is a blocker for implementing the user's request to select which objects to sync. Fixing it will unblock further development on the sync feature.
+        1. **Frontend**: Install  library (yarn add v1.22.22
+[1/4] Resolving packages...
+[2/4] Fetching packages...
+[3/4] Linking dependencies...
+[4/4] Building fresh packages...
+success Saved lockfile.
+success Saved 2 new dependencies.
+info Direct dependencies
+└─ @azure/msal-browser@4.27.0
+info All dependencies
+├─ @azure/msal-browser@4.27.0
+└─ @azure/msal-common@15.13.3
+Done in 3.74s.).
+        2. **Frontend**: Refactor  and  to handle the entire Microsoft login flow (redirect and token acquisition) using .
+        3. **Backend**: Remove the  and  endpoints.
+        4. **Backend**: Create a new endpoint (e.g., ) that accepts the  obtained by the frontend from MSAL.
+        5. **Backend**: In the new endpoint, validate the received , find or create a user in the database, and return a standard application JWT.
+     - Why fix this issue and what will be achieved with the fix? This is a critical blocker for the entire Microsoft 365 integration, which is a primary user requirement.
      - Status:  IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: None. The functionality was just built.
+     - Attempted fixes: The agent added O365 entity types (, , etc.) to the backend  enum and created a placeholder  method in the sync service. The frontend UI correctly shows these new entity types in the sync modal for O365.
      - Next debug checklist:
-        1. Modify the  in .
-        2. Before processing an entity, query the  collection for that specific entity type.
-        3. In the  method, use the loaded mappings to transform the raw record into the canonical schema instead of the current hardcoded logic.
-     - Why fix this issue and what will be achieved with the fix? This will complete the field mapping feature loop, allowing users to control how Odoo data is transformed and stored.
+        1. In the  method in , implement logic to use stored OAuth tokens (acquired via SSO) to call the Microsoft Graph API.
+        2. Implement functions to fetch emails, calendar events, contacts, and files.
+        3. Normalize the data from the Graph API and ingest it into the application's three-zone data lake, following the existing pattern for Odoo data.
+     - Why fix this issue and what will be achieved with the fix? This will complete the data synchronization part of the Microsoft 365 integration.
      - Status:  NOT STARTED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? backend
-     - Blocked on other issue: None
+     - Blocked on other issue: Issue 1 (Microsoft SSO login must work to get the necessary tokens).
 
 **In progress Task List**:
-  - Task 1:  (P0) Complete the multi-entity sync feature.
+  - Task 1:  (P0) Complete the Microsoft 365 Integration.
 
  Task Detail:
   - Task 1: 
-     - Where to resume: Start by fixing the broken  page (see Issue 1). Then, connect the new frontend modal to the backend by updating the  function to pass the selected entities to the  endpoint. Finally, update the backend  to process the list of entities received from the request.
-     - What will be achieved with this? The user will be able to select which Odoo objects to sync, addressing their feedback that only opportunities were being synced.
+     - Where to resume: Start by fixing the Microsoft SSO login flow as detailed in Issue #1. This is the top priority.
+     - What will be achieved with this? Users will be able to log in with their Microsoft accounts and sync their O365 data (emails, calendar events) into the platform.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: Blocked by Issue #1.
 
 **Upcoming and Future Tasks**
 Upcoming Tasks:
-- **(P1) Implement Real-Time Sync:** Implement the logic for Odoo webhooks in  and scheduled polling in . Add UI options on the Integrations page for the user to choose their preferred sync method (Manual, Webhook, Scheduled).
-- **(P1) Integrate GPT-5.2 for AI Mapping:** Use the  to integrate GPT-5.2 into the  service. Implement the Bring Your Own Key (BYOK) functionality as requested.
-- **(P2) Build Dashboard Analytics:** Populate the main dashboard with charts and KPIs using the analytics-ready data from the Serving zone of the data lake.
+- **(P1) Implement Real-Time Sync (Odoo):** Implement logic for Odoo webhooks in  and scheduled polling in .
+- **(P1) Integrate GPT-5.2 for AI Mapping:** Use the  to integrate GPT-5.2 into the  service.
+- **(P2) Build Dashboard Analytics:** Populate the main dashboard with charts and KPIs using the analytics-ready data from the Serving zone.
 
 Future Tasks:
-- **(P1) Refactor to Microservices:** Decompose the current modular monolith into true microservices (e.g., Auth, Integrations, Sync Worker) as per the user's original architectural vision.
-- **(P2) Add More Integrations:** Build out connectors and UI for other platforms like Salesforce and HubSpot.
-- **(P2) Implement Role-Based Access Control (RBAC):** Enforce granular permissions on data visibility and user actions.
+- **(P1) Refactor to Microservices:** Decompose the current modular monolith into true microservices.
+- **(P2) Add More Integrations:** Build out connectors for other platforms like Salesforce and HubSpot.
+- **(P2) Implement Role-Based Access Control (RBAC):** Enforce granular permissions.
 
 **Completed work in this session**
-- **Complete Application Rebuild:** Architected and built a new, clean, enterprise-grade backend (FastAPI) and frontend (React, shadcn/ui) from scratch.
-- **Odoo Integration Bug Fixes:** Fixed critical bugs related to Odoo URL connection and made the configuration modal UI usable and responsive.
-- **Integration Save & Sync Flow:** Implemented the full workflow for saving Odoo credentials and triggering a background sync job with user feedback (toasts, status updates).
-- **Interactive Data Lake UI:** Built a page to explain the data lake architecture, with a visual diagram and modals to view data in the Raw, Canonical, and Serving zones.
-- **AI Field Mapping UI:** Created a comprehensive UI for mapping Odoo fields to the canonical schema, complete with AI suggestions, confidence scores, and the ability to save mappings.
-- **Expanded Odoo Object Support:** Enhanced the backend to handle multiple Odoo objects (Accounts, Contacts, Sales Orders, Invoices).
+- **Multi-Entity Sync:** Fixed the broken  page and implemented the modal for selecting specific Odoo entities to sync.
+- **Custom Mapping Integration:** The sync process now correctly uses the user-defined field mappings from the database.
+- **Odoo Compatibility Fixes:** Resolved sync errors for Contacts and Accounts by making the Odoo connector compatible with newer versions (e.g., handling missing fields).
+- **Field Mapping UI Enhancements:** Added inline editing, deletion, and a Transform feature to the Field Mapping page.
+- **Schema Alignment:** Aligned the application's canonical data schema with Odoo's native field names for better usability.
+- **Data Lake Indexing Fix:** Corrected a critical bug where data from different entities with the same ID would conflict. The database indexes and queries now correctly use  to ensure uniqueness.
+- **Login Bug Fix:** Resolved an application startup failure caused by incorrect database index creation logic.
+- **MS365 Integration Scaffolding:** Built the UI modal for O365 configuration and a dynamic sync modal that shows O365-specific entities.
 
 **Earlier issues found/mentioned but not fixed**
-   - None, as this was a complete rebuild.
+   - None.
 
 **Known issue recurrence from previous fork**
   - None.
@@ -93,74 +116,82 @@ Future Tasks:
 - **Backend:** FastAPI, Pydantic, Motor (async MongoDB), Docker.
 - **Frontend:** React, Tailwind CSS, shadcn/ui.
 - **Architecture:** Modular Monolith, 3-Zone Data Lake (Raw, Canonical, Serving).
-- **Authentication:** JWT with multi-algorithm password hashing for backward compatibility.
+- **Authentication:** JWT, Microsoft SSO (OAuth with PKCE).
+- **Integrations:** Odoo (XML-RPC), Microsoft Graph API.
 
 **key DB schema**
-  - **users**: Stores user credentials and roles.
-  - **integrations**: Stores configuration and status for each connected integration (e.g., Odoo).
-  - **field_mappings**: Stores user-defined field mappings for each entity type.
-  - **sync_jobs**: Logs metadata for each sync execution.
-  - **dl_raw, dl_canonical, dl_serving**: The three zones of the data lake.
+- **users**: Stores user credentials and roles.
+- **integrations**: Stores configuration for connected systems (Odoo, MS365).
+- **field_mappings**: Stores user-defined field mappings.
+- **sync_jobs**: Logs metadata for each sync execution.
+- **dl_raw, dl_canonical, dl_serving**: The three data lake collections. Unique indexes were updated to  to prevent cross-entity ID collisions.
 
 **changes in tech stack**
-  - The entire application was rebuilt with a new, modern stack (FastAPI, React, shadcn/ui) to replace a previous problematic implementation.
+-  was installed for backend async HTTP requests.
+-  needs to be installed on the frontend to fix Microsoft SSO.
 
 **All files of reference**
-- : The central UI for managing integrations. **(Likely broken, needs immediate attention)**.
-- : Contains the core data synchronization logic.
-- : Defines the API endpoints for managing integrations and syncs.
-- : The UI for configuring AI field mappings.
-- : Stub file for future real-time sync implementation.
-- : Stub file for future scheduled sync implementation.
+- : Needs refactoring for MSAL.
+- : Needs refactoring for MSAL.
+- : Needs a major overhaul to remove backend token exchange.
+- : Contains the placeholder  method to be implemented.
+- :  enum was updated with O365 entities.
+- : Unique index creation logic was fixed.
+- : Queries were fixed to be  aware.
 
 **Areas that need refactoring**:
-- The normalization logic in  is currently hardcoded and must be refactored to use the dynamic field mappings stored in the database.
+- The entire Microsoft OAuth flow must be refactored. The token exchange logic in  must be removed and implemented on the frontend using .
+- The  method in  is a stub and needs a full implementation using the Microsoft Graph API.
 
 **key api endpoints**
-- 
-- : Saves integration credentials.
-- : Triggers a sync job. (Needs to be updated to accept a list of entities).
-- : Fetches data from a specific data lake zone.
-- : Gets AI-suggested field mappings.
-- : (New, Not Implemented) Endpoint for receiving Odoo webhooks.
+- : Triggers a sync job for Odoo or MS365.
+- : Saves Microsoft 365 credentials.
+- : Tests the Microsoft 365 connection.
+- : **(Incorrect Implementation)** Should be removed.
+- : **(Incorrect Implementation)** Should be replaced with a new endpoint that validates an  from the frontend.
 
 **Critical Info for New Agent**
-- You are working on a brand-new codebase. The previous architecture is gone.
-- Your first task is to **fix the  page**, which was broken by the last agent's untested changes. This is a blocker for all other work.
-- Once the UI is fixed, complete the multi-entity sync feature by connecting the new frontend modal to the backend sync service.
-- The next priorities are to make the sync process use the saved custom mappings and to implement the user's request for real-time sync (webhooks/polling).
+- **Top Priority**: Fix the Microsoft SSO login. The current backend-based token exchange flow is wrong for an SPA. You must move the token exchange to the frontend using the  library. The backend's role should be limited to validating the  sent from the frontend and issuing an application JWT.
+- **User Instruction**: The user explicitly stated that for any update, you must check and update both frontend and backend logic to ensure they stay in sync. Remember this to avoid introducing new bugs.
+- The O365 data sync logic is just a placeholder. Once SSO is working, the next step is to implement the Microsoft Graph API calls in .
 
 **documents and test reports created in this job**
 - 
 - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-- **User:** Odoo integration is not working...popup window...not userfrindly (FIXED)
-- **User:** Cnfiguration credetials are not saved...sync button in not working (FIXED)
-- **User:** explain me the data lake working structure, as i am unable to click the view button (FIXED & EXPLAINED)
-- **User:** now lets work on AI Field Mapping UI (DONE)
-- **User:** We need to sync the data as soon as that get updated on Oodo...we noticed only oppertunities got sync...we need to change the maping future (IN PROGRESS)
+1.  **User:** Login is broken. (FIXED - database index issue)
+2.  **User:** Asks to set up O365 integration and wants an explanation.
+3.  **User:** Confirms they have O365 subscription and portal access, asks for guidance.
+4.  **User:** After setup, can't see the configuration on the application. (FIXED - agent added the UI)
+5.  **User:** Points out that O365 sync items are the same as Odoo, which is wrong. Also asks how to log in with O365. (FIXED - agent added SSO button and dynamic sync modal)
+6.  **User:** Reports a runtime error on the Integrations page. (FIXED - agent improved frontend error handling)
+7.  **User:** Reports a PKCE-related error for SSO. (ATTEMPTED FIX - agent implemented PKCE but kept wrong flow)
+8.  **User:** Reports error on sync tab related to invalid entity types. (FIXED - agent added O365 entity types to backend enum)
+9.  **User:** Reminds agent to always check both frontend and backend for any update.
+10. **User:** Reports that sign in with Microsoft is still not working.
 
 **Project Health Check:**
-- **Working:** Core backend services, new frontend shell, login, dashboard, Odoo configuration, AI field mapping UI, data lake viewer.
-- **In Progress:** Multi-entity sync feature.
-- **Broken:** The main  page is very likely broken.
-- **Mocked:** Real-time sync (webhooks/scheduler), use of custom field mappings in the sync process.
+- **Working:** Core application, Odoo integration and data sync, Field Mapping UI, Data Lake viewer.
+- **In Progress:** Microsoft 365 integration.
+- **Broken:** Microsoft SSO login flow.
+- **Mocked:** The backend logic for Microsoft 365 data synchronization is a placeholder.
 
 **3rd Party Integrations**
-- **Odoo ERP:** Connection and manual data sync implemented.
+- **Odoo ERP:** Fully integrated for manual data sync.
 - **Emergent LLM Key (OpenAI):** Used for the AI auto-mapping feature.
-- **GPT-5.2:** Requested by user for AI mapping, but not yet implemented.
+- **Microsoft 365 (Azure AD / Graph API):** Integration is in progress but blocked by the SSO login issue.
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Rebuild was tested manually).
+  - Testing agent used after significant changes: YES (For Odoo sync fixes)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: [] (None; all new tests need to be written).
-  - Known regressions: None (fresh build).
+  - Test files created: []
+  - Known regressions: None
 
 **Credentials to test flow:**
 - **Super Admin:**  / 
+- **Microsoft 365:** User needs to provide Client ID, Tenant ID, and Client Secret.
 
 **What agent forgot to execute**
-- The agent failed to test a major change to , leaving it in a likely broken state.
-- The agent did not connect the saved field mappings from the database to the actual sync service; the sync process still uses hardcoded rules.</analysis>
+- The agent initially forgot to update backend enums when adding frontend UI for O365 sync entities, causing an error.
+- The agent implemented the Microsoft SSO flow incorrectly for a Single-Page Application, which is the current primary blocker.</analysis>

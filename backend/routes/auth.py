@@ -170,7 +170,7 @@ async def microsoft_login(code_challenge: str = None):
         return {"auth_url": None, "message": "Missing client_id or tenant_id"}
     
     # Get frontend URL for redirect
-    frontend_url = os.environ.get("FRONTEND_URL", "https://unruffled-hermann-2.preview.emergentagent.com")
+    frontend_url = os.environ.get("FRONTEND_URL", "https://odoo-sync.preview.emergentagent.com")
     redirect_uri = f"{frontend_url}/login"
     
     # Microsoft OAuth scopes
