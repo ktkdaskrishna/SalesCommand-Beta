@@ -199,6 +199,20 @@ const AdminPanel = () => {
                 <div className="flex items-center justify-between mb-6">
                   <h1 className="text-2xl font-bold text-white">User Management</h1>
                   <div className="flex items-center gap-4">
+                    <Button
+                      onClick={syncAzureUsers}
+                      disabled={syncingAzure}
+                      variant="outline"
+                      className="border-blue-700 text-blue-400 hover:bg-blue-500/10"
+                      data-testid="sync-azure-users-btn"
+                    >
+                      {syncingAzure ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Cloud className="w-4 h-4 mr-2" />
+                      )}
+                      Sync from Azure AD
+                    </Button>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                       <Input
