@@ -405,6 +405,79 @@ const Integrations = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Sync Entity Selection Modal */}
+      <Dialog open={syncModal} onOpenChange={setSyncModal}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Database className="w-5 h-5 text-emerald-500" />
+              Select Entities to Sync
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Choose which Odoo objects to synchronize with your Data Lake
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-4">
+            {ENTITY_TYPES.map((entity) => (
+              <div
+                key={entity.id}
+                onClick={() => toggleEntity(entity.id)}
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                  selectedEntities.includes(entity.id)
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
+                }`}
+                data-testid={`entity-toggle-${entity.id}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium ${
+                      selectedEntities.includes(entity.id) ? 'text-emerald-400' : 'text-white'
+                    }`}>
+                      {entity.label}
+                    </p>
+                    <p className="text-xs text-zinc-500">{entity.description}</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
+                    selectedEntities.includes(entity.id)
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'border-zinc-600'
+                  }`}>
+                    {selectedEntities.includes(entity.id) && (
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-800">
+            <Button
+              onClick={() => setSyncModal(false)}
+              variant="outline"
+              className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleTriggerSync}
+              disabled={syncing || selectedEntities.length === 0}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+              data-testid="start-sync-btn"
+            >
+              {syncing ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              Start Sync ({selectedEntities.length})
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
