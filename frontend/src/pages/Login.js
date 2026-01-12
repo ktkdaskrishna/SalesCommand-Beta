@@ -1,33 +1,18 @@
 /**
  * Login Page
- * Clean, modern login interface with Microsoft SSO
+ * Clean, modern login interface with Microsoft SSO using MSAL
  */
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PublicClientApplication, InteractionStatus } from '@azure/msal-browser';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Database, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { getMsalConfig, loginRequest } from '../config/msalConfig';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
-
-// PKCE Helper functions
-const generateCodeVerifier = () => {
-  const array = new Uint8Array(32);
-  window.crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
-};
-
-const generateCodeChallenge = async (verifier) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await window.crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-};
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -35,97 +20,69 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [msLoading, setMsLoading] = useState(false);
+  const [msalInstance, setMsalInstance] = useState(null);
+  const [msConfigLoaded, setMsConfigLoaded] = useState(false);
   const { login, loginWithToken } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
-  // Handle OAuth callback
+  // Initialize MSAL when component mounts
   useEffect(() => {
-    const code = searchParams.get('code');
-    const errorParam = searchParams.get('error');
-    const errorDesc = searchParams.get('error_description');
-    
-    if (errorParam) {
-      setError(errorDesc || 'Microsoft login failed');
-      window.history.replaceState({}, document.title, '/login');
-      return;
-    }
-    
-    if (code) {
-      handleMicrosoftCallback(code);
-    }
-  }, [searchParams]);
-
-  const handleMicrosoftCallback = async (code) => {
-    setMsLoading(true);
-    setError('');
-    
-    // Get stored values from sessionStorage
-    const codeVerifier = sessionStorage.getItem('ms_code_verifier');
-    const clientId = sessionStorage.getItem('ms_client_id');
-    const tenantId = sessionStorage.getItem('ms_tenant_id');
-    
-    // Clean up sessionStorage
-    sessionStorage.removeItem('ms_code_verifier');
-    sessionStorage.removeItem('ms_client_id');
-    sessionStorage.removeItem('ms_tenant_id');
-    
-    if (!codeVerifier || !clientId || !tenantId) {
-      setError('Session expired. Please try logging in again.');
-      setMsLoading(false);
-      window.history.replaceState({}, document.title, '/login');
-      return;
-    }
-    
-    try {
-      // Exchange code for tokens directly from browser (required for SPA)
-      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
-      const redirectUri = `${window.location.origin}/login`;
-      
-      const tokenParams = new URLSearchParams({
-        client_id: clientId,
-        code: code,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-        code_verifier: codeVerifier,
-      });
-      
-      const tokenResponse = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: tokenParams.toString(),
-      });
-      
-      const tokenData = await tokenResponse.json();
-      
-      if (tokenData.error) {
-        setError(tokenData.error_description || 'Token exchange failed');
-        setMsLoading(false);
-        window.history.replaceState({}, document.title, '/login');
-        return;
+    const initMsal = async () => {
+      try {
+        // Fetch Microsoft config from backend
+        const configResponse = await fetch(`${API_URL}/api/auth/microsoft/config`);
+        const config = await configResponse.json();
+        
+        if (config.client_id && config.tenant_id) {
+          const msalConfig = getMsalConfig(config.client_id, config.tenant_id);
+          const pca = new PublicClientApplication(msalConfig);
+          await pca.initialize();
+          setMsalInstance(pca);
+          setMsConfigLoaded(true);
+          
+          // Handle redirect response if any
+          handleRedirectResponse(pca);
+        }
+      } catch (err) {
+        console.error('Failed to initialize MSAL:', err);
       }
+    };
+    
+    initMsal();
+  }, []);
+
+  // Handle redirect response after Microsoft login
+  const handleRedirectResponse = useCallback(async (pca) => {
+    try {
+      const response = await pca.handleRedirectPromise();
       
-      const accessToken = tokenData.access_token;
-      
-      // Get user info from Microsoft Graph
-      const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-      
-      const msUser = await userResponse.json();
-      
-      // Send user info to our backend to create/login user
+      if (response) {
+        setMsLoading(true);
+        await completeMicrosoftLogin(response);
+      }
+    } catch (err) {
+      console.error('Redirect response error:', err);
+      setError(err.message || 'Microsoft login failed');
+      setMsLoading(false);
+    }
+  }, []);
+
+  // Complete Microsoft login by sending tokens to backend
+  const completeMicrosoftLogin = async (msalResponse) => {
+    try {
+      // Send Microsoft auth data to our backend
       const response = await fetch(`${API_URL}/api/auth/microsoft/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ms_user: msUser,
-          ms_access_token: accessToken,
-          ms_refresh_token: tokenData.refresh_token,
+          access_token: msalResponse.accessToken,
+          id_token: msalResponse.idToken,
+          account: {
+            username: msalResponse.account.username,
+            name: msalResponse.account.name,
+            localAccountId: msalResponse.account.localAccountId,
+            tenantId: msalResponse.account.tenantId,
+          }
         }),
       });
       
@@ -138,67 +95,42 @@ const Login = () => {
         setError(data.detail || 'Failed to complete login');
       }
     } catch (err) {
-      console.error('Microsoft login error:', err);
+      console.error('Microsoft login completion error:', err);
       setError('Failed to complete Microsoft login');
     } finally {
       setMsLoading(false);
-      window.history.replaceState({}, document.title, '/login');
     }
   };
 
   const handleMicrosoftLogin = async () => {
+    if (!msalInstance) {
+      setError('Microsoft SSO not configured. Please configure O365 integration first.');
+      return;
+    }
+
     setMsLoading(true);
     setError('');
     
     try {
-      // Get Microsoft config from backend
-      const configResponse = await fetch(`${API_URL}/api/auth/microsoft/config`);
-      const config = await configResponse.json();
-      
-      if (!config.client_id || !config.tenant_id) {
-        setError(config.message || 'Microsoft SSO not configured. Please configure O365 integration first.');
-        setMsLoading(false);
-        return;
-      }
-      
-      // Generate PKCE code_verifier and code_challenge
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      
-      // Store values in sessionStorage for callback
-      sessionStorage.setItem('ms_code_verifier', codeVerifier);
-      sessionStorage.setItem('ms_client_id', config.client_id);
-      sessionStorage.setItem('ms_tenant_id', config.tenant_id);
-      
-      const redirectUri = `${window.location.origin}/login`;
-      const scopes = [
-        'openid',
-        'profile',
-        'email',
-        'User.Read',
-        'Mail.Read',
-        'Mail.Send',
-        'Calendars.Read',
-        'Calendars.ReadWrite',
-        'offline_access'
-      ].join(' ');
-      
-      // Build authorization URL
-      const authUrl = `https://login.microsoftonline.com/${config.tenant_id}/oauth2/v2.0/authorize?` +
-        `client_id=${config.client_id}&` +
-        `response_type=code&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_mode=query&` +
-        `scope=${encodeURIComponent(scopes)}&` +
-        `code_challenge=${codeChallenge}&` +
-        `code_challenge_method=S256&` +
-        `state=salesintel`;
-      
-      // Redirect to Microsoft login
-      window.location.href = authUrl;
+      // Use popup login for better UX (no full page redirect)
+      const response = await msalInstance.loginPopup(loginRequest);
+      await completeMicrosoftLogin(response);
     } catch (err) {
-      console.error('Microsoft login init error:', err);
-      setError('Failed to initiate Microsoft login');
+      console.error('Microsoft login error:', err);
+      
+      // Handle specific MSAL errors
+      if (err.errorCode === 'user_cancelled') {
+        setError('Login was cancelled');
+      } else if (err.errorCode === 'popup_window_error') {
+        // Fallback to redirect if popup is blocked
+        try {
+          await msalInstance.loginRedirect(loginRequest);
+        } catch (redirectErr) {
+          setError('Failed to initiate Microsoft login');
+        }
+      } else {
+        setError(err.message || 'Microsoft login failed');
+      }
       setMsLoading(false);
     }
   };
@@ -242,7 +174,7 @@ const Login = () => {
           <Button
             type="button"
             onClick={handleMicrosoftLogin}
-            disabled={msLoading}
+            disabled={msLoading || !msConfigLoaded}
             className="w-full bg-[#2F2F2F] hover:bg-[#404040] text-white mb-6 h-12"
             data-testid="microsoft-login-btn"
           >
@@ -256,7 +188,7 @@ const Login = () => {
                   <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
                   <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
                 </svg>
-                Sign in with Microsoft
+                {msConfigLoaded ? 'Sign in with Microsoft' : 'Loading Microsoft SSO...'}
               </>
             )}
           </Button>

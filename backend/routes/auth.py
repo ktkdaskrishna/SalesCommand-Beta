@@ -152,122 +152,66 @@ async def get_users(
 
 # ===================== MICROSOFT SSO ROUTES =====================
 
-@router.get("/microsoft/login")
-async def microsoft_login(code_challenge: str = None):
-    """Get Microsoft OAuth authorization URL with PKCE support"""
+@router.get("/microsoft/config")
+async def get_microsoft_config():
+    """Get Microsoft OAuth configuration for frontend MSAL"""
     db = Database.get_db()
     
     # Get O365 config
     intg = await db.integrations.find_one({"integration_type": "ms365"})
     if not intg or not intg.get("config") or not intg.get("enabled"):
-        return {"auth_url": None, "message": "Microsoft 365 not configured"}
+        return {"client_id": None, "tenant_id": None, "message": "Microsoft 365 not configured"}
     
     config = intg["config"]
     client_id = config.get("client_id")
     tenant_id = config.get("tenant_id")
     
     if not client_id or not tenant_id:
-        return {"auth_url": None, "message": "Missing client_id or tenant_id"}
+        return {"client_id": None, "tenant_id": None, "message": "Missing client_id or tenant_id"}
     
-    # Get frontend URL for redirect
-    frontend_url = os.environ.get("FRONTEND_URL", "https://odoo-sync.preview.emergentagent.com")
-    redirect_uri = f"{frontend_url}/login"
-    
-    # Microsoft OAuth scopes
-    scopes = [
-        "openid",
-        "profile", 
-        "email",
-        "User.Read",
-        "Mail.Read",
-        "Mail.Send",
-        "Calendars.Read",
-        "Calendars.ReadWrite",
-        "offline_access"
-    ]
-    
-    auth_url = (
-        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?"
-        f"client_id={client_id}&"
-        f"response_type=code&"
-        f"redirect_uri={redirect_uri}&"
-        f"response_mode=query&"
-        f"scope={' '.join(scopes)}&"
-        f"state=salesintel"
-    )
-    
-    # Add PKCE parameters if code_challenge provided
-    if code_challenge:
-        auth_url += f"&code_challenge={code_challenge}&code_challenge_method=S256"
-    
-    return {"auth_url": auth_url}
+    return {
+        "client_id": client_id,
+        "tenant_id": tenant_id
+    }
 
 
-@router.post("/microsoft/callback", response_model=TokenResponse)
-async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
-    """Handle Microsoft OAuth callback with PKCE and create/login user"""
+class MicrosoftCompleteRequest(BaseModel):
+    access_token: str
+    id_token: Optional[str] = None
+    account: dict
+
+
+@router.post("/microsoft/complete", response_model=TokenResponse)
+async def microsoft_complete(request: MicrosoftCompleteRequest):
+    """
+    Complete Microsoft SSO login.
+    Called by frontend after MSAL authentication.
+    Validates the tokens, creates/updates user, and returns app JWT.
+    """
     db = Database.get_db()
     
-    # Get O365 config
-    intg = await db.integrations.find_one({"integration_type": "ms365"})
-    if not intg or not intg.get("config"):
-        raise HTTPException(status_code=400, detail="Microsoft 365 not configured")
-    
-    config = intg["config"]
-    client_id = config.get("client_id")
-    client_secret = config.get("client_secret")
-    tenant_id = config.get("tenant_id")
-    
-    # Exchange code for tokens with PKCE
-    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-    
-    # For SPA (public client) with PKCE, do NOT send client_secret
-    # The code_verifier proves the client's identity
-    token_data = {
-        "client_id": client_id,
-        "code": callback_data.code,
-        "redirect_uri": callback_data.redirect_uri,
-        "grant_type": "authorization_code",
-        "code_verifier": callback_data.code_verifier
-    }
-    
-    # Note: For public clients (SPA), client_secret should NOT be included
-    # Azure will reject requests with client_secret for public clients
-    
     try:
+        # Verify the access token by calling Microsoft Graph
         async with aiohttp.ClientSession() as session:
-            # Get tokens
-            async with session.post(token_url, data=token_data) as response:
-                token_result = await response.json()
-                
-                if "error" in token_result:
-                    error_desc = token_result.get("error_description", token_result.get("error", "Token exchange failed"))
-                    logger.error(f"Microsoft token exchange failed: {error_desc}")
+            headers = {"Authorization": f"Bearer {request.access_token}"}
+            async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Microsoft Graph API error: {error_text}")
                     raise HTTPException(
-                        status_code=400,
-                        detail=error_desc
+                        status_code=401, 
+                        detail="Invalid Microsoft access token"
                     )
                 
-                access_token = token_result.get("access_token")
-                refresh_token = token_result.get("refresh_token")
-                
-                if not access_token:
-                    raise HTTPException(status_code=400, detail="No access token received from Microsoft")
-            
-            # Get user info from Microsoft Graph
-            headers = {"Authorization": f"Bearer {access_token}"}
-            async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as user_response:
-                if user_response.status != 200:
-                    error_text = await user_response.text()
-                    logger.error(f"Microsoft Graph API error: {error_text}")
-                    raise HTTPException(status_code=400, detail="Failed to get user info from Microsoft")
-                
-                ms_user = await user_response.json()
+                ms_user = await response.json()
         
-        # Extract user info
+        # Extract user info from Graph API response (more reliable than MSAL account)
         email = ms_user.get("mail") or ms_user.get("userPrincipalName")
-        name = ms_user.get("displayName", email.split("@")[0])
-        ms_id = ms_user.get("id")
+        name = ms_user.get("displayName") or request.account.get("name") or email.split("@")[0]
+        ms_id = ms_user.get("id") or request.account.get("localAccountId")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Could not get email from Microsoft account")
         
         # Check if user exists
         existing_user = await db.users.find_one({"email": email})
@@ -275,20 +219,20 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
         now = datetime.now(timezone.utc)
         
         if existing_user:
-            # Update user with Microsoft tokens
+            # Update user with Microsoft info and tokens
             await db.users.update_one(
                 {"email": email},
                 {"$set": {
                     "ms_id": ms_id,
-                    "ms_access_token": access_token,
-                    "ms_refresh_token": refresh_token,
+                    "ms_access_token": request.access_token,
                     "updated_at": now,
                     "last_login": now
                 }}
             )
             user = existing_user
+            user_id = existing_user["id"]
         else:
-            # Create new user
+            # Create new user for SSO
             user_id = str(uuid.uuid4())
             user = {
                 "id": user_id,
@@ -301,8 +245,7 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
                 "is_active": True,
                 "avatar_url": None,
                 "ms_id": ms_id,
-                "ms_access_token": access_token,
-                "ms_refresh_token": refresh_token,
+                "ms_access_token": request.access_token,
                 "auth_provider": "microsoft",
                 "created_at": now,
                 "updated_at": now,
@@ -310,13 +253,15 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
             }
             await db.users.insert_one(user)
         
-        # Create our JWT token
-        jwt_token = create_access_token(user["id"], email, user["role"])
+        # Create our application JWT token
+        jwt_token = create_access_token(user_id, email, user["role"])
+        
+        logger.info(f"Microsoft SSO login successful for: {email}")
         
         return TokenResponse(
             access_token=jwt_token,
             user=UserResponse(
-                id=user["id"],
+                id=user_id,
                 email=email,
                 name=user.get("name", name),
                 role=user["role"],
@@ -330,8 +275,10 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
         )
         
     except aiohttp.ClientError as e:
+        logger.error(f"Network error during Microsoft SSO: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Network error: {str(e)}")
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
+        logger.error(f"Microsoft SSO error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
