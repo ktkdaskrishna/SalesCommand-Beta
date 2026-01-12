@@ -243,6 +243,44 @@ class SyncService:
                 "modified_date": record.get("write_date"),
             }
         
+        elif entity_type == EntityType.ORDER:
+            return {
+                "name": record.get("name", ""),
+                "order_number": record.get("name", ""),
+                "account_id": self._extract_id(record.get("partner_id")),
+                "account_name": self._extract_name(record.get("partner_id")),
+                "total_amount": record.get("amount_total") or 0,
+                "subtotal": record.get("amount_untaxed") or 0,
+                "tax_amount": record.get("amount_tax") or 0,
+                "status": record.get("state") or "",
+                "order_date": record.get("date_order"),
+                "delivery_date": record.get("commitment_date"),
+                "invoice_status": record.get("invoice_status") or "",
+                "owner_id": self._extract_id(record.get("user_id")),
+                "owner_name": self._extract_name(record.get("user_id")),
+                "created_date": record.get("create_date"),
+                "modified_date": record.get("write_date"),
+            }
+        
+        elif entity_type == EntityType.INVOICE:
+            return {
+                "name": record.get("name", ""),
+                "invoice_number": record.get("name", ""),
+                "account_id": self._extract_id(record.get("partner_id")),
+                "account_name": self._extract_name(record.get("partner_id")),
+                "total_amount": record.get("amount_total") or 0,
+                "amount_due": record.get("amount_residual") or 0,
+                "amount_paid": record.get("amount_total", 0) - record.get("amount_residual", 0),
+                "status": record.get("state") or "",
+                "payment_status": record.get("payment_state") or "",
+                "invoice_date": record.get("invoice_date"),
+                "due_date": record.get("invoice_date_due"),
+                "owner_id": self._extract_id(record.get("user_id")),
+                "owner_name": self._extract_name(record.get("user_id")),
+                "created_date": record.get("create_date"),
+                "modified_date": record.get("write_date"),
+            }
+        
         return record
     
     def _extract_id(self, field) -> Optional[str]:
