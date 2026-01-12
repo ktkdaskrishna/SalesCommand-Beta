@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
     return roles.includes(user.role);
   };
 
-  const isExecutive = () => hasRole(["ceo", "admin"]);
+  const isExecutive = () => hasRole(["ceo", "admin", "super_admin", "sales_director"]);
   const isProductDirector = () => hasRole("product_director");
   const isAccountManager = () => hasRole("account_manager");
   const isStrategy = () => hasRole("strategy");
