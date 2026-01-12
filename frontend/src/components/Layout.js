@@ -16,6 +16,7 @@ import {
   X,
   ChevronRight,
   User,
+  Wand2,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -32,6 +33,7 @@ const Layout = () => {
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/integrations', icon: Plug2, label: 'Integrations' },
+    { path: '/field-mapping', icon: Wand2, label: 'Field Mapping' },
     { path: '/data-lake', icon: Database, label: 'Data Lake' },
   ];
 
