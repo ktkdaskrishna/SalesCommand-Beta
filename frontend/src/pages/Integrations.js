@@ -108,7 +108,6 @@ const Integrations = () => {
       toast.error(error.response?.data?.detail || 'Failed to start sync');
     }
   };
-  };
 
   const getIntegrationDetails = (type) => {
     const details = {
