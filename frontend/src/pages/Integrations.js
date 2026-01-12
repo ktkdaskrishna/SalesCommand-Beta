@@ -256,20 +256,31 @@ const Integrations = () => {
                 {/* Actions */}
                 <div className="flex gap-3">
                   {integration.integration_type === 'odoo' && (
-                    <Button
-                      onClick={handleConfigureOdoo}
-                      className="flex-1 bg-purple-600 hover:bg-purple-500"
-                      data-testid="configure-odoo-btn"
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Configure
-                    </Button>
+                    <>
+                      <Button
+                        onClick={handleConfigureOdoo}
+                        className="flex-1 bg-purple-600 hover:bg-purple-500"
+                        data-testid="configure-odoo-btn"
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Configure
+                      </Button>
+                      <Button
+                        onClick={() => navigate('/field-mapping')}
+                        variant="outline"
+                        className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                        data-testid="field-mapping-btn"
+                      >
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        Mapping
+                      </Button>
+                    </>
                   )}
                   {integration.enabled && (
                     <Button
-                      onClick={() => handleTriggerSync(integration.integration_type)}
+                      onClick={() => handleOpenSyncModal(integration.integration_type)}
                       variant="outline"
-                      className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                      className="border-emerald-700 text-emerald-400 hover:bg-emerald-900/30"
                       data-testid={`sync-${integration.integration_type}-btn`}
                     >
                       <Play className="w-4 h-4 mr-2" />
