@@ -4,7 +4,7 @@
 Enterprise-grade Sales CRM with ERP Integration, designed with a microservices architecture and three-zone Data Lake.
 
 ## Version
-**v2.0.0** - Clean Rebuild (Phase 1 Complete)
+**v2.1.0** - Multi-Entity Sync & Custom Mappings (Jan 12, 2026)
 
 ---
 
@@ -17,6 +17,21 @@ The user has mandated a complete architectural rebuild of the application, trans
 4. **AI-Powered Features:** GPT-5.2 for intelligent field mapping with BYOK support
 5. **Microservices Architecture:** Each integration as a separate service for scalability
 6. **Docker-First Deployment:** Single `docker-compose up` command
+
+---
+
+## Odoo Models Reference (v16+)
+Key Odoo models used for sync:
+- **res.partner** - Accounts (is_company=True) and Contacts (is_company=False)
+- **crm.lead** - Opportunities/CRM Leads
+- **sale.order** - Sales Orders
+- **account.move** - Invoices
+
+Odoo Field Types:
+- Char, Text, Boolean, Integer, Float, Date, Datetime, Selection
+- Many2one returns [id, name] tuple
+
+Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 
 ---
 
@@ -34,16 +49,22 @@ The user has mandated a complete architectural rebuild of the application, trans
 ├── routes/
 │   ├── auth.py            # JWT authentication
 │   ├── data_lake.py       # Data Lake API endpoints
-│   └── integrations.py    # Integration management
-└── services/
-    ├── auth/
-    │   └── jwt_handler.py # Token management
-    ├── data_lake/
-    │   └── manager.py     # Three-zone operations
-    ├── odoo/
-    │   └── connector.py   # REST API connector (v16+)
-    └── ai_mapping/
-        └── mapper.py      # LLM-powered field mapping
+│   ├── integrations.py    # Integration management + Sync
+│   └── webhooks.py        # Real-time sync webhooks (stub)
+├── services/
+│   ├── auth/
+│   │   └── jwt_handler.py # Token management
+│   ├── data_lake/
+│   │   └── manager.py     # Three-zone operations
+│   ├── odoo/
+│   │   └── connector.py   # REST API connector (v16+)
+│   ├── sync/
+│   │   ├── service.py     # Sync service with custom mapping support
+│   │   └── scheduler.py   # Scheduled sync (stub)
+│   └── ai_mapping/
+│       └── mapper.py      # LLM-powered field mapping
+└── tests/
+    └── test_sync_modal_api.py  # API tests
 ```
 
 ### Frontend Structure
@@ -57,7 +78,8 @@ The user has mandated a complete architectural rebuild of the application, trans
 ├── pages/
 │   ├── Login.js           # Authentication
 │   ├── Dashboard.js       # Data Lake health + Integrations
-│   ├── Integrations.js    # Integration management
+│   ├── Integrations.js    # Integration management + Sync Modal
+│   ├── FieldMapping.js    # AI Field Mapping UI
 │   └── DataLake.js        # Data exploration
 └── components/
     ├── Layout.js          # Sidebar navigation
@@ -100,34 +122,41 @@ The user has mandated a complete architectural rebuild of the application, trans
 - [x] Save/Load mapping configurations
 - [x] Help dialog explaining field mapping concepts
 
+### Phase 2.1: Multi-Entity Sync Modal ✅ (Jan 12, 2026)
+- [x] **Sync Modal UI** - Select specific Odoo objects to sync (Accounts, Contacts, Opportunities, Orders, Invoices)
+- [x] **Entity Selection Toggles** - Interactive checkboxes with visual feedback
+- [x] **Dynamic Button Count** - "Start Sync (N)" shows selected entity count
+- [x] **Backend Entity Types** - Sync endpoint accepts entity_types in request body
+- [x] **Custom Field Mapping Integration** - Sync service loads and uses saved field mappings
+- [x] **_apply_custom_mappings()** - Transforms records using user-defined mappings with transforms
+
 ---
 
 ## Upcoming Phases
 
-### Phase 2: Odoo Sync Pipeline 🔜
-- [ ] Complete ETL pipeline implementation
+### Phase 3: Real-Time Sync 🔜
+- [ ] Implement Odoo webhooks in `/api/webhooks/odoo/{tenant_id}`
+- [ ] Scheduled polling via `/backend/services/sync/scheduler.py`
+- [ ] UI options for sync method (Manual, Webhook, Scheduled)
 - [ ] Incremental sync with `write_date` tracking
-- [ ] Field mapping persistence
-- [ ] Sync job queue and status tracking
-- [ ] Data validation rules
 
-### Phase 3: AI Field Mapping
-- [ ] GPT-5.2 integration for intelligent mapping
-- [ ] Confidence scoring UI
-- [ ] Human approval workflow
+### Phase 4: GPT-5.2 AI Mapping
+- [ ] Integrate GPT-5.2 via `integration_playbook_expert_v2`
+- [ ] BYOK (Bring Your Own Key) functionality
+- [ ] Improved confidence scoring
 - [ ] Learning from confirmed mappings
 
-### Phase 4: Dashboard & Serving Layer
+### Phase 5: Dashboard & Serving Layer
 - [ ] Aggregate accounts/opportunities to Serving Zone
 - [ ] Sales dashboard from gold zone
 - [ ] Role-based data visibility (RBAC)
 
-### Phase 5: Additional Integrations
+### Phase 6: Additional Integrations
 - [ ] Salesforce connector
 - [ ] Microsoft 365 / Azure AD SSO
 - [ ] HubSpot connector
 
-### Phase 6: Production Hardening
+### Phase 7: Production Hardening
 - [ ] Celery/Redis background workers
 - [ ] Comprehensive E2E testing
 - [ ] Monitoring and logging
@@ -154,8 +183,16 @@ The user has mandated a complete architectural rebuild of the application, trans
 - `POST /api/integrations/odoo/configure` - Configure Odoo
 - `POST /api/integrations/odoo/test` - Test connection
 - `GET /api/integrations/odoo/fields/{model}` - Get Odoo model fields
+
+### Field Mappings
+- `GET /api/integrations/mappings/{type}/{entity}` - Get saved mappings
+- `POST /api/integrations/mappings/{type}` - Save field mappings
 - `POST /api/integrations/mappings/{type}/auto-map` - AI auto-mapping
-- `POST /api/integrations/sync/{type}` - Trigger sync
+
+### Sync
+- `POST /api/integrations/sync/{type}` - Trigger sync with entity_types body
+- `GET /api/integrations/sync/status` - Get recent sync jobs
+- `GET /api/integrations/sync/{job_id}` - Get sync job details
 
 ---
 
