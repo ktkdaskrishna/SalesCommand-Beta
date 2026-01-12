@@ -258,6 +258,16 @@ A unified frontend component for managing all integrations with the same structu
 
 ## Completed Work
 
+### January 12, 2026 - Field Mapping UI Redesign
+- ✅ **Complete UI Overhaul:** Replaced confusing three-panel layout with intuitive table-based interface
+- ✅ **Entity Selection Cards:** Three clickable cards (Contacts & Companies, Opportunities, Activities) showing field counts and sync status
+- ✅ **Clean Table View:** Columns for Enable toggle, Odoo Field → Local Field, Type, Transform, Flags (KEY/REQ), Actions
+- ✅ **Interactive Toggles:** Green/gray toggle switches to enable/disable individual field mappings
+- ✅ **Add Field Modal:** Clean form with Odoo Field Name, Type, Local Field Name, Type, Transform, and Required/Key checkboxes
+- ✅ **Save Functionality:** Backend persistence with success toast notification
+- ✅ **AI Auto-Map Button:** Retained from previous version
+- ✅ **All 10 E2E tests passed** (iteration_9.json)
+
 ### January 11, 2026 - AI Field Mapping & UI Improvements
 - ✅ **AI Auto-Map Feature with Confirmation Modal:**
   - Added `AiMappingConfirmModal` component for user confirmation before applying AI suggestions
