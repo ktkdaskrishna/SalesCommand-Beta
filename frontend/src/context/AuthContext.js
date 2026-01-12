@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    loginWithToken,
     logout,
     isAuthenticated: !!user,
     isAdmin,
