@@ -69,6 +69,10 @@ export const integrationsAPI = {
   testOdoo: (config) => api.post('/integrations/odoo/test', config),
   getOdooFields: (model) => api.get(`/integrations/odoo/fields/${model}`),
   
+  // Microsoft 365
+  configureO365: (config) => api.post('/integrations/ms365/configure', config),
+  testO365: (config) => api.post('/integrations/ms365/test', config),
+  
   // Field Mappings
   getMappings: (integrationType, entityType) => 
     api.get(`/integrations/mappings/${integrationType}/${entityType}`),
