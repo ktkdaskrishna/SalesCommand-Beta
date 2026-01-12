@@ -320,6 +320,66 @@ class SyncService:
         
         return record
     
+    def _apply_custom_mappings(
+        self,
+        record: Dict[str, Any],
+        mappings: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Apply custom field mappings to transform a source record to canonical schema.
+        
+        Each mapping has:
+        - source_field: The field name in the source record (Odoo)
+        - target_field: The field name in the canonical schema
+        - transform: Optional transformation function name
+        """
+        result = {}
+        
+        for mapping in mappings:
+            source_field = mapping.get("source_field")
+            target_field = mapping.get("target_field")
+            transform = mapping.get("transform")
+            
+            if not source_field or not target_field:
+                continue
+            
+            # Get the source value
+            source_value = record.get(source_field)
+            
+            # Apply transformation if specified
+            if transform == "extract_id":
+                source_value = self._extract_id(source_value)
+            elif transform == "extract_name":
+                source_value = self._extract_name(source_value)
+            elif transform == "to_string":
+                source_value = str(source_value) if source_value is not None else ""
+            elif transform == "to_float":
+                try:
+                    source_value = float(source_value) if source_value else 0.0
+                except (ValueError, TypeError):
+                    source_value = 0.0
+            elif transform == "to_int":
+                try:
+                    source_value = int(source_value) if source_value else 0
+                except (ValueError, TypeError):
+                    source_value = 0
+            elif transform == "boolean":
+                source_value = bool(source_value)
+            
+            # Handle None/empty values
+            if source_value is None:
+                source_value = ""
+            
+            result[target_field] = source_value
+        
+        # Always include tracking dates if available
+        if "create_date" in record:
+            result["created_date"] = record["create_date"]
+        if "write_date" in record:
+            result["modified_date"] = record["write_date"]
+        
+        return result
+    
     def _extract_id(self, field) -> Optional[str]:
         """Extract ID from Odoo many2one field"""
         if isinstance(field, (list, tuple)) and len(field) >= 1:
