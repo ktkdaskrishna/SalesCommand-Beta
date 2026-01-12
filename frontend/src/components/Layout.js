@@ -13,20 +13,19 @@ import {
   LogOut,
   Bell,
   ChevronDown,
-  ChevronRight,
   Menu,
   X,
   Sparkles,
   Users,
   Shield,
-  Database,
+  Plug,
   Search,
   Command,
 } from "lucide-react";
 
-// NavLink component - defined outside Sidebar
+// NavLink component
 const NavLink = ({ item, pathname, onClick, className = "" }) => {
-  const isActive = pathname === item.path;
+  const isActive = pathname === item.path || (item.path !== "/dashboard" && pathname.startsWith(item.path));
   return (
     <Link
       to={item.path}
@@ -49,7 +48,6 @@ const NavLink = ({ item, pathname, onClick, className = "" }) => {
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { user, isExecutive } = useAuth();
-  const [integrationsOpen, setIntegrationsOpen] = useState(true);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -60,11 +58,13 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Gift, label: "Incentives", path: "/incentives" },
   ];
 
-  const integrationItems = [
-    { label: "Odoo ERP", path: "/integrations/odoo" },
-    { label: "Salesforce", path: "/integrations/salesforce" },
-    { label: "HubSpot", path: "/integrations/hubspot" },
-    { label: "Microsoft 365", path: "/integrations/ms365" },
+  const adminItems = [
+    { icon: Users, label: "Users", path: "/users" },
+    { icon: Plug, label: "Integrations", path: "/integrations" },
+  ];
+
+  const superAdminItems = [
+    { icon: Shield, label: "System Config", path: "/admin/config" },
   ];
 
   return (
@@ -137,56 +137,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                   Administration
                 </span>
               </div>
-              <NavLink 
-                item={{ icon: Users, label: "Users", path: "/users" }} 
-                pathname={location.pathname}
-                onClick={onClose}
-              />
-              
-              {/* Integrations Collapsible */}
-              <div className="mt-1">
-                <button
-                  onClick={() => setIntegrationsOpen(!integrationsOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all duration-150"
-                >
-                  <div className="flex items-center gap-3">
-                    <Database className="w-5 h-5" />
-                    <span>Integrations</span>
-                  </div>
-                  <ChevronRight className={cn(
-                    "w-4 h-4 transition-transform duration-200",
-                    integrationsOpen && "rotate-90"
-                  )} />
-                </button>
-                
-                {integrationsOpen && (
-                  <div className="ml-4 mt-1 space-y-0.5 border-l border-slate-800 pl-4">
-                    {integrationItems.map((item) => {
-                      const isActive = location.pathname === item.path;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={onClose}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-150",
-                            isActive
-                              ? "text-white bg-white/10"
-                              : "text-slate-500 hover:text-slate-300"
-                          )}
-                          data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                        >
-                          <span className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            isActive ? "bg-indigo-400" : "bg-slate-600"
-                          )} />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {adminItems.map((item) => (
+                <NavLink 
+                  key={item.path}
+                  item={item} 
+                  pathname={location.pathname}
+                  onClick={onClose}
+                />
+              ))}
             </>
           )}
 
@@ -197,11 +155,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                   System
                 </span>
               </div>
-              <NavLink 
-                item={{ icon: Shield, label: "System Config", path: "/admin/config" }} 
-                pathname={location.pathname}
-                onClick={onClose}
-              />
+              {superAdminItems.map((item) => (
+                <NavLink 
+                  key={item.path}
+                  item={item} 
+                  pathname={location.pathname}
+                  onClick={onClose}
+                />
+              ))}
             </>
           )}
         </nav>
@@ -239,7 +200,6 @@ const Header = ({ onMenuClick }) => {
     navigate("/login");
   };
 
-  // Get page title based on current path
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === "/dashboard") return "Dashboard";
@@ -249,7 +209,7 @@ const Header = ({ onMenuClick }) => {
     if (path === "/kpis") return "KPIs";
     if (path === "/incentives") return "Incentives";
     if (path === "/users") return "Users";
-    if (path.includes("/integrations")) return "Integrations";
+    if (path.startsWith("/integrations")) return "Integrations";
     if (path === "/admin/config") return "System Configuration";
     return "Dashboard";
   };
@@ -264,15 +224,12 @@ const Header = ({ onMenuClick }) => {
         >
           <Menu className="w-5 h-5 text-slate-600" />
         </button>
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">
-            {getPageTitle()}
-          </h1>
-        </div>
+        <h1 className="text-lg font-semibold text-slate-900">
+          {getPageTitle()}
+        </h1>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* AI Insights */}
         <Link
           to="/insights"
           className="p-2.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
@@ -282,7 +239,6 @@ const Header = ({ onMenuClick }) => {
           <Sparkles className="w-5 h-5" />
         </Link>
 
-        {/* Notifications */}
         <button
           className="p-2.5 hover:bg-slate-100 rounded-lg relative transition-colors"
           data-testid="notifications-btn"
@@ -292,10 +248,8 @@ const Header = ({ onMenuClick }) => {
           <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
         </button>
 
-        {/* Divider */}
         <div className="w-px h-8 bg-slate-200 mx-2" />
 
-        {/* User dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
