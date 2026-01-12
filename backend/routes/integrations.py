@@ -32,6 +32,12 @@ class OdooConfigRequest(BaseModel):
     enabled_entities: List[EntityType] = [EntityType.ACCOUNT, EntityType.OPPORTUNITY]
 
 
+class O365ConfigRequest(BaseModel):
+    client_id: str
+    tenant_id: str
+    client_secret: str
+
+
 class IntegrationResponse(BaseModel):
     id: str
     integration_type: str
