@@ -27,6 +27,30 @@ class SyncService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.data_lake = DataLakeManager(db)
+        self._field_mappings_cache: Dict[str, Dict[str, Any]] = {}
+    
+    async def _load_field_mappings(self, integration_type: str, entity_type: EntityType) -> Optional[List[Dict[str, Any]]]:
+        """
+        Load custom field mappings from database for a specific entity type.
+        Returns None if no custom mappings exist.
+        """
+        cache_key = f"{integration_type}:{entity_type.value}"
+        
+        if cache_key in self._field_mappings_cache:
+            return self._field_mappings_cache[cache_key]
+        
+        mapping = await self.db.field_mappings.find_one({
+            "integration_type": integration_type,
+            "entity_type": entity_type.value,
+            "is_active": True
+        }, {"_id": 0})
+        
+        if mapping and mapping.get("mappings"):
+            self._field_mappings_cache[cache_key] = mapping["mappings"]
+            logger.info(f"Loaded {len(mapping['mappings'])} custom mappings for {entity_type.value}")
+            return mapping["mappings"]
+        
+        return None
     
     async def run_odoo_sync(
         self,
@@ -43,6 +67,9 @@ class SyncService:
             "failed_records": 0,
             "entities": {}
         }
+        
+        # Clear mappings cache at start of each sync
+        self._field_mappings_cache = {}
         
         try:
             async with OdooConnector(
