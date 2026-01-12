@@ -29,6 +29,12 @@ async def lifespan(app: FastAPI):
         await Database.connect(settings.MONGO_URL, settings.DB_NAME)
         logger.info("Database connected successfully")
         
+        # Initialize RBAC system (roles, permissions, departments)
+        from services.rbac.service import RBACService
+        rbac = RBACService(Database.get_db())
+        await rbac.initialize()
+        logger.info("RBAC system initialized")
+        
         # Seed demo data if needed
         await seed_demo_data()
         
