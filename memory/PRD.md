@@ -130,6 +130,15 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - [x] **Custom Field Mapping Integration** - Sync service loads and uses saved field mappings
 - [x] **_apply_custom_mappings()** - Transforms records using user-defined mappings with transforms
 
+### Phase 2.2: Microsoft 365 SSO Integration ✅ (Jan 12, 2026)
+- [x] **MSAL Library Integration** - Frontend uses @azure/msal-browser for proper SPA OAuth flow
+- [x] **Microsoft SSO Button** - "Sign in with Microsoft" on login page
+- [x] **Backend Config Endpoint** - GET /api/auth/microsoft/config returns client_id and tenant_id
+- [x] **Backend Complete Endpoint** - POST /api/auth/microsoft/complete validates tokens via Microsoft Graph API
+- [x] **User Creation/Update** - SSO users are created or updated in the database with ms_id
+- [x] **Popup/Redirect Fallback** - MSAL popup with fallback to redirect if blocked
+- [x] **Error Handling** - Proper handling for user cancellation and popup blocked scenarios
+
 ---
 
 ## Upcoming Phases
@@ -152,8 +161,9 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - [ ] Role-based data visibility (RBAC)
 
 ### Phase 6: Additional Integrations
+- [x] **Microsoft 365 SSO** - MSAL-based authentication (COMPLETED)
+- [ ] Microsoft 365 Data Sync - Emails, Calendar, Contacts via Graph API
 - [ ] Salesforce connector
-- [ ] Microsoft 365 / Azure AD SSO
 - [ ] HubSpot connector
 
 ### Phase 7: Production Hardening
@@ -171,6 +181,8 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - `POST /api/auth/login` - Login & get token
 - `GET /api/auth/me` - Current user info
 - `GET /api/auth/users` - List users (admin)
+- `GET /api/auth/microsoft/config` - Get Microsoft OAuth config for frontend MSAL
+- `POST /api/auth/microsoft/complete` - Complete Microsoft SSO (validates token via Graph API)
 
 ### Data Lake
 - `GET /api/data-lake/health` - Zone health stats
