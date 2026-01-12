@@ -3,9 +3,12 @@ Auth Routes
 Authentication endpoints for the API
 """
 from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime, timezone
 import uuid
+import aiohttp
+import os
 
 from models.base import (
     UserCreate, UserLogin, UserResponse, TokenResponse, UserRole
@@ -17,6 +20,11 @@ from services.auth.jwt_handler import (
 from core.database import Database
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+class MicrosoftCallbackRequest(BaseModel):
+    code: str
+    redirect_uri: str
 
 
 @router.post("/register", response_model=TokenResponse)
