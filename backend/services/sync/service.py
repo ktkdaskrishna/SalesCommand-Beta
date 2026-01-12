@@ -108,12 +108,12 @@ class SyncService:
         self,
         job_id: str,
         config: Dict[str, Any],
-        entity_types: List[EntityType]
+        entity_types: List[EntityType],
+        user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Run Microsoft 365 sync job.
-        Note: Full MS365 sync requires user OAuth tokens, not just app credentials.
-        This is a placeholder that will be expanded with Graph API calls.
+        Run Microsoft 365 sync job using Microsoft Graph API.
+        Requires user's MS365 access token stored from SSO login.
         """
         results = {
             "total_records": 0,
@@ -124,28 +124,219 @@ class SyncService:
         
         logger.info(f"Starting MS365 sync for entities: {[e.value for e in entity_types]}")
         
-        for entity_type in entity_types:
-            try:
-                # MS365 sync requires user-delegated permissions
-                # For now, log a message indicating this feature needs user SSO
-                logger.info(f"MS365 sync for {entity_type.value} - requires user OAuth tokens")
-                
+        # Get user's MS365 access token
+        access_token = None
+        if user_id:
+            user = await self.db.users.find_one({"id": user_id}, {"ms_access_token": 1})
+            if user:
+                access_token = user.get("ms_access_token")
+        
+        if not access_token:
+            # Try to get from the most recently logged in MS365 user
+            ms_user = await self.db.users.find_one(
+                {"ms_access_token": {"$exists": True, "$ne": ""}},
+                {"ms_access_token": 1},
+                sort=[("last_login", -1)]
+            )
+            if ms_user:
+                access_token = ms_user.get("ms_access_token")
+        
+        if not access_token:
+            logger.warning("No MS365 access token available. User must login with Microsoft SSO first.")
+            for entity_type in entity_types:
                 results["entities"][entity_type.value] = {
                     "total": 0,
                     "processed": 0,
                     "failed": 0,
-                    "message": "MS365 sync requires user to be logged in with Microsoft SSO"
+                    "error": "No MS365 access token. Please login with Microsoft SSO first."
                 }
-            except Exception as e:
-                logger.error(f"Failed to sync MS365 {entity_type.value}: {e}")
-                results["entities"][entity_type.value] = {
-                    "error": str(e),
-                    "total": 0,
-                    "processed": 0,
-                    "failed": 0
-                }
+            return results
+        
+        try:
+            async with MS365Connector(access_token) as connector:
+                for entity_type in entity_types:
+                    try:
+                        entity_result = await self._sync_ms365_entity(
+                            connector, job_id, entity_type
+                        )
+                        results["entities"][entity_type.value] = entity_result
+                        results["total_records"] += entity_result["total"]
+                        results["processed_records"] += entity_result["processed"]
+                        results["failed_records"] += entity_result["failed"]
+                    except Exception as e:
+                        logger.error(f"Failed to sync MS365 {entity_type.value}: {e}")
+                        results["entities"][entity_type.value] = {
+                            "error": str(e),
+                            "total": 0,
+                            "processed": 0,
+                            "failed": 0
+                        }
+        except Exception as e:
+            logger.error(f"MS365 connector error: {e}")
+            for entity_type in entity_types:
+                if entity_type.value not in results["entities"]:
+                    results["entities"][entity_type.value] = {
+                        "error": str(e),
+                        "total": 0,
+                        "processed": 0,
+                        "failed": 0
+                    }
         
         return results
+    
+    async def _sync_ms365_entity(
+        self,
+        connector: MS365Connector,
+        job_id: str,
+        entity_type: EntityType
+    ) -> Dict[str, Any]:
+        """
+        Sync a single entity type from MS365
+        """
+        result = {"total": 0, "processed": 0, "failed": 0}
+        
+        try:
+            # Fetch data based on entity type
+            if entity_type == EntityType.EMAIL:
+                records = await connector.get_emails(top=100)
+            elif entity_type == EntityType.CALENDAR:
+                records = await connector.get_calendar_events(top=100)
+            elif entity_type == EntityType.OUTLOOK_CONTACT:
+                records = await connector.get_contacts(top=200)
+            elif entity_type == EntityType.ONEDRIVE:
+                records = await connector.get_files(top=100)
+            else:
+                logger.warning(f"Unsupported MS365 entity type: {entity_type}")
+                return result
+            
+            result["total"] = len(records)
+            
+            # Process each record through the data lake
+            for record in records:
+                try:
+                    # Add metadata
+                    record["_sync_job_id"] = job_id
+                    record["_synced_at"] = datetime.now(timezone.utc).isoformat()
+                    
+                    # Ingest to Raw zone
+                    raw_id = await self.data_lake.ingest_raw(
+                        source="ms365",
+                        source_id=record.get("source_id", str(uuid.uuid4())),
+                        entity_type=entity_type,
+                        data=record
+                    )
+                    
+                    # Normalize and move to Canonical zone
+                    canonical_data = self._normalize_ms365_record(record, entity_type)
+                    canonical_id = await self.data_lake.ingest_canonical(
+                        source="ms365",
+                        source_id=record.get("source_id", str(uuid.uuid4())),
+                        entity_type=entity_type,
+                        data=canonical_data
+                    )
+                    
+                    result["processed"] += 1
+                    
+                except Exception as e:
+                    logger.error(f"Failed to process MS365 record: {e}")
+                    result["failed"] += 1
+            
+            logger.info(f"MS365 {entity_type.value} sync: {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error syncing MS365 {entity_type.value}: {e}")
+            result["failed"] = result["total"]
+            raise
+    
+    def _normalize_ms365_record(self, record: Dict[str, Any], entity_type: EntityType) -> Dict[str, Any]:
+        """
+        Normalize MS365 record to canonical schema
+        """
+        now = datetime.now(timezone.utc)
+        
+        if entity_type == EntityType.EMAIL:
+            return {
+                "id": record.get("source_id"),
+                "subject": record.get("subject", ""),
+                "from_email": record.get("from_email", ""),
+                "from_name": record.get("from_name", ""),
+                "to_recipients": record.get("to_recipients", []),
+                "cc_recipients": record.get("cc_recipients", []),
+                "received_at": record.get("received_at"),
+                "sent_at": record.get("sent_at"),
+                "body_preview": record.get("body_preview", ""),
+                "has_attachments": record.get("has_attachments", False),
+                "importance": record.get("importance", "normal"),
+                "is_read": record.get("is_read", False),
+                "web_link": record.get("web_link", ""),
+                "source": "ms365",
+                "entity_type": "email",
+                "synced_at": now.isoformat()
+            }
+        
+        elif entity_type == EntityType.CALENDAR:
+            return {
+                "id": record.get("source_id"),
+                "subject": record.get("subject", ""),
+                "organizer_email": record.get("organizer_email", ""),
+                "organizer_name": record.get("organizer_name", ""),
+                "attendees": record.get("attendees", []),
+                "start_time": record.get("start_time"),
+                "end_time": record.get("end_time"),
+                "location": record.get("location", ""),
+                "body_preview": record.get("body_preview", ""),
+                "is_all_day": record.get("is_all_day", False),
+                "is_cancelled": record.get("is_cancelled", False),
+                "web_link": record.get("web_link", ""),
+                "online_meeting_url": record.get("online_meeting_url", ""),
+                "source": "ms365",
+                "entity_type": "calendar",
+                "synced_at": now.isoformat()
+            }
+        
+        elif entity_type == EntityType.OUTLOOK_CONTACT:
+            return {
+                "id": record.get("source_id"),
+                "display_name": record.get("display_name", ""),
+                "first_name": record.get("first_name", ""),
+                "last_name": record.get("last_name", ""),
+                "email": record.get("email", ""),
+                "all_emails": record.get("all_emails", []),
+                "business_phones": record.get("business_phones", []),
+                "mobile_phone": record.get("mobile_phone", ""),
+                "company": record.get("company", ""),
+                "job_title": record.get("job_title", ""),
+                "department": record.get("department", ""),
+                "source": "ms365",
+                "entity_type": "outlook_contact",
+                "synced_at": now.isoformat()
+            }
+        
+        elif entity_type == EntityType.ONEDRIVE:
+            return {
+                "id": record.get("source_id"),
+                "name": record.get("name", ""),
+                "size": record.get("size", 0),
+                "created_at": record.get("created_at"),
+                "modified_at": record.get("modified_at"),
+                "web_url": record.get("web_url", ""),
+                "is_folder": record.get("is_folder", False),
+                "mime_type": record.get("mime_type", ""),
+                "created_by": record.get("created_by", ""),
+                "modified_by": record.get("modified_by", ""),
+                "source": "ms365",
+                "entity_type": "onedrive",
+                "synced_at": now.isoformat()
+            }
+        
+        # Default: return record as-is with metadata
+        return {
+            **record,
+            "source": "ms365",
+            "entity_type": entity_type.value,
+            "synced_at": now.isoformat()
+        }
     
     async def _sync_entity(
         self,
