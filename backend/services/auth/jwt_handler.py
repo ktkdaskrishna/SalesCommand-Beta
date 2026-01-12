@@ -12,8 +12,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.config import settings
 from models.base import UserRole
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - support both bcrypt and sha256_crypt for backward compatibility
+pwd_context = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
 
 # Security bearer
 security = HTTPBearer()
