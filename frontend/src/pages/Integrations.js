@@ -3,6 +3,7 @@
  * Manage all ERP integrations (Odoo, Salesforce, etc.)
  */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { integrationsAPI } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,6 +20,9 @@ import {
   Wand2,
   Save,
   ChevronRight,
+  Webhook,
+  Clock,
+  Database,
 } from 'lucide-react';
 import {
   Dialog,
@@ -28,13 +32,29 @@ import {
   DialogDescription,
 } from '../components/ui/dialog';
 
+// Entity types available for sync
+const ENTITY_TYPES = [
+  { id: 'account', label: 'Accounts', description: 'Companies/Organizations' },
+  { id: 'contact', label: 'Contacts', description: 'People/Individuals' },
+  { id: 'opportunity', label: 'Opportunities', description: 'CRM Leads/Deals' },
+  { id: 'order', label: 'Orders', description: 'Sales Orders' },
+  { id: 'invoice', label: 'Invoices', description: 'Customer Invoices' },
+];
+
 const Integrations = () => {
+  const navigate = useNavigate();
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [configModal, setConfigModal] = useState(false);
+  const [syncModal, setSyncModal] = useState(false);
+  const [webhookModal, setWebhookModal] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  
+  // Selected entities for sync
+  const [selectedEntities, setSelectedEntities] = useState(['account', 'opportunity']);
 
   // Odoo config form
   const [odooConfig, setOdooConfig] = useState({
