@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { seedAPI } from "../services/api";
-import { Target, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Target, Eye, EyeOff, Loader2, ArrowRight, Sparkles } from "lucide-react";
+import { cn } from "../lib/utils";
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -42,197 +43,253 @@ const Login = () => {
     try {
       await seedAPI.seed();
       setError("");
-      alert("Demo data seeded! You can now login with:\n\nCEO: ceo@salescommand.com\nAccount Manager: am1@salescommand.com\nPassword: demo123");
+      alert("Demo data seeded! You can now login with:\n\nSuper Admin: superadmin@salescommand.com\nAccount Manager: am1@salescommand.com\nPassword: demo123");
     } catch (err) {
       if (err.response?.data?.message === "Data already exists") {
-        alert("Demo data already exists. Login with:\n\nCEO: ceo@salescommand.com\nAccount Manager: am1@salescommand.com\nPassword: demo123");
+        alert("Demo data already exists. Login with:\n\nSuper Admin: superadmin@salescommand.com\nAccount Manager: am1@salescommand.com\nPassword: demo123");
       }
     } finally {
       setSeeding(false);
     }
   };
 
+  const handleQuickLogin = (demoEmail) => {
+    setEmail(demoEmail);
+    setPassword("demo123");
+  };
+
   const demoAccounts = [
-    { email: "superadmin@salescommand.com", role: "Super Admin" },
-    { email: "ceo@salescommand.com", role: "CEO" },
-    { email: "sales.director@salescommand.com", role: "Sales Director" },
-    { email: "am1@salescommand.com", role: "Account Manager" },
-    { email: "finance@salescommand.com", role: "Finance Manager" },
-    { email: "referrer@salescommand.com", role: "Referrer" },
+    { email: "superadmin@salescommand.com", role: "Super Admin", color: "indigo" },
+    { email: "ceo@salescommand.com", role: "CEO", color: "purple" },
+    { email: "am1@salescommand.com", role: "Account Manager", color: "blue" },
   ];
 
   return (
-    <div className="min-h-screen login-bg flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center">
-            <Target className="w-7 h-7 text-white" />
-          </div>
-          <span className="font-bold text-2xl text-white drop-shadow-lg">
-            SalesCommand
-          </span>
+    <div className="min-h-screen flex">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500 rounded-full filter blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl" />
         </div>
-
-        {/* Login Card */}
-        <div className="login-card rounded-2xl p-8 shadow-2xl" data-testid="login-card">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            {isLogin ? "Welcome back" : "Create account"}
-          </h1>
-          <p className="text-slate-600 mb-6">
-            {isLogin
-              ? "Sign in to access your dashboard"
-              : "Register for a new account"}
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" data-testid="error-message">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input"
-                  placeholder="John Doe"
-                  required={!isLogin}
-                  data-testid="name-input"
-                />
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
+          <div>
+            <div className="flex items-center gap-3 mb-16">
+              <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Target className="w-6 h-6 text-white" />
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
-                placeholder="you@company.com"
-                required
-                data-testid="email-input"
-              />
+              <span className="font-bold text-xl tracking-tight">SalesCommand</span>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input pr-10"
-                  placeholder="••••••••"
-                  required
-                  data-testid="password-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            
+            <h1 className="text-4xl font-bold leading-tight mb-4">
+              Your Sales Intelligence<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                Command Center
+              </span>
+            </h1>
+            <p className="text-slate-400 text-lg max-w-md">
+              Connect your CRM, sync your data, and unlock powerful insights to close more deals.
+            </p>
+          </div>
+          
+          {/* Features */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-slate-300">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
               </div>
+              <span className="text-sm">AI-powered field mapping</span>
             </div>
-
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Role
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="input"
-                  data-testid="role-select"
-                >
-                  <option value="account_manager">Account Manager</option>
-                  <option value="product_director">Product Director</option>
-                  <option value="strategy">Strategy Team</option>
-                </select>
+            <div className="flex items-center gap-3 text-slate-300">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                <Target className="w-4 h-4" />
               </div>
-            )}
+              <span className="text-sm">Real-time pipeline tracking</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary h-11 flex items-center justify-center"
-              data-testid="submit-btn"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : isLogin ? (
-                "Sign in"
-              ) : (
-                "Create account"
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError("");
-              }}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              data-testid="toggle-auth-mode"
-            >
-              {isLogin
-                ? "Don't have an account? Register"
-                : "Already have an account? Sign in"}
-            </button>
+      {/* Right Side - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+            <div className="w-11 h-11 bg-slate-900 rounded-xl flex items-center justify-center">
+              <Target className="w-6 h-6 text-white" />
+            </div>
+            <span className="font-bold text-xl text-slate-900">SalesCommand</span>
           </div>
 
-          {/* Demo accounts section */}
-          <div className="mt-8 pt-6 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-slate-700">Demo Accounts</p>
+          {/* Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8" data-testid="login-card">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {isLogin ? "Sign in" : "Create account"}
+              </h2>
+              <p className="text-slate-500 mt-1">
+                {isLogin
+                  ? "Welcome back! Enter your credentials."
+                  : "Get started with your free account."}
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" data-testid="error-message">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="input"
+                    placeholder="John Doe"
+                    required={!isLogin}
+                    data-testid="name-input"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input"
+                  placeholder="you@company.com"
+                  required
+                  data-testid="email-input"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input pr-10"
+                    placeholder="••••••••"
+                    required
+                    data-testid="password-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Role
+                  </label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="input"
+                    data-testid="role-select"
+                  >
+                    <option value="account_manager">Account Manager</option>
+                    <option value="sales_director">Sales Director</option>
+                    <option value="ceo">CEO</option>
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary h-11 text-base"
+                data-testid="submit-button"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    {isLogin ? "Sign in" : "Create account"}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError("");
+                }}
+                className="text-sm text-slate-600 hover:text-slate-900"
+              >
+                {isLogin ? (
+                  <>Don&apos;t have an account? <span className="font-medium text-indigo-600">Sign up</span></>
+                ) : (
+                  <>Already have an account? <span className="font-medium text-indigo-600">Sign in</span></>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Access */}
+          {isLogin && (
+            <div className="mt-6">
+              <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+                Quick Access
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {demoAccounts.map((account) => (
+                  <button
+                    key={account.email}
+                    onClick={() => handleQuickLogin(account.email)}
+                    className={cn(
+                      "p-3 rounded-xl text-center transition-all hover:scale-105",
+                      "bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md"
+                    )}
+                  >
+                    <p className="text-xs font-semibold text-slate-900">{account.role}</p>
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={handleSeedData}
                 disabled={seeding}
-                className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full text-slate-700 font-medium transition-colors"
-                data-testid="seed-data-btn"
+                className="w-full mt-3 btn-ghost text-sm"
               >
-                {seeding ? "Seeding..." : "Seed Demo Data"}
+                {seeding ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Seed Demo Data"
+                )}
               </button>
             </div>
-            <div className="space-y-2">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  onClick={() => {
-                    setEmail(acc.email);
-                    setPassword("demo123");
-                    setIsLogin(true);
-                  }}
-                  className="w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors group"
-                  data-testid={`demo-account-${acc.role.toLowerCase().replace(/[^a-z]/g, "-")}`}
-                >
-                  <p className="text-sm font-medium text-slate-800 group-hover:text-blue-600">
-                    {acc.role}
-                  </p>
-                  <p className="text-xs text-slate-500">{acc.email}</p>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500 mt-3 text-center">
-              Password for all demo accounts: <span className="font-mono">demo123</span>
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>
