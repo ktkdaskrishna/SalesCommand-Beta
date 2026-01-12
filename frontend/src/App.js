@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Integrations from './pages/Integrations';
 import DataLake from './pages/DataLake';
 import FieldMapping from './pages/FieldMapping';
+import AdminPanel from './pages/AdminPanel';
 
 // Components
 import Layout from './components/Layout';
@@ -83,6 +84,7 @@ function AppRoutes() {
         <Route path="integrations/:type" element={<Integrations />} />
         <Route path="field-mapping" element={<FieldMapping />} />
         <Route path="data-lake" element={<DataLake />} />
+        <Route path="admin" element={<AdminPanel />} />
       </Route>
 
       {/* Fallback */}
