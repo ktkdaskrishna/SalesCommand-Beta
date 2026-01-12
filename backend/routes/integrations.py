@@ -370,7 +370,7 @@ async def auto_map_fields(
 async def trigger_sync(
     integration_type: IntegrationType,
     background_tasks: BackgroundTasks,
-    entity_types: Optional[List[EntityType]] = None,
+    request: Optional[SyncRequest] = None,
     token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
 ):
     """Trigger a sync job for an integration"""
@@ -386,6 +386,9 @@ async def trigger_sync(
     if not intg.get("config") or not intg["config"].get("url"):
         raise HTTPException(status_code=400, detail=f"{integration_type.value} not configured")
     
+    # Get entity types from request body or use defaults
+    entity_types = request.entity_types if request and request.entity_types else [EntityType.ACCOUNT, EntityType.OPPORTUNITY]
+    
     # Create sync job
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -393,7 +396,7 @@ async def trigger_sync(
     job = SyncJob(
         id=job_id,
         integration_type=integration_type,
-        entity_types=entity_types or [EntityType.ACCOUNT, EntityType.OPPORTUNITY],
+        entity_types=entity_types,
         status=SyncStatus.PENDING,
         created_at=now,
         created_by=token_data["id"]
