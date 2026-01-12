@@ -479,22 +479,26 @@ const Integrations = () => {
         <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
-              <Database className="w-5 h-5 text-emerald-500" />
-              Select Entities to Sync
+              <Database className={`w-5 h-5 ${syncIntegrationType === 'ms365' ? 'text-cyan-500' : 'text-emerald-500'}`} />
+              {syncIntegrationType === 'ms365' ? 'Select O365 Data to Sync' : 'Select Entities to Sync'}
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Choose which Odoo objects to synchronize with your Data Lake
+              {syncIntegrationType === 'ms365' 
+                ? 'Choose which Microsoft 365 data to synchronize with your CRM'
+                : 'Choose which Odoo objects to synchronize with your Data Lake'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 mt-4">
-            {ENTITY_TYPES.map((entity) => (
+            {(syncIntegrationType === 'ms365' ? O365_ENTITY_TYPES : ODOO_ENTITY_TYPES).map((entity) => (
               <div
                 key={entity.id}
                 onClick={() => toggleEntity(entity.id)}
                 className={`p-3 rounded-lg border cursor-pointer transition-all ${
                   selectedEntities.includes(entity.id)
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    ? syncIntegrationType === 'ms365' 
+                      ? 'bg-cyan-500/10 border-cyan-500/30'
+                      : 'bg-emerald-500/10 border-emerald-500/30'
                     : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
                 }`}
                 data-testid={`entity-toggle-${entity.id}`}
@@ -502,7 +506,9 @@ const Integrations = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className={`font-medium ${
-                      selectedEntities.includes(entity.id) ? 'text-emerald-400' : 'text-white'
+                      selectedEntities.includes(entity.id) 
+                        ? syncIntegrationType === 'ms365' ? 'text-cyan-400' : 'text-emerald-400' 
+                        : 'text-white'
                     }`}>
                       {entity.label}
                     </p>
@@ -510,7 +516,9 @@ const Integrations = () => {
                   </div>
                   <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
                     selectedEntities.includes(entity.id)
-                      ? 'bg-emerald-500 border-emerald-500'
+                      ? syncIntegrationType === 'ms365' 
+                        ? 'bg-cyan-500 border-cyan-500'
+                        : 'bg-emerald-500 border-emerald-500'
                       : 'border-zinc-600'
                   }`}>
                     {selectedEntities.includes(entity.id) && (
@@ -521,6 +529,14 @@ const Integrations = () => {
               </div>
             ))}
           </div>
+
+          {syncIntegrationType === 'ms365' && (
+            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3 mt-4">
+              <p className="text-xs text-cyan-400">
+                Note: O365 sync requires user to be logged in with Microsoft SSO to access their data.
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-800">
             <Button
@@ -533,7 +549,11 @@ const Integrations = () => {
             <Button
               onClick={handleTriggerSync}
               disabled={syncing || selectedEntities.length === 0}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+              className={`flex-1 disabled:bg-zinc-700 disabled:text-zinc-500 ${
+                syncIntegrationType === 'ms365' 
+                  ? 'bg-cyan-600 hover:bg-cyan-500'
+                  : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
               data-testid="start-sync-btn"
             >
               {syncing ? (
