@@ -122,8 +122,9 @@ class DataLakeManager:
         source_id = raw_record["source_id"]
         entity_type = raw_record["entity_type"]
         
-        # Check for existing canonical record
+        # Check for existing canonical record - must match entity_type as well
         existing = await self.canonical_collection.find_one({
+            "entity_type": entity_type,
             "source_refs": {
                 "$elemMatch": {
                     "source": source,
@@ -156,8 +157,10 @@ class DataLakeManager:
             )
             record.canonical_id = existing["canonical_id"]
             record.first_seen = existing.get("first_seen", record.first_seen)
+            logger.info(f"Updated canonical record: {entity_type}/{source_id}")
         else:
             await self.canonical_collection.insert_one(record.model_dump())
+            logger.info(f"Inserted canonical record: {entity_type}/{source_id}")
         
         return record
     
