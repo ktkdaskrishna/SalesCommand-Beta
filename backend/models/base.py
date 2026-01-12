@@ -54,6 +54,7 @@ class SyncStatus(str, Enum):
 
 
 class EntityType(str, Enum):
+    # Odoo/CRM entities
     ACCOUNT = "account"
     CONTACT = "contact"
     OPPORTUNITY = "opportunity"
@@ -61,6 +62,11 @@ class EntityType(str, Enum):
     PRODUCT = "product"
     ORDER = "order"
     INVOICE = "invoice"
+    # Microsoft 365 entities
+    EMAIL = "email"
+    CALENDAR = "calendar"
+    OUTLOOK_CONTACT = "outlook_contact"
+    ONEDRIVE = "onedrive"
 
 
 # ===================== BASE MODELS =====================
