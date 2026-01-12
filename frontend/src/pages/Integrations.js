@@ -32,13 +32,21 @@ import {
   DialogDescription,
 } from '../components/ui/dialog';
 
-// Entity types available for sync
-const ENTITY_TYPES = [
+// Entity types available for Odoo sync
+const ODOO_ENTITY_TYPES = [
   { id: 'account', label: 'Accounts', description: 'Companies/Organizations' },
   { id: 'contact', label: 'Contacts', description: 'People/Individuals' },
   { id: 'opportunity', label: 'Opportunities', description: 'CRM Leads/Deals' },
   { id: 'order', label: 'Orders', description: 'Sales Orders' },
   { id: 'invoice', label: 'Invoices', description: 'Customer Invoices' },
+];
+
+// Entity types available for O365 sync
+const O365_ENTITY_TYPES = [
+  { id: 'email', label: 'Emails', description: 'Outlook inbox/sent emails' },
+  { id: 'calendar', label: 'Calendar Events', description: 'Meetings & appointments' },
+  { id: 'outlook_contact', label: 'Outlook Contacts', description: 'Address book contacts' },
+  { id: 'onedrive', label: 'OneDrive Files', description: 'Documents & attachments' },
 ];
 
 const Integrations = () => {
@@ -52,6 +60,7 @@ const Integrations = () => {
   const [testResult, setTestResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncIntegrationType, setSyncIntegrationType] = useState(null);
   
   // Selected entities for sync
   const [selectedEntities, setSelectedEntities] = useState(['account', 'opportunity']);
