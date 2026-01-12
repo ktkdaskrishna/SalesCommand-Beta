@@ -172,7 +172,13 @@ const Integrations = () => {
   };
 
   const handleOpenSyncModal = (integrationType) => {
-    setSelectedIntegration(integrationType);
+    setSyncIntegrationType(integrationType);
+    // Set default selected entities based on integration type
+    if (integrationType === 'odoo') {
+      setSelectedEntities(['account', 'opportunity']);
+    } else if (integrationType === 'ms365') {
+      setSelectedEntities(['email', 'calendar']);
+    }
     setSyncModal(true);
   };
 
