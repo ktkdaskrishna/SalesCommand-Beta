@@ -184,14 +184,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/integration-hub"
-        element={
-          <ProtectedRoute>
-            <IntegrationHub />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/integrations/odoo"
         element={
           <ProtectedRoute>
