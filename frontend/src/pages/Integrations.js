@@ -319,6 +319,16 @@ const Integrations = () => {
                       </Button>
                     </>
                   )}
+                  {integration.integration_type === 'ms365' && (
+                    <Button
+                      onClick={handleConfigureO365}
+                      className="flex-1 bg-cyan-600 hover:bg-cyan-500"
+                      data-testid="configure-o365-btn"
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Configure
+                    </Button>
+                  )}
                   {integration.enabled && (
                     <Button
                       onClick={() => handleOpenSyncModal(integration.integration_type)}
