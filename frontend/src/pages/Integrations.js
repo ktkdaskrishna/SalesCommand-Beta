@@ -83,10 +83,14 @@ const Integrations = () => {
     setSaving(true);
     try {
       await integrationsAPI.configureOdoo(odooConfig);
+      toast.success('Odoo integration configured successfully!');
       setConfigModal(false);
-      fetchIntegrations();
+      setTestResult(null);
+      // Refresh integrations list
+      await fetchIntegrations();
     } catch (error) {
       console.error('Failed to save config:', error);
+      toast.error('Failed to save configuration');
     } finally {
       setSaving(false);
     }
@@ -94,11 +98,16 @@ const Integrations = () => {
 
   const handleTriggerSync = async (integrationType) => {
     try {
-      await integrationsAPI.triggerSync(integrationType);
-      // Show success message
+      toast.info('Starting sync...');
+      const response = await integrationsAPI.triggerSync(integrationType);
+      toast.success(`Sync job started: ${response.data.job_id}`);
+      // Refresh to show updated status
+      await fetchIntegrations();
     } catch (error) {
       console.error('Failed to trigger sync:', error);
+      toast.error(error.response?.data?.detail || 'Failed to start sync');
     }
+  };
   };
 
   const getIntegrationDetails = (type) => {
