@@ -1,102 +1,82 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+/**
+ * Auth Context
+ * Manages authentication state across the application
+ */
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
+  // Check for existing session on mount
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      fetchUser();
-    } else {
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      if (token && savedUser) {
+        try {
+          // Verify token is still valid
+          const response = await authAPI.getMe();
+          setUser(response.data);
+        } catch (error) {
+          // Token invalid, clear storage
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      }
       setLoading(false);
-    }
-  }, [token]);
+    };
+    
+    initAuth();
+  }, []);
 
-  const fetchUser = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/auth/me`);
-      setUser(response.data);
-    } catch (error) {
-      console.error("Auth error:", error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const login = async (email, password) => {
-    const response = await axios.post(`${API_URL}/api/auth/login`, {
-      email,
-      password,
-    });
+  const login = useCallback(async (email, password) => {
+    const response = await authAPI.login(email, password);
     const { access_token, user: userData } = response.data;
-    localStorage.setItem("token", access_token);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-    setToken(access_token);
+    
+    localStorage.setItem('token', access_token);
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+    
     return userData;
-  };
+  }, []);
 
-  const register = async (userData) => {
-    const response = await axios.post(`${API_URL}/api/auth/register`, userData);
-    const { access_token, user: newUser } = response.data;
-    localStorage.setItem("token", access_token);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-    setToken(access_token);
-    setUser(newUser);
-    return newUser;
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    delete axios.defaults.headers.common["Authorization"];
-    setToken(null);
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
-  };
+  }, []);
 
-  const hasRole = (roles) => {
-    if (!user) return false;
-    if (typeof roles === "string") return user.role === roles;
-    return roles.includes(user.role);
-  };
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'ceo';
+  const isSuperAdmin = user?.role === 'super_admin';
 
-  const isExecutive = () => hasRole(["ceo", "admin", "super_admin", "sales_director"]);
-  const isProductDirector = () => hasRole("product_director");
-  const isAccountManager = () => hasRole("account_manager");
-  const isStrategy = () => hasRole("strategy");
+  const value = {
+    user,
+    loading,
+    login,
+    logout,
+    isAuthenticated: !!user,
+    isAdmin,
+    isSuperAdmin,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        loading,
-        login,
-        register,
-        logout,
-        hasRole,
-        isExecutive,
-        isProductDirector,
-        isAccountManager,
-        isStrategy,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export default AuthContext;
