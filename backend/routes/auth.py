@@ -202,7 +202,7 @@ async def microsoft_login(code_challenge: str = None):
 
 @router.post("/microsoft/callback", response_model=TokenResponse)
 async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
-    """Handle Microsoft OAuth callback and create/login user"""
+    """Handle Microsoft OAuth callback with PKCE and create/login user"""
     db = Database.get_db()
     
     # Get O365 config
@@ -215,7 +215,7 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
     client_secret = config.get("client_secret")
     tenant_id = config.get("tenant_id")
     
-    # Exchange code for tokens
+    # Exchange code for tokens with PKCE
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     
     token_data = {
@@ -223,7 +223,8 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
         "client_secret": client_secret,
         "code": callback_data.code,
         "redirect_uri": callback_data.redirect_uri,
-        "grant_type": "authorization_code"
+        "grant_type": "authorization_code",
+        "code_verifier": callback_data.code_verifier  # PKCE code_verifier
     }
     
     try:
