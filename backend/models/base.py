@@ -95,6 +95,7 @@ class UserBase(BaseModel):
     product_line: Optional[str] = None
     is_active: bool = True
     is_super_admin: bool = False
+    approval_status: Optional[str] = "approved"  # pending, approved, rejected
 
 
 class UserCreate(UserBase):
@@ -108,6 +109,13 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase, TimestampMixin):
     id: str
+    avatar_url: Optional[str] = None
+    role_id: Optional[str] = None
+    department_id: Optional[str] = None
+    role_name: Optional[str] = None
+    department_name: Optional[str] = None
+    permissions: Optional[List[str]] = None
+    data_scope: Optional[str] = None
     avatar_url: Optional[str] = None
     
     class Config:
