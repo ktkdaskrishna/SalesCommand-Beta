@@ -112,7 +112,13 @@ class SyncService:
         """
         Sync a single entity type from Odoo
         """
-        result = {"total": 0, "processed": 0, "failed": 0}
+        result = {"total": 0, "processed": 0, "failed": 0, "used_custom_mappings": False}
+        
+        # Load custom field mappings if available
+        custom_mappings = await self._load_field_mappings("odoo", entity_type)
+        if custom_mappings:
+            result["used_custom_mappings"] = True
+            logger.info(f"Using {len(custom_mappings)} custom mappings for {entity_type.value}")
         
         # Map entity type to Odoo model and method
         entity_config = {
@@ -176,8 +182,12 @@ class SyncService:
                             sync_batch_id=job_id
                         )
                         
-                        # Transform and load to Canonical Zone
-                        normalized = self._normalize_odoo_record(record, entity_type)
+                        # Transform using custom mappings or default normalization
+                        if custom_mappings:
+                            normalized = self._apply_custom_mappings(record, custom_mappings)
+                        else:
+                            normalized = self._normalize_odoo_record(record, entity_type)
+                        
                         await self.data_lake.normalize_to_canonical(
                             raw_record={
                                 "source": IntegrationType.ODOO.value,
