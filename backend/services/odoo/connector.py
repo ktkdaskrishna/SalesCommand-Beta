@@ -62,6 +62,8 @@ class OdooConnector:
         """
         try:
             endpoint = f"{self.url}/jsonrpc"
+            logger.info(f"Attempting Odoo authentication at: {endpoint}")
+            
             payload = {
                 "jsonrpc": "2.0",
                 "method": "call",
@@ -81,11 +83,22 @@ class OdooConnector:
                 self.uid = result["result"]
                 logger.info(f"Odoo authentication successful. UID: {self.uid}")
                 return True
+            elif result.get("error"):
+                error_data = result.get("error", {})
+                error_msg = error_data.get("data", {}).get("message") or error_data.get("message", "Unknown error")
+                logger.error(f"Odoo authentication failed: {error_msg}")
+                raise Exception(f"Authentication failed: {error_msg}")
             else:
-                error = result.get("error", {}).get("message", "Unknown error")
-                logger.error(f"Odoo authentication failed: {error}")
-                return False
+                # UID is False means invalid credentials
+                logger.error("Odoo authentication failed: Invalid credentials")
+                raise Exception("Invalid credentials - please check username and API key")
                 
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Odoo HTTP error: {e}")
+            raise Exception(f"HTTP error {e.response.status_code}: Check if URL is correct")
+        except httpx.ConnectError as e:
+            logger.error(f"Odoo connection error: {e}")
+            raise Exception(f"Cannot connect to Odoo server. Check the URL.")
         except Exception as e:
             logger.error(f"Odoo authentication error: {e}")
             raise
