@@ -103,6 +103,49 @@ class SyncService:
             logger.error(f"Odoo sync failed: {e}")
             raise
     
+    async def run_ms365_sync(
+        self,
+        job_id: str,
+        config: Dict[str, Any],
+        entity_types: List[EntityType]
+    ) -> Dict[str, Any]:
+        """
+        Run Microsoft 365 sync job.
+        Note: Full MS365 sync requires user OAuth tokens, not just app credentials.
+        This is a placeholder that will be expanded with Graph API calls.
+        """
+        results = {
+            "total_records": 0,
+            "processed_records": 0,
+            "failed_records": 0,
+            "entities": {}
+        }
+        
+        logger.info(f"Starting MS365 sync for entities: {[e.value for e in entity_types]}")
+        
+        for entity_type in entity_types:
+            try:
+                # MS365 sync requires user-delegated permissions
+                # For now, log a message indicating this feature needs user SSO
+                logger.info(f"MS365 sync for {entity_type.value} - requires user OAuth tokens")
+                
+                results["entities"][entity_type.value] = {
+                    "total": 0,
+                    "processed": 0,
+                    "failed": 0,
+                    "message": "MS365 sync requires user to be logged in with Microsoft SSO"
+                }
+            except Exception as e:
+                logger.error(f"Failed to sync MS365 {entity_type.value}: {e}")
+                results["entities"][entity_type.value] = {
+                    "error": str(e),
+                    "total": 0,
+                    "processed": 0,
+                    "failed": 0
+                }
+        
+        return results
+    
     async def _sync_entity(
         self,
         connector: OdooConnector,
