@@ -97,11 +97,21 @@ class SyncService:
             EntityType.CONTACT: {
                 "model": "res.partner", 
                 "method": connector.get_partners,
-                "filter": [("is_company", "=", False)]
+                "filter": [("is_company", "=", False), ("parent_id", "!=", False)]
             },
             EntityType.OPPORTUNITY: {
                 "model": "crm.lead",
                 "method": connector.get_opportunities,
+                "filter": []
+            },
+            EntityType.ORDER: {
+                "model": "sale.order",
+                "method": connector.get_sale_orders,
+                "filter": []
+            },
+            EntityType.INVOICE: {
+                "model": "account.move",
+                "method": connector.get_invoices,
                 "filter": []
             }
         }
