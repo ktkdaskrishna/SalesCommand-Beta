@@ -81,13 +81,13 @@ The user has mandated a complete architectural rebuild of the application, trans
 - [x] MongoDB Data Lake with 3 zones (Raw, Canonical, Serving)
 - [x] JWT authentication system
 - [x] Data Lake health API endpoints
-- [x] Odoo REST API connector (v16+ compatible)
+- [x] Odoo REST API connector (v16+ compatible) with URL normalization
 - [x] AI field mapping service (with fallback rule-based)
 - [x] Integration configuration endpoints
 - [x] Modern dark-themed React frontend shell
 - [x] Login page with demo credentials
 - [x] Dashboard with Data Lake health visualization
-- [x] Integrations page with Odoo configuration modal
+- [x] Integrations page with Odoo configuration modal (scrollable, user-friendly)
 - [x] Data Lake exploration page with zone tabs
 
 ---
