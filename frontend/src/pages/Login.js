@@ -1,22 +1,93 @@
 /**
  * Login Page
- * Clean, modern login interface
+ * Clean, modern login interface with Microsoft SSO
  */
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Database, ArrowRight, AlertCircle } from 'lucide-react';
+import { Database, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [msLoading, setMsLoading] = useState(false);
+  const { login, loginWithToken } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const errorParam = searchParams.get('error');
+    const errorDesc = searchParams.get('error_description');
+    
+    if (errorParam) {
+      setError(errorDesc || 'Microsoft login failed');
+      return;
+    }
+    
+    if (code) {
+      handleMicrosoftCallback(code);
+    }
+  }, [searchParams]);
+
+  const handleMicrosoftCallback = async (code) => {
+    setMsLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/auth/microsoft/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          code,
+          redirect_uri: `${window.location.origin}/login`
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.access_token) {
+        loginWithToken(data.access_token, data.user);
+        navigate('/dashboard');
+      } else {
+        setError(data.detail || 'Microsoft login failed');
+      }
+    } catch (err) {
+      setError('Failed to complete Microsoft login');
+    } finally {
+      setMsLoading(false);
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    setMsLoading(true);
+    setError('');
+    
+    try {
+      // Get the authorization URL from backend
+      const response = await fetch(`${API_URL}/api/auth/microsoft/login`);
+      const data = await response.json();
+      
+      if (data.auth_url) {
+        // Redirect to Microsoft login
+        window.location.href = data.auth_url;
+      } else {
+        setError('Microsoft SSO not configured. Please configure O365 integration first.');
+        setMsLoading(false);
+      }
+    } catch (err) {
+      setError('Failed to initiate Microsoft login');
+      setMsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,6 +124,39 @@ const Login = () => {
 
         {/* Login Card */}
         <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl p-8">
+          {/* Microsoft SSO Button */}
+          <Button
+            type="button"
+            onClick={handleMicrosoftLogin}
+            disabled={msLoading}
+            className="w-full bg-[#2F2F2F] hover:bg-[#404040] text-white mb-6 h-12"
+            data-testid="microsoft-login-btn"
+          >
+            {msLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-3" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                </svg>
+                Sign in with Microsoft
+              </>
+            )}
+          </Button>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-zinc-900/50 text-zinc-500">or continue with email</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
