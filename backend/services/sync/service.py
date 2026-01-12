@@ -673,10 +673,13 @@ async def run_sync_job(job_id: str):
                 entity_types=entity_types
             )
         elif integration_type == "ms365":
+            # Get user_id from job (created_by) to fetch their MS365 token
+            user_id = job.get("created_by")
             results = await sync_service.run_ms365_sync(
                 job_id=job_id,
                 config=intg["config"],
-                entity_types=entity_types
+                entity_types=entity_types,
+                user_id=user_id
             )
         else:
             raise Exception(f"Unsupported integration type: {integration_type}")
