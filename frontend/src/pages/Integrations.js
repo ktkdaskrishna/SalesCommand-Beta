@@ -102,7 +102,10 @@ const Integrations = () => {
   const handleSaveConfig = async () => {
     setSaving(true);
     try {
-      await integrationsAPI.configureOdoo(odooConfig);
+      await integrationsAPI.configureOdoo({
+        ...odooConfig,
+        enabled_entities: selectedEntities,
+      });
       toast.success('Odoo integration configured successfully!');
       setConfigModal(false);
       setTestResult(null);
@@ -116,17 +119,42 @@ const Integrations = () => {
     }
   };
 
-  const handleTriggerSync = async (integrationType) => {
+  const handleOpenSyncModal = (integrationType) => {
+    setSelectedIntegration(integrationType);
+    setSyncModal(true);
+  };
+
+  const handleTriggerSync = async () => {
+    if (selectedEntities.length === 0) {
+      toast.error('Please select at least one entity type to sync');
+      return;
+    }
+    
+    setSyncing(true);
     try {
-      toast.info('Starting sync...');
-      const response = await integrationsAPI.triggerSync(integrationType);
+      toast.info(`Starting sync for ${selectedEntities.length} entity types...`);
+      const response = await integrationsAPI.triggerSync(
+        selectedIntegration || 'odoo',
+        selectedEntities
+      );
       toast.success(`Sync job started: ${response.data.job_id}`);
+      setSyncModal(false);
       // Refresh to show updated status
       await fetchIntegrations();
     } catch (error) {
       console.error('Failed to trigger sync:', error);
       toast.error(error.response?.data?.detail || 'Failed to start sync');
+    } finally {
+      setSyncing(false);
     }
+  };
+
+  const toggleEntity = (entityId) => {
+    setSelectedEntities(prev => 
+      prev.includes(entityId)
+        ? prev.filter(e => e !== entityId)
+        : [...prev, entityId]
+    );
   };
 
   const getIntegrationDetails = (type) => {
