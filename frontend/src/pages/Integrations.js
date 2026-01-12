@@ -109,6 +109,21 @@ const Integrations = () => {
     setTestResult(null);
   };
 
+  // Helper function to extract error message from API response
+  const getErrorMessage = (error, defaultMsg = 'An error occurred') => {
+    const detail = error.response?.data?.detail;
+    if (!detail) return defaultMsg;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      // Pydantic validation errors
+      return detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+    }
+    if (typeof detail === 'object') {
+      return detail.msg || detail.message || JSON.stringify(detail);
+    }
+    return defaultMsg;
+  };
+
   const handleTestO365Connection = async () => {
     setTestResult({ testing: true });
     try {
@@ -117,7 +132,7 @@ const Integrations = () => {
     } catch (error) {
       setTestResult({
         success: false,
-        message: error.response?.data?.detail || 'Connection test failed',
+        message: getErrorMessage(error, 'Connection test failed'),
       });
     }
   };
@@ -132,7 +147,7 @@ const Integrations = () => {
       await fetchIntegrations();
     } catch (error) {
       console.error('Failed to save O365 config:', error);
-      toast.error(error.response?.data?.detail || 'Failed to save configuration');
+      toast.error(getErrorMessage(error, 'Failed to save configuration'));
     } finally {
       setSaving(false);
     }
@@ -146,7 +161,7 @@ const Integrations = () => {
     } catch (error) {
       setTestResult({
         success: false,
-        message: error.response?.data?.detail || 'Connection test failed',
+        message: getErrorMessage(error, 'Connection test failed'),
       });
     }
   };
