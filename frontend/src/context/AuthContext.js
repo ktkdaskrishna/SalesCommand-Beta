@@ -66,10 +66,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'ceo';
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isSuperAdmin = user?.role === 'super_admin' || user?.is_super_admin;
+  
+  // Get token from localStorage
+  const token = localStorage.getItem('token');
 
   const value = {
     user,
+    token,
     loading,
     login,
     loginWithToken,
