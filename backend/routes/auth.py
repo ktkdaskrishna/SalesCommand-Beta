@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import uuid
 import aiohttp
 import os
+import logging
 
 from models.base import (
     UserCreate, UserLogin, UserResponse, TokenResponse, UserRole
@@ -18,6 +19,8 @@ from services.auth.jwt_handler import (
     get_current_user_from_token, require_role
 )
 from core.database import Database
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
