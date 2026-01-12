@@ -94,6 +94,7 @@ class UserBase(BaseModel):
     department: Optional[str] = None
     product_line: Optional[str] = None
     is_active: bool = True
+    is_super_admin: bool = False
 
 
 class UserCreate(UserBase):
