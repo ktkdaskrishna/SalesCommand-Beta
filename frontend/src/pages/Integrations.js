@@ -190,9 +190,10 @@ const Integrations = () => {
     
     setSyncing(true);
     try {
-      toast.info(`Starting sync for ${selectedEntities.length} entity types...`);
+      const intType = syncIntegrationType || 'odoo';
+      toast.info(`Starting ${intType} sync for ${selectedEntities.length} entity types...`);
       const response = await integrationsAPI.triggerSync(
-        selectedIntegration || 'odoo',
+        intType,
         selectedEntities
       );
       toast.success(`Sync job started: ${response.data.job_id}`);
