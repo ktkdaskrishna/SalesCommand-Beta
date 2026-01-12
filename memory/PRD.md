@@ -1,357 +1,165 @@
 # Sales Intelligence Platform - Product Requirements Document
 
 ## Overview
-An **Enterprise Sales Intelligence Platform** with multi-system integrations, Microsoft 365 SSO, a normalized extensible data lake, read-optimized Sales CRM dashboards, KPI & performance intelligence, and production-grade testing.
+Enterprise-grade Sales CRM with ERP Integration, designed with a microservices architecture and three-zone Data Lake.
 
-## Architecture Version: 2.0 (Data Lake)
-
----
-
-## Core Architecture
-
-### Data Lake (3-Zone Architecture)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      SOURCE SYSTEMS                              │
-│  ┌─────────┐  ┌─────────────┐  ┌──────────┐  ┌─────────────┐   │
-│  │  Odoo   │  │ Microsoft   │  │Salesforce│  │  HubSpot    │   │
-│  │ERP v17+ │  │    365      │  │ (Future) │  │  (Future)   │   │
-│  └────┬────┘  └──────┬──────┘  └────┬─────┘  └──────┬──────┘   │
-└───────┼──────────────┼──────────────┼───────────────┼──────────┘
-        │              │              │               │
-        ▼              ▼              ▼               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    SYNC ENGINE PIPELINE                          │
-│  Connector → Mapper → Validator → Normalizer → Loader → Logger  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       DATA LAKE                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  RAW ZONE (Immutable, Timestamped, Replayable)          │   │
-│  │  - raw_odoo_partners, raw_odoo_leads, raw_odoo_activities│   │
-│  │  - raw_ms365_users, raw_ms365_contacts                   │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  CANONICAL ZONE (Normalized, Unified Models)             │   │
-│  │  - canonical_contacts, canonical_accounts                │   │
-│  │  - canonical_opportunities, canonical_activities         │   │
-│  │  - canonical_users                                       │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  SERVING ZONE (Dashboard-Optimized, Pre-Aggregated)     │   │
-│  │  - serving_dashboard_stats, serving_pipeline_summary    │   │
-│  │  - serving_kpi_snapshots, serving_activity_feed         │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    SALES CRM DASHBOARD                          │
-│        (Powered by Serving Zone - Role-Scoped RBAC)             │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Version
+**v2.0.0** - Clean Rebuild (Phase 1 Complete)
 
 ---
 
-## Backend Module Structure
+## Original Problem Statement
+The user has mandated a complete architectural rebuild of the application, transforming it into an enterprise-grade "Sales Intelligence Platform" with:
 
+1. **Core Integrations:** Odoo ERP (v16+), with Microsoft 365 / Azure AD for SSO
+2. **Data Lake Architecture:** Three-zone MongoDB Data Lake (Raw, Canonical, Serving)
+3. **Modular Sync Engine:** Connector -> Mapper -> Validator -> Normalizer -> Loader -> Logger
+4. **AI-Powered Features:** GPT-5.2 for intelligent field mapping with BYOK support
+5. **Microservices Architecture:** Each integration as a separate service for scalability
+6. **Docker-First Deployment:** Single `docker-compose up` command
+
+---
+
+## Architecture
+
+### Backend Structure
 ```
 /app/backend/
-├── core/                       # Base classes and interfaces
-│   ├── __init__.py
-│   ├── base.py                 # BaseModel, BaseEntity, RawRecord
-│   ├── config.py               # Settings, environment config
-│   ├── enums.py                # EntityType, UserRole, SyncMode, etc.
-│   ├── exceptions.py           # Custom exceptions
-│   └── interfaces.py           # IConnector, IMapper, IValidator, etc.
-│
-├── data_lake/                  # Data Lake management
-│   ├── __init__.py
-│   ├── models.py               # Canonical entity models
-│   ├── raw_zone.py             # Raw zone handler
-│   ├── canonical_zone.py       # Canonical zone handler
-│   ├── serving_zone.py         # Serving zone handler
-│   └── manager.py              # DataLakeManager orchestrator
-│
-├── sync_engine/                # Sync pipeline
-│   ├── __init__.py
-│   ├── base_components.py      # Base connector, mapper, validator
-│   ├── pipeline.py             # SyncPipeline orchestrator
-│   └── worker.py               # Background job worker
-│
-├── integrations/               # External system connectors
-│   ├── odoo/                   # Odoo ERP integration
-│   │   ├── connector.py
-│   │   ├── mapper.py
-│   │   ├── validator.py
-│   │   ├── normalizer.py
-│   │   └── pipeline.py
-│   └── microsoft365/           # Microsoft 365 SSO
-│       ├── auth_provider.py
-│       └── connector.py
-│
-├── api/                        # FastAPI routes
-│   ├── data_lake.py            # /api/data-lake/*
-│   ├── sync.py                 # /api/sync/*
-│   ├── dashboard.py            # /api/dashboard/*
-│   └── auth_ms365.py           # /api/auth/ms365/*
-│
-└── tests/                      # Test suite
-    ├── unit/
-    ├── integration/
-    └── e2e/
+├── server.py              # Main FastAPI application
+├── core/
+│   ├── config.py          # Settings with BYOK support
+│   └── database.py        # MongoDB + Data Lake zones
+├── models/
+│   └── base.py            # Pydantic models (User, DataLake, Mapping, Sync)
+├── routes/
+│   ├── auth.py            # JWT authentication
+│   ├── data_lake.py       # Data Lake API endpoints
+│   └── integrations.py    # Integration management
+└── services/
+    ├── auth/
+    │   └── jwt_handler.py # Token management
+    ├── data_lake/
+    │   └── manager.py     # Three-zone operations
+    ├── odoo/
+    │   └── connector.py   # REST API connector (v16+)
+    └── ai_mapping/
+        └── mapper.py      # LLM-powered field mapping
 ```
 
----
+### Frontend Structure
+```
+/app/frontend/src/
+├── App.js                 # Main routing
+├── context/
+│   └── AuthContext.js     # Authentication state
+├── services/
+│   └── api.js             # API client
+├── pages/
+│   ├── Login.js           # Authentication
+│   ├── Dashboard.js       # Data Lake health + Integrations
+│   ├── Integrations.js    # Integration management
+│   └── DataLake.js        # Data exploration
+└── components/
+    ├── Layout.js          # Sidebar navigation
+    └── ui/                # Shadcn components
+```
 
-## Implemented Features (Phase 1 Complete)
-
-### ✅ Docker Configuration
-- `docker-compose.yml` with services: frontend, backend, mongo, worker, redis
-- Dockerfiles for backend and frontend
-- MongoDB initialization script with Data Lake schema
-
-### ✅ Core Module
-- BaseModel, BaseEntity with source references
-- Configuration management (Settings)
-- Enumerations (EntityType, UserRole, SyncMode, etc.)
-- Custom exceptions
-- Interface definitions (IConnector, IMapper, IValidator, etc.)
-
-### ✅ Data Lake Module
-- RawZoneHandler - immutable source data storage
-- CanonicalZoneHandler - normalized entity management with RBAC
-- ServingZoneHandler - dashboard-optimized views
-- DataLakeManager - orchestration layer
-
-### ✅ Sync Engine
-- Base pipeline components
-- SyncPipeline orchestrator
-- Background worker skeleton
-
-### ✅ Odoo Integration (Refactored)
-- OdooConnector (XML-RPC client)
-- OdooMapper (Contact, Account, Opportunity, Activity, User)
-- OdooValidator
-- OdooNormalizer with reference resolution
-- OdooSyncPipeline
-
-### ✅ Microsoft 365 Integration (Skeleton)
-- MS365AuthProvider (OAuth 2.0 / OpenID Connect)
-- MS365Connector (Graph API client)
-- SSO endpoints
-
-### ✅ New API Routes
-- `/api/data-lake/*` - Data lake operations
-- `/api/sync/*` - Sync management
-- `/api/dashboard/*` - Optimized dashboard endpoints
-- `/api/auth/ms365/*` - Microsoft 365 SSO
-
-### ✅ Unit Tests
-- Core module tests
-- Data lake model tests
-
----
-
-## Pending Implementation
-
-### Phase 2: Complete Sync Engine
-- [ ] Wire OdooSyncPipeline to existing Odoo routes
-- [ ] Implement incremental sync
-- [ ] Background job scheduling
-
-### Phase 3: Microsoft 365 SSO
-- [ ] Complete OAuth flow integration
-- [ ] User provisioning from M365
-- [ ] Token refresh and session management
-
-### Phase 4: Dashboard Migration
-- [ ] Migrate existing dashboards to Serving Zone
-- [ ] Implement hierarchical RBAC
-- [ ] Performance optimization
-
-### Phase 5: Testing Agent
-- [ ] Comprehensive E2E test suite
-- [ ] Automated test runner
-- [ ] Test reports
-
----
-
-## API Endpoints
-
-### Existing (Preserved)
-- `/api/auth/*` - Authentication (local)
-- `/api/users/*` - User management
-- `/api/accounts/*` - Account CRUD
-- `/api/opportunities/*` - Opportunity CRUD
-- `/api/activities/*` - Activity CRUD
-- `/api/odoo/*` - Odoo integration
-- `/api/config/*` - System configuration
-
-### New (Data Lake Architecture)
-- `/api/data-lake/health` - Data lake health check
-- `/api/data-lake/stats` - Data lake statistics
-- `/api/data-lake/entities/{type}` - Entity listing with RBAC
-- `/api/sync/status` - Sync engine status
-- `/api/sync/trigger` - Trigger sync job
-- `/api/sync/history` - Sync history
-- `/api/dashboard/overview` - Serving zone dashboard data
-- `/api/auth/ms365/login` - M365 SSO login
-- `/api/auth/ms365/callback` - M365 OAuth callback
-
----
-
-## Integration Hub UI
-
-A unified frontend component for managing all integrations with the same structure:
-
-### Features
-- **Multi-Integration Support:** Odoo ERP, Salesforce, HubSpot, Microsoft 365
-- **Dedicated Integration Pages:** Each integration has its own full-featured page
-- **Tab-based Interface:** Connection, Field Mapping, Sync Data, Data Lake, History tabs
-- **Visual Field Mapper:** Source field → Target field mapping visualization
-- **SSO Setup Tab:** Microsoft 365 includes SSO configuration
-
-### Routes
-- `/integrations/odoo` - Odoo ERP Integration Hub
-- `/integrations/salesforce` - Salesforce Integration Hub
-- `/integrations/hubspot` - HubSpot Integration Hub
-- `/integrations/ms365` - Microsoft 365 Integration Hub
-- `/integration-hub` - Unified Integration Overview
-
-### Integration Page Structure (Same for all)
-1. **Connection Tab** - Configure API credentials specific to each integration
-2. **Field Mapping Tab** - Visual mapper showing source→canonical field mappings
-3. **Sync Data Tab** - Preview and sync individual entities or all at once
-4. **Data Lake Tab** - Three-zone architecture visualization (Raw, Canonical, Serving)
-5. **History Tab** - View sync logs with timestamps and record counts
-
----
-
-## User Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | superadmin@salescommand.com | demo123 |
-| Account Manager | am1@salescommand.com | demo123 |
-| Sales User (Odoo) | krishna@securado.net | password |
-
----
-
-## Tech Stack
-
-- **Frontend:** React, Tailwind CSS, Shadcn UI
-- **Backend:** FastAPI, Python 3.11
-- **Database:** MongoDB
-- **Integrations:** Odoo (XML-RPC), Microsoft Graph API
-- **Auth:** JWT (local), OAuth 2.0 (M365)
-- **Deployment:** Docker, Docker Compose
+### Data Lake Zones
+| Zone | Collection | Purpose |
+|------|------------|---------|
+| Raw (Bronze) | `data_lake_raw` | Unmodified source data |
+| Canonical (Silver) | `data_lake_canonical` | Normalized, validated |
+| Serving (Gold) | `data_lake_serving` | Aggregated, dashboard-ready |
 
 ---
 
 ## Completed Work
 
-### January 12, 2026 - Integrations Consolidation
-- ✅ **Single Integrations Page:** Consolidated all integration entry points into `/integrations`
-- ✅ **Integration Cards:** Grid of 4 cards (Odoo, Salesforce, HubSpot, Microsoft 365) with status badges
-- ✅ **Clean Sidebar:** Single "Integrations" link instead of expandable sub-menu
-- ✅ **Coming Soon Section:** Placeholder for future integrations (Slack, Zoom, etc.)
-- ✅ **Removed Duplicates:** Removed `/integration-hub` route and IntegrationHub import
-
-### January 12, 2026 - Complete UI/UX Redesign
-- ✅ **Swiss & High-Contrast Design System:** Professional, clean aesthetic inspired by Linear/Stripe
-- ✅ **Modern Login Page:** Split-screen design with dark branding area, gradient text, feature highlights, Quick Access buttons
-- ✅ **Dark Sidebar:** Slate-900 background with gradient logo, search bar (⌘K), collapsible Integrations section
-- ✅ **Dashboard Redesign:** 
-  - Modern KPI cards with colored gradient icons (indigo, emerald, amber, slate)
-  - Pipeline by Stage horizontal bar chart
-  - Top Opportunities list with stage badges
-  - Revenue Trend area chart
-  - Quick Stats footer cards
-- ✅ **Typography:** Manrope for headings, Inter for body, JetBrains Mono for code
-- ✅ **Hover Effects:** Subtle shadows and lift animations on cards
-- ✅ **Bug Fix:** Added super_admin and sales_director to isExecutive() function
-- ✅ **All E2E tests passed** (iteration_10.json - 95% success rate)
-
-### January 12, 2026 - Field Mapping UI Redesign
-- ✅ **Complete UI Overhaul:** Replaced confusing three-panel layout with intuitive table-based interface
-- ✅ **Entity Selection Cards:** Three clickable cards (Contacts & Companies, Opportunities, Activities) showing field counts and sync status
-- ✅ **Clean Table View:** Columns for Enable toggle, Odoo Field → Local Field, Type, Transform, Flags (KEY/REQ), Actions
-- ✅ **Interactive Toggles:** Green/gray toggle switches to enable/disable individual field mappings
-- ✅ **Add Field Modal:** Clean form with Odoo Field Name, Type, Local Field Name, Type, Transform, and Required/Key checkboxes
-- ✅ **Save Functionality:** Backend persistence with success toast notification
-- ✅ **AI Auto-Map Button:** Retained from previous version
-- ✅ **All 10 E2E tests passed** (iteration_9.json)
-
-### January 11, 2026 - AI Field Mapping & UI Improvements
-- ✅ **AI Auto-Map Feature with Confirmation Modal:**
-  - Added `AiMappingConfirmModal` component for user confirmation before applying AI suggestions
-  - Shows AI-suggested mappings with confidence scores (100%, 90%, 70%, etc.)
-  - Users can select/deselect individual mappings before applying
-  - Integrated with `/api/ai-mapping/suggest` endpoint using GPT-4o
-- ✅ **Expand/Collapse Functionality:**
-  - Added expand button to Visual Field Mapper header
-  - Full-screen mode with backdrop overlay
-  - Press Escape to close expanded view
-  - Added collapsible sections for Odoo Fields, Active Mappings, and Local Fields panels
-- ✅ **ESLint Fixes:**
-  - Fixed all 20 ESLint errors/warnings across integration hub components
-  - Fixed unescaped entities in multiple components
-  - Fixed useCallback dependency issues in ExpandableContainer.js
-- ✅ **Data Verification:**
-  - Confirmed 10 accounts and 7 opportunities syncing correctly from Odoo
-  - Accounts page shows $1,188,264 Total Orders, $361,744 Outstanding
-  - Opportunities page shows $325,000 pipeline, 7 active deals
-- ✅ **Comprehensive Testing:**
-  - All 8 frontend E2E tests passed (iteration_8.json)
-  - Login, Accounts, Opportunities, Odoo Integration Hub all functional
-
-### January 11, 2026 - Integration Hub UI
-- ✅ Built unified Integration Hub with multi-integration support
-- ✅ Implemented tab switching for Odoo, Salesforce, HubSpot, MS365
-- ✅ Created Connection Tab with integration-specific fields
-- ✅ Created Field Mapping Tab with visual mapper
-- ✅ Created Sync Data Tab with entity sync cards
-- ✅ Created Data Lake Tab with three-zone visualization
-- ✅ Created History Tab for sync logs
-- ✅ All 11 backend API tests passing
-- ✅ Full frontend UI testing completed
-
-### January 11, 2026 - Phase 1 (Foundation)
-- ✅ Enterprise backend architecture rebuild
-- ✅ Docker containerization with docker-compose.yml
-- ✅ Three-zone Data Lake foundation
-- ✅ Modular Sync Engine pipeline
-- ✅ Salesforce integration template
-- ✅ 16 unit tests passing
+### Phase 1: Foundation Shell ✅ (Jan 12, 2026)
+- [x] Clean modular backend architecture
+- [x] Core configuration with BYOK support for AI keys
+- [x] MongoDB Data Lake with 3 zones (Raw, Canonical, Serving)
+- [x] JWT authentication system
+- [x] Data Lake health API endpoints
+- [x] Odoo REST API connector (v16+ compatible)
+- [x] AI field mapping service (with fallback rule-based)
+- [x] Integration configuration endpoints
+- [x] Modern dark-themed React frontend shell
+- [x] Login page with demo credentials
+- [x] Dashboard with Data Lake health visualization
+- [x] Integrations page with Odoo configuration modal
+- [x] Data Lake exploration page with zone tabs
 
 ---
 
-## Pending Tasks
+## Upcoming Phases
 
-### P0 - Critical
-- [ ] Implement Microsoft 365 SSO (OAuth 2.0/OpenID Connect)
+### Phase 2: Odoo Sync Pipeline 🔜
+- [ ] Complete ETL pipeline implementation
+- [ ] Incremental sync with `write_date` tracking
+- [ ] Field mapping persistence
+- [ ] Sync job queue and status tracking
+- [ ] Data validation rules
 
-### P1 - High Priority
-- [ ] Propagate AI Auto-Map feature to Salesforce, HubSpot, MS365 integration pages
-- [ ] Migrate Odoo integration to new Sync Engine pipeline
-- [ ] Upgrade Sales Dashboards to use Serving Zone API
+### Phase 3: AI Field Mapping
+- [ ] GPT-5.2 integration for intelligent mapping
+- [ ] Confidence scoring UI
+- [ ] Human approval workflow
+- [ ] Learning from confirmed mappings
 
-### P2 - Medium Priority
-- [ ] Implement Hierarchical RBAC
-- [ ] Build dedicated Testing Agent
-- [ ] Implement Background Worker (Celery + Redis)
-- [ ] Add sync scheduling functionality
-- [ ] Fix dashboard chart dimension warnings (minor)
+### Phase 4: Dashboard & Serving Layer
+- [ ] Aggregate accounts/opportunities to Serving Zone
+- [ ] Sales dashboard from gold zone
+- [ ] Role-based data visibility (RBAC)
+
+### Phase 5: Additional Integrations
+- [ ] Salesforce connector
+- [ ] Microsoft 365 / Azure AD SSO
+- [ ] HubSpot connector
+
+### Phase 6: Production Hardening
+- [ ] Celery/Redis background workers
+- [ ] Comprehensive E2E testing
+- [ ] Monitoring and logging
+- [ ] Docker compose optimization
 
 ---
 
-## Last Updated
-January 11, 2026 - AI Field Mapping with Confirmation Modal Complete
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - Login & get token
+- `GET /api/auth/me` - Current user info
+- `GET /api/auth/users` - List users (admin)
+
+### Data Lake
+- `GET /api/data-lake/health` - Zone health stats
+- `GET /api/data-lake/raw` - Raw records (admin)
+- `GET /api/data-lake/canonical` - Canonical records
+- `GET /api/data-lake/serving` - Serving records
+
+### Integrations
+- `GET /api/integrations/` - List all integrations
+- `POST /api/integrations/odoo/configure` - Configure Odoo
+- `POST /api/integrations/odoo/test` - Test connection
+- `GET /api/integrations/odoo/fields/{model}` - Get Odoo model fields
+- `POST /api/integrations/mappings/{type}/auto-map` - AI auto-mapping
+- `POST /api/integrations/sync/{type}` - Trigger sync
+
+---
+
+## Test Credentials
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin | superadmin@salescommand.com | demo123 |
+| Account Manager | am1@salescommand.com | demo123 |
+
+---
+
+## Technology Stack
+- **Backend:** FastAPI, Pydantic v2, Motor (async MongoDB)
+- **Frontend:** React 19, Tailwind CSS, Shadcn/UI
+- **Database:** MongoDB with Data Lake architecture
+- **AI:** GPT-5.2 via Emergent LLM Key (BYOK supported)
+- **Auth:** JWT with bcrypt password hashing
