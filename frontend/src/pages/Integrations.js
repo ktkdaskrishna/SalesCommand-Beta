@@ -228,16 +228,15 @@ const Integrations = () => {
 
       {/* Odoo Configuration Modal */}
       <Dialog open={configModal} onOpenChange={setConfigModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg p-0 flex flex-col max-h-[85vh]">
-          <DialogHeader className="p-6 pb-4">
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+          <DialogHeader>
             <DialogTitle className="text-white">Configure Odoo Integration</DialogTitle>
             <DialogDescription className="text-zinc-400">
               Connect to your Odoo instance using REST API credentials
             </DialogDescription>
           </DialogHeader>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-6 space-y-4">
+          <div className="space-y-4 mt-2">
             <div className="space-y-2">
               <Label className="text-zinc-300">Odoo URL</Label>
               <Input
@@ -247,9 +246,7 @@ const Integrations = () => {
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-url-input"
               />
-              <p className="text-xs text-zinc-500">
-                Base URL only. No /web or /odoo suffix needed.
-              </p>
+              <p className="text-xs text-zinc-500">Base URL only. No /web or /odoo suffix needed.</p>
             </div>
 
             <div className="space-y-2">
@@ -261,9 +258,7 @@ const Integrations = () => {
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-database-input"
               />
-              <p className="text-xs text-zinc-500">
-                Usually your subdomain (e.g., "securadotest")
-              </p>
+              <p className="text-xs text-zinc-500">Usually your subdomain (e.g., "securadotest")</p>
             </div>
 
             <div className="space-y-2">
@@ -287,14 +282,12 @@ const Integrations = () => {
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-apikey-input"
               />
-              <p className="text-xs text-zinc-500">
-                Generate in Odoo: Settings → Users → API Keys
-              </p>
+              <p className="text-xs text-zinc-500">Generate in Odoo: Settings → Users → API Keys</p>
             </div>
 
             {/* Test Result */}
             {testResult && (
-              <div className={`p-4 rounded-lg ${
+              <div className={`p-3 rounded-lg ${
                 testResult.testing 
                   ? 'bg-zinc-800 border border-zinc-700'
                   : testResult.success 
@@ -302,49 +295,45 @@ const Integrations = () => {
                     : 'bg-red-500/10 border border-red-500/20'
               }`}>
                 {testResult.testing ? (
-                  <div className="flex items-center gap-2 text-zinc-400">
+                  <div className="flex items-center gap-2 text-zinc-400 text-sm">
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     Testing connection...
                   </div>
                 ) : testResult.success ? (
-                  <div className="flex items-center gap-2 text-emerald-400">
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
                     <CheckCircle2 className="w-4 h-4" />
                     {testResult.message}
                   </div>
                 ) : (
-                  <div className="flex items-start gap-2 text-red-400">
+                  <div className="flex items-start gap-2 text-red-400 text-sm">
                     <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span className="text-sm">{testResult.message}</span>
+                    <span>{testResult.message}</span>
                   </div>
                 )}
               </div>
             )}
-          </div>
 
-          {/* Sticky Footer Actions */}
-          <div className="p-6 pt-4 border-t border-zinc-800 flex gap-3">
-            <Button
-              onClick={handleTestConnection}
-              variant="outline"
-              className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-              data-testid="test-odoo-connection-btn"
-            >
-              <AlertCircle className="w-4 h-4 mr-2" />
-              Test Connection
-            </Button>
-            <Button
-              onClick={handleSaveConfig}
-              disabled={saving || !testResult?.success}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500"
-              data-testid="save-odoo-config-btn"
-            >
-              {saving ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save & Connect
-            </Button>
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleTestConnection}
+                variant="outline"
+                className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                data-testid="test-odoo-connection-btn"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Test
+              </Button>
+              <Button
+                onClick={handleSaveConfig}
+                disabled={saving || !testResult?.success}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+                data-testid="save-odoo-config-btn"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
