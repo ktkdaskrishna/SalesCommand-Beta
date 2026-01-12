@@ -49,10 +49,11 @@ class DataLakeManager:
         # Calculate checksum for change detection
         checksum = self._calculate_checksum(raw_data)
         
-        # Check if record already exists
+        # Check if record already exists - must match source, source_id AND entity_type
         existing = await self.raw_collection.find_one({
             "source": source.value,
-            "source_id": source_id
+            "source_id": source_id,
+            "entity_type": entity_type.value
         })
         
         record = RawRecord(
@@ -76,11 +77,13 @@ class DataLakeManager:
                         "sync_batch_id": sync_batch_id
                     }}
                 )
-                logger.debug(f"Updated raw record: {source.value}/{source_id}")
+                logger.info(f"Updated raw record: {source.value}/{entity_type.value}/{source_id}")
+            else:
+                logger.debug(f"Raw record unchanged: {source.value}/{entity_type.value}/{source_id}")
         else:
             # Insert new record
             await self.raw_collection.insert_one(record.model_dump())
-            logger.debug(f"Inserted raw record: {source.value}/{source_id}")
+            logger.info(f"Inserted raw record: {source.value}/{entity_type.value}/{source_id}")
         
         return record
     
