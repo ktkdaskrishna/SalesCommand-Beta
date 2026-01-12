@@ -437,6 +437,12 @@ async def run_sync_job(job_id: str):
                 config=intg["config"],
                 entity_types=entity_types
             )
+        elif integration_type == "ms365":
+            results = await sync_service.run_ms365_sync(
+                job_id=job_id,
+                config=intg["config"],
+                entity_types=entity_types
+            )
         else:
             raise Exception(f"Unsupported integration type: {integration_type}")
         
