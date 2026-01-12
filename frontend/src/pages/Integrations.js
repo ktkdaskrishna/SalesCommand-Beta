@@ -180,7 +180,7 @@ const Integrations = () => {
       await fetchIntegrations();
     } catch (error) {
       console.error('Failed to save config:', error);
-      toast.error('Failed to save configuration');
+      toast.error(getErrorMessage(error, 'Failed to save configuration'));
     } finally {
       setSaving(false);
     }
