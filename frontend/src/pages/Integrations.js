@@ -531,6 +531,128 @@ const Integrations = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Microsoft 365 Configuration Modal */}
+      <Dialog open={o365ConfigModal} onOpenChange={setO365ConfigModal}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Settings className="w-5 h-5 text-cyan-500" />
+              Microsoft 365 Configuration
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Enter your Azure AD app credentials for SSO, Email, and Calendar integration
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            {/* Client ID */}
+            <div className="space-y-2">
+              <Label htmlFor="client_id" className="text-zinc-300">Application (Client) ID *</Label>
+              <Input
+                id="client_id"
+                value={o365Config.client_id}
+                onChange={(e) => setO365Config({ ...o365Config, client_id: e.target.value })}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                className="bg-zinc-800 border-zinc-700 text-white font-mono text-sm"
+                data-testid="o365-clientid-input"
+              />
+              <p className="text-xs text-zinc-500">Found on Azure Portal → App registrations → Overview</p>
+            </div>
+
+            {/* Tenant ID */}
+            <div className="space-y-2">
+              <Label htmlFor="tenant_id" className="text-zinc-300">Directory (Tenant) ID *</Label>
+              <Input
+                id="tenant_id"
+                value={o365Config.tenant_id}
+                onChange={(e) => setO365Config({ ...o365Config, tenant_id: e.target.value })}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                className="bg-zinc-800 border-zinc-700 text-white font-mono text-sm"
+                data-testid="o365-tenantid-input"
+              />
+              <p className="text-xs text-zinc-500">Found on Azure Portal → App registrations → Overview</p>
+            </div>
+
+            {/* Client Secret */}
+            <div className="space-y-2">
+              <Label htmlFor="client_secret" className="text-zinc-300">Client Secret *</Label>
+              <Input
+                id="client_secret"
+                type="password"
+                value={o365Config.client_secret}
+                onChange={(e) => setO365Config({ ...o365Config, client_secret: e.target.value })}
+                placeholder="••••••••••••••••"
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="o365-secret-input"
+              />
+              <p className="text-xs text-zinc-500">Found on Azure Portal → Certificates & secrets</p>
+            </div>
+
+            {/* Features Info */}
+            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
+              <h4 className="text-cyan-400 font-medium mb-2">Features Enabled</h4>
+              <ul className="text-sm text-zinc-400 space-y-1">
+                <li>✓ Single Sign-On (SSO) with Microsoft Account</li>
+                <li>✓ Email sync from Outlook to CRM</li>
+                <li>✓ Calendar event synchronization</li>
+                <li>✓ OneDrive document attachments</li>
+              </ul>
+            </div>
+
+            {/* Test Result */}
+            {testResult && (
+              <div className={`p-3 rounded-lg ${
+                testResult.testing 
+                  ? 'bg-zinc-800 border border-zinc-700'
+                  : testResult.success 
+                    ? 'bg-emerald-500/10 border border-emerald-500/20'
+                    : 'bg-red-500/10 border border-red-500/20'
+              }`}>
+                {testResult.testing ? (
+                  <div className="flex items-center gap-2 text-zinc-400 text-sm">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Testing connection...
+                  </div>
+                ) : testResult.success ? (
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {testResult.message}
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-red-400 text-sm">
+                    <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{testResult.message}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleTestO365Connection}
+                variant="outline"
+                className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                disabled={!o365Config.client_id || !o365Config.tenant_id || !o365Config.client_secret}
+                data-testid="test-o365-connection-btn"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Test
+              </Button>
+              <Button
+                onClick={handleSaveO365Config}
+                disabled={saving || !testResult?.success}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+                data-testid="save-o365-config-btn"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
