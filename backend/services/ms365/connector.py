@@ -15,7 +15,7 @@ GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
 class MS365Connector:
     """
     Microsoft 365 connector using Microsoft Graph API.
-    Requires user-delegated access token from SSO login.
+    Supports both delegated (user) and application (admin) permissions.
     """
     
     def __init__(self, access_token: str):
@@ -56,7 +56,64 @@ class MS365Connector:
         """Get current user's profile"""
         return await self._make_request("/me")
     
-    async def get_emails(self, top: int = 50, skip: int = 0) -> List[Dict[str, Any]]:
+    # ===================== USER DIRECTORY (Admin) =====================
+    
+    async def get_organization_users(self, top: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get all users from the organization's Azure AD directory.
+        Requires User.Read.All application permission (admin consent).
+        Returns identity information only - NO personal emails/files.
+        """
+        users = []
+        
+        try:
+            params = {
+                "$top": top,
+                "$select": "id,displayName,mail,userPrincipalName,givenName,surname,jobTitle,department,officeLocation,mobilePhone,businessPhones,employeeId,accountEnabled",
+                "$filter": "accountEnabled eq true"
+            }
+            
+            result = await self._make_request("/users", params)
+            
+            for user in result.get("value", []):
+                user_record = {
+                    "ms_id": user.get("id"),
+                    "email": user.get("mail") or user.get("userPrincipalName"),
+                    "display_name": user.get("displayName", ""),
+                    "first_name": user.get("givenName", ""),
+                    "last_name": user.get("surname", ""),
+                    "job_title": user.get("jobTitle", ""),
+                    "department": user.get("department", ""),
+                    "office_location": user.get("officeLocation", ""),
+                    "mobile_phone": user.get("mobilePhone", ""),
+                    "business_phones": user.get("businessPhones", []),
+                    "employee_id": user.get("employeeId", ""),
+                    "is_active": user.get("accountEnabled", True)
+                }
+                users.append(user_record)
+            
+            logger.info(f"Fetched {len(users)} users from Azure AD directory")
+            return users
+            
+        except Exception as e:
+            logger.error(f"Error fetching organization users: {e}")
+            raise
+    
+    async def get_user_manager(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get a user's manager from Azure AD"""
+        try:
+            result = await self._make_request(f"/users/{user_id}/manager")
+            return {
+                "ms_id": result.get("id"),
+                "email": result.get("mail") or result.get("userPrincipalName"),
+                "display_name": result.get("displayName", "")
+            }
+        except Exception as e:
+            # User may not have a manager
+            logger.debug(f"No manager found for user {user_id}: {e}")
+            return None
+    
+    # ===================== PERSONAL DATA (User's Own) =====================
         """
         Fetch emails from user's mailbox.
         Returns list of email messages.
