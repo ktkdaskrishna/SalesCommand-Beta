@@ -111,6 +111,7 @@ async def login(credentials: UserLogin):
             department=user.get("department"),
             product_line=user.get("product_line"),
             is_active=user.get("is_active", True),
+            is_super_admin=user.get("is_super_admin", False),
             avatar_url=user.get("avatar_url"),
             created_at=user["created_at"],
             updated_at=user.get("updated_at", user["created_at"])
