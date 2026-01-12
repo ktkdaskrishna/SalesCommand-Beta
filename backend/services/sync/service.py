@@ -9,6 +9,7 @@ import uuid
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from services.odoo.connector import OdooConnector
+from services.ms365.connector import MS365Connector
 from services.data_lake.manager import DataLakeManager
 from models.base import (
     EntityType, IntegrationType, SyncStatus, SyncJob
