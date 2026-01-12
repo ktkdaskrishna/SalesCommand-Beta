@@ -14,6 +14,7 @@ import Integrations from './pages/Integrations';
 import DataLake from './pages/DataLake';
 import FieldMapping from './pages/FieldMapping';
 import AdminPanel from './pages/AdminPanel';
+import MyOutlook from './pages/MyOutlook';
 
 // Components
 import Layout from './components/Layout';
