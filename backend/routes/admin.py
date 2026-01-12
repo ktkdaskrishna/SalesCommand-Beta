@@ -450,3 +450,116 @@ async def get_my_permissions(token_data: dict = Depends(get_current_user_from_to
         "data_scope": user_with_role.data_scope,
         "permissions": user_with_role.permissions
     }
+
+
+# ===================== AZURE AD USER DIRECTORY SYNC =====================
+
+@router.post("/sync-azure-users")
+async def sync_azure_ad_users(
+    token_data: dict = Depends(require_super_admin)
+):
+    """
+    Sync users from Azure AD directory into the application.
+    This syncs ONLY identity information (name, email, department, job title).
+    Does NOT sync personal emails, calendar, or files.
+    
+    Uses the most recently logged-in MS365 user's token.
+    For full directory sync, admin consent with User.Read.All is required.
+    """
+    from services.ms365.connector import MS365Connector
+    import uuid
+    
+    db = Database.get_db()
+    
+    # Get MS365 token from any user who has logged in via SSO
+    ms_user = await db.users.find_one(
+        {"ms_access_token": {"$exists": True, "$ne": ""}},
+        {"ms_access_token": 1},
+        sort=[("last_login", -1)]
+    )
+    
+    if not ms_user or not ms_user.get("ms_access_token"):
+        raise HTTPException(
+            status_code=400,
+            detail="No Microsoft 365 token available. A user must first login with Microsoft SSO."
+        )
+    
+    try:
+        async with MS365Connector(ms_user["ms_access_token"]) as connector:
+            # Fetch users from Azure AD
+            ad_users = await connector.get_organization_users(top=200)
+            
+            now = datetime.now(timezone.utc)
+            created = 0
+            updated = 0
+            skipped = 0
+            
+            for ad_user in ad_users:
+                email = ad_user.get("email")
+                if not email:
+                    skipped += 1
+                    continue
+                
+                # Check if user exists
+                existing = await db.users.find_one({"email": email})
+                
+                # Try to match department from our departments collection
+                dept_id = None
+                if ad_user.get("department"):
+                    dept = await db.departments.find_one({
+                        "$or": [
+                            {"name": {"$regex": ad_user["department"], "$options": "i"}},
+                            {"code": {"$regex": ad_user["department"], "$options": "i"}}
+                        ]
+                    })
+                    if dept:
+                        dept_id = dept["id"]
+                
+                if existing:
+                    # Update existing user with Azure AD info
+                    updates = {
+                        "ms_id": ad_user.get("ms_id"),
+                        "name": ad_user.get("display_name") or existing.get("name"),
+                        "job_title": ad_user.get("job_title") or existing.get("job_title"),
+                        "updated_at": now
+                    }
+                    
+                    # Only update department if we found a match
+                    if dept_id:
+                        updates["department_id"] = dept_id
+                    
+                    await db.users.update_one({"email": email}, {"$set": updates})
+                    updated += 1
+                else:
+                    # Create new user (without password - SSO only)
+                    new_user = {
+                        "id": str(uuid.uuid4()),
+                        "email": email,
+                        "name": ad_user.get("display_name", email.split("@")[0]),
+                        "password_hash": "",
+                        "ms_id": ad_user.get("ms_id"),
+                        "job_title": ad_user.get("job_title"),
+                        "department_id": dept_id,
+                        "role_id": None,  # Super admin assigns role later
+                        "is_super_admin": False,
+                        "is_active": ad_user.get("is_active", True),
+                        "auth_provider": "microsoft",
+                        "created_at": now,
+                        "updated_at": now
+                    }
+                    await db.users.insert_one(new_user)
+                    created += 1
+            
+            return {
+                "message": "Azure AD user sync completed",
+                "total_fetched": len(ad_users),
+                "created": created,
+                "updated": updated,
+                "skipped": skipped
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to sync Azure AD users: {str(e)}"
+        )
