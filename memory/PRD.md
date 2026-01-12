@@ -150,6 +150,9 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 - [x] **User Management** - View/Edit users, assign roles and departments
 - [x] **is_super_admin Flag** - Separate admin privilege from business role
 - [x] **Permission-Based Navigation** - Admin section only visible to super admins
+- [x] **Azure AD Sync Button** - "Sync from Azure AD" to populate users from directory
+- [x] **My Outlook Page** - Personal email/calendar view (user-scoped)
+- [x] **Personal Data APIs** - GET /api/my/emails, /api/my/calendar, /api/my/connection-status
 
 ---
 
