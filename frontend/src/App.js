@@ -13,7 +13,6 @@ import Activities from "./pages/Activities";
 import KPIs from "./pages/KPIs";
 import Incentives from "./pages/Incentives";
 import Integrations from "./pages/Integrations";
-import IntegrationHub from "./components/IntegrationHub";
 import OdooIntegrationHub from "./components/OdooIntegrationHub";
 import SalesforceIntegrationHub from "./components/SalesforceIntegrationHub";
 import HubSpotIntegrationHub from "./components/HubSpotIntegrationHub";
