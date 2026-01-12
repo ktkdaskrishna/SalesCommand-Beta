@@ -174,14 +174,18 @@ class SyncService:
                 
                 for record in records:
                     try:
+                        source_id = str(record.get("id"))
+                        logger.info(f"Processing record {source_id} for entity {entity_type.value}")
+                        
                         # Ingest to Raw Zone
-                        await self.data_lake.ingest_raw(
+                        raw_result = await self.data_lake.ingest_raw(
                             source=IntegrationType.ODOO,
-                            source_id=str(record.get("id")),
+                            source_id=source_id,
                             entity_type=entity_type,
                             raw_data=record,
                             sync_batch_id=job_id
                         )
+                        logger.info(f"Raw ingestion complete for {source_id}")
                         
                         # Transform using custom mappings or default normalization
                         if custom_mappings:
@@ -189,23 +193,27 @@ class SyncService:
                         else:
                             normalized = self._normalize_odoo_record(record, entity_type)
                         
+                        logger.info(f"Normalized data for {source_id}: {list(normalized.keys())}")
+                        
                         await self.data_lake.normalize_to_canonical(
                             raw_record={
                                 "source": IntegrationType.ODOO.value,
-                                "source_id": str(record.get("id")),
+                                "source_id": source_id,
                                 "entity_type": entity_type.value
                             },
                             normalized_data=normalized,
                             validation_result={"status": "valid", "errors": [], "quality_score": 1.0}
                         )
+                        logger.info(f"Canonical zone complete for {source_id}")
                         
                         # Aggregate to Serving Zone
                         await self.data_lake.aggregate_to_serving(
                             entity_type=entity_type,
-                            serving_data={**normalized, "id": str(record.get("id"))},
-                            canonical_refs=[str(record.get("id"))],
+                            serving_data={**normalized, "id": source_id},
+                            canonical_refs=[source_id],
                             aggregation_type="single"
                         )
+                        logger.info(f"Serving zone complete for {source_id}")
                         
                         result["processed"] += 1
                         
