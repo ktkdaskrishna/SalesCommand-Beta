@@ -49,7 +49,7 @@ class Database:
     @classmethod
     async def _init_data_lake_indexes(cls):
         """Initialize indexes for Data Lake collections"""
-        if not cls.db:
+        if cls.db is None:
             return
             
         # Raw Zone indexes
