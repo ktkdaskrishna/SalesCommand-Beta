@@ -19,6 +19,7 @@ import {
   Wand2,
   Shield,
   Users,
+  Mail,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -37,6 +38,7 @@ const Layout = () => {
     { path: '/integrations', icon: Plug2, label: 'Integrations' },
     { path: '/field-mapping', icon: Wand2, label: 'Field Mapping' },
     { path: '/data-lake', icon: Database, label: 'Data Lake' },
+    { path: '/my-outlook', icon: Mail, label: 'My Outlook' },
   ];
 
   // Admin items - only shown to super admins
