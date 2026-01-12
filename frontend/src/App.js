@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Integrations from './pages/Integrations';
 import DataLake from './pages/DataLake';
+import FieldMapping from './pages/FieldMapping';
 
 // Components
 import Layout from './components/Layout';
