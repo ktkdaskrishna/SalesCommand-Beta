@@ -53,6 +53,12 @@ export const AuthProvider = ({ children }) => {
     return userData;
   }, []);
 
+  const loginWithToken = useCallback((token, userData) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
