@@ -90,6 +90,16 @@ The user has mandated a complete architectural rebuild of the application, trans
 - [x] Integrations page with Odoo configuration modal (scrollable, user-friendly)
 - [x] Data Lake exploration page with zone tabs
 
+### Phase 2: Expanded Sync & Field Mapping UI ✅ (Jan 12, 2026)
+- [x] Extended Odoo sync to support 5 entity types: Account, Contact, Opportunity, Order, Invoice
+- [x] Added normalization logic for Orders and Invoices
+- [x] Extended canonical schemas for all entity types
+- [x] AI Field Mapping UI with 3-column layout (Source Fields | Mappings | Target Schema)
+- [x] AI Auto-Map button with confidence scores
+- [x] Default mappings fallback when AI unavailable
+- [x] Save/Load mapping configurations
+- [x] Help dialog explaining field mapping concepts
+
 ---
 
 ## Upcoming Phases
