@@ -192,12 +192,15 @@ class DataLakeManager:
         """
         Aggregate canonical data into Serving Zone for fast dashboard queries.
         """
-        # Check for existing serving record
+        # Check for existing serving record - must match entity_type as well
         serving_id = serving_data.get("id") or serving_data.get("serving_id")
         
         existing = None
         if serving_id:
-            existing = await self.serving_collection.find_one({"serving_id": serving_id})
+            existing = await self.serving_collection.find_one({
+                "entity_type": entity_type.value,
+                "serving_id": serving_id
+            })
         
         record = ServingRecord(
             entity_type=entity_type,
@@ -211,7 +214,7 @@ class DataLakeManager:
         
         if existing:
             await self.serving_collection.update_one(
-                {"serving_id": existing["serving_id"]},
+                {"serving_id": existing["serving_id"], "entity_type": entity_type.value},
                 {"$set": {
                     "data": serving_data,
                     "canonical_refs": canonical_refs,
@@ -219,8 +222,10 @@ class DataLakeManager:
                 }}
             )
             record.serving_id = existing["serving_id"]
+            logger.info(f"Updated serving record: {entity_type.value}/{serving_id}")
         else:
             await self.serving_collection.insert_one(record.model_dump())
+            logger.info(f"Inserted serving record: {entity_type.value}/{serving_id}")
         
         return record
     
