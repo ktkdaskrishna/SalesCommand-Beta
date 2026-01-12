@@ -24,6 +24,28 @@ import {
   Command,
 } from "lucide-react";
 
+// NavLink component - defined outside Sidebar
+const NavLink = ({ item, pathname, onClick, className = "" }) => {
+  const isActive = pathname === item.path;
+  return (
+    <Link
+      to={item.path}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+        isActive
+          ? "bg-white/10 text-white"
+          : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+        className
+      )}
+      data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+    >
+      {item.icon && <item.icon className="w-5 h-5 flex-shrink-0" />}
+      <span>{item.label}</span>
+    </Link>
+  );
+};
+
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { user, isExecutive } = useAuth();
@@ -44,27 +66,6 @@ const Sidebar = ({ isOpen, onClose }) => {
     { label: "HubSpot", path: "/integrations/hubspot" },
     { label: "Microsoft 365", path: "/integrations/ms365" },
   ];
-
-  const NavLink = ({ item, className = "" }) => {
-    const isActive = location.pathname === item.path;
-    return (
-      <Link
-        to={item.path}
-        onClick={onClose}
-        className={cn(
-          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
-          isActive
-            ? "bg-white/10 text-white"
-            : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
-          className
-        )}
-        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        {item.icon && <item.icon className="w-5 h-5 flex-shrink-0" />}
-        <span>{item.label}</span>
-      </Link>
-    );
-  };
 
   return (
     <>
@@ -121,7 +122,12 @@ const Sidebar = ({ isOpen, onClose }) => {
             </span>
           </div>
           {navItems.map((item) => (
-            <NavLink key={item.path} item={item} />
+            <NavLink 
+              key={item.path} 
+              item={item} 
+              pathname={location.pathname}
+              onClick={onClose}
+            />
           ))}
 
           {isExecutive() && (
@@ -131,7 +137,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                   Administration
                 </span>
               </div>
-              <NavLink item={{ icon: Users, label: "Users", path: "/users" }} />
+              <NavLink 
+                item={{ icon: Users, label: "Users", path: "/users" }} 
+                pathname={location.pathname}
+                onClick={onClose}
+              />
               
               {/* Integrations Collapsible */}
               <div className="mt-1">
@@ -187,7 +197,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                   System
                 </span>
               </div>
-              <NavLink item={{ icon: Shield, label: "System Config", path: "/admin/config" }} />
+              <NavLink 
+                item={{ icon: Shield, label: "System Config", path: "/admin/config" }} 
+                pathname={location.pathname}
+                onClick={onClose}
+              />
             </>
           )}
         </nav>
