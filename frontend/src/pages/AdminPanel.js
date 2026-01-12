@@ -33,6 +33,7 @@ const AdminPanel = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [editingRole, setEditingRole] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [syncingAzure, setSyncingAzure] = useState(false);
 
   // Check if user is super admin
   useEffect(() => {
