@@ -217,7 +217,7 @@ const Integrations = () => {
       await fetchIntegrations();
     } catch (error) {
       console.error('Failed to trigger sync:', error);
-      toast.error(error.response?.data?.detail || 'Failed to start sync');
+      toast.error(getErrorMessage(error, 'Failed to start sync'));
     } finally {
       setSyncing(false);
     }
