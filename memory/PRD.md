@@ -4,7 +4,7 @@
 Enterprise-grade Sales CRM with ERP Integration, designed with a microservices architecture and three-zone Data Lake.
 
 ## Version
-**v2.1.0** - Multi-Entity Sync & Custom Mappings (Jan 12, 2026)
+**v2.2.0** - RBAC & Admin Panel (Jan 12, 2026)
 
 ---
 
@@ -17,6 +17,7 @@ The user has mandated a complete architectural rebuild of the application, trans
 4. **AI-Powered Features:** GPT-5.2 for intelligent field mapping with BYOK support
 5. **Microservices Architecture:** Each integration as a separate service for scalability
 6. **Docker-First Deployment:** Single `docker-compose up` command
+7. **Role-Based Access Control:** Configurable roles, permissions, and data scoping
 
 ---
 
