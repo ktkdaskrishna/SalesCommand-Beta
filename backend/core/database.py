@@ -72,7 +72,7 @@ class Database:
     @classmethod
     def get_db(cls) -> AsyncIOMotorDatabase:
         """Get database instance"""
-        if not cls.db:
+        if cls.db is None:
             raise RuntimeError("Database not connected. Call connect() first.")
         return cls.db
     
