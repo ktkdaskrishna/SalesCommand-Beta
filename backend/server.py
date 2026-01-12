@@ -102,6 +102,7 @@ from routes.data_lake import router as data_lake_router
 from routes.integrations import router as integrations_router
 from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
+from routes.personal import router as personal_router
 
 # Register routes
 api_router.include_router(auth_router)
@@ -109,6 +110,7 @@ api_router.include_router(data_lake_router)
 api_router.include_router(integrations_router)
 api_router.include_router(webhooks_router)
 api_router.include_router(admin_router)
+api_router.include_router(personal_router)
 
 # Mount API router
 app.include_router(api_router)
