@@ -221,8 +221,8 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
     # Exchange code for tokens with PKCE
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     
-    # For SPA with PKCE, we use the code_verifier instead of client_secret
-    # But if client_secret is available, we include it for confidential clients
+    # For SPA (public client) with PKCE, do NOT send client_secret
+    # The code_verifier proves the client's identity
     token_data = {
         "client_id": client_id,
         "code": callback_data.code,
@@ -231,9 +231,8 @@ async def microsoft_callback(callback_data: MicrosoftCallbackRequest):
         "code_verifier": callback_data.code_verifier
     }
     
-    # Only include client_secret if it's a confidential client (has secret)
-    if client_secret:
-        token_data["client_secret"] = client_secret
+    # Note: For public clients (SPA), client_secret should NOT be included
+    # Azure will reject requests with client_secret for public clients
     
     try:
         async with aiohttp.ClientSession() as session:
