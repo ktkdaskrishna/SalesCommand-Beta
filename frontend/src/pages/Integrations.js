@@ -1,201 +1,346 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { cn } from "../lib/utils";
+/**
+ * Integrations Page
+ * Manage all ERP integrations (Odoo, Salesforce, etc.)
+ */
+import React, { useState, useEffect } from 'react';
+import { integrationsAPI } from '../services/api';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import {
-  Database,
-  Cloud,
-  MessageSquare,
-  Mail,
-  CheckCircle,
+  Plug2,
+  Settings,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Play,
   AlertCircle,
-  ArrowRight,
-  Plug,
-  Sparkles,
-} from "lucide-react";
-
-const integrations = [
-  {
-    id: "odoo",
-    name: "Odoo ERP",
-    description: "Sync contacts, opportunities, and activities from your Odoo instance",
-    icon: Database,
-    color: "purple",
-    path: "/integrations/odoo",
-    status: "connected", // This would come from API in real app
-    features: ["Contacts & Companies", "Opportunities", "Activities"],
-  },
-  {
-    id: "salesforce",
-    name: "Salesforce",
-    description: "Connect your Salesforce CRM to sync leads, accounts, and deals",
-    icon: Cloud,
-    color: "blue",
-    path: "/integrations/salesforce",
-    status: "not_configured",
-    features: ["Leads", "Accounts", "Opportunities"],
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    description: "Integrate with HubSpot CRM for marketing and sales data",
-    icon: MessageSquare,
-    color: "orange",
-    path: "/integrations/hubspot",
-    status: "not_configured",
-    features: ["Contacts", "Companies", "Deals"],
-  },
-  {
-    id: "ms365",
-    name: "Microsoft 365",
-    description: "Connect Microsoft 365 for calendar, email, and user sync",
-    icon: Mail,
-    color: "cyan",
-    path: "/integrations/ms365",
-    status: "not_configured",
-    features: ["Calendar", "Email", "Users"],
-  },
-];
-
-const colorClasses = {
-  purple: {
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    icon: "bg-purple-100 text-purple-600",
-    hover: "hover:border-purple-300 hover:shadow-purple-100",
-  },
-  blue: {
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    icon: "bg-blue-100 text-blue-600",
-    hover: "hover:border-blue-300 hover:shadow-blue-100",
-  },
-  orange: {
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    icon: "bg-orange-100 text-orange-600",
-    hover: "hover:border-orange-300 hover:shadow-orange-100",
-  },
-  cyan: {
-    bg: "bg-cyan-50",
-    border: "border-cyan-200",
-    icon: "bg-cyan-100 text-cyan-600",
-    hover: "hover:border-cyan-300 hover:shadow-cyan-100",
-  },
-};
-
-const IntegrationCard = ({ integration }) => {
-  const colors = colorClasses[integration.color];
-  const Icon = integration.icon;
-  const isConnected = integration.status === "connected";
-
-  return (
-    <Link
-      to={integration.path}
-      className={cn(
-        "block bg-white rounded-xl border p-6 transition-all duration-200 hover:shadow-lg",
-        colors.border,
-        colors.hover
-      )}
-      data-testid={`integration-card-${integration.id}`}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", colors.icon)}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {isConnected ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle className="w-3.5 h-3.5" />
-            Connected
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Not Configured
-          </span>
-        )}
-      </div>
-
-      <h3 className="text-lg font-semibold text-slate-900 mb-1">{integration.name}</h3>
-      <p className="text-sm text-slate-500 mb-4">{integration.description}</p>
-
-      <div className="flex flex-wrap gap-2 mb-4">
-        {integration.features.map((feature) => (
-          <span
-            key={feature}
-            className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded"
-          >
-            {feature}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex items-center text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
-        {isConnected ? "Manage Integration" : "Configure Integration"}
-        <ArrowRight className="w-4 h-4 ml-1" />
-      </div>
-    </Link>
-  );
-};
+  Wand2,
+  Save,
+  ChevronRight,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../components/ui/dialog';
 
 const Integrations = () => {
-  const connectedCount = integrations.filter((i) => i.status === "connected").length;
+  const [integrations, setIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [configModal, setConfigModal] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Odoo config form
+  const [odooConfig, setOdooConfig] = useState({
+    url: '',
+    database: '',
+    username: '',
+    api_key: '',
+  });
+
+  useEffect(() => {
+    fetchIntegrations();
+  }, []);
+
+  const fetchIntegrations = async () => {
+    setLoading(true);
+    try {
+      const response = await integrationsAPI.list();
+      setIntegrations(response.data);
+    } catch (error) {
+      console.error('Failed to fetch integrations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfigureOdoo = () => {
+    setSelectedIntegration('odoo');
+    setConfigModal(true);
+    setTestResult(null);
+  };
+
+  const handleTestConnection = async () => {
+    setTestResult({ testing: true });
+    try {
+      const response = await integrationsAPI.testOdoo(odooConfig);
+      setTestResult(response.data);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: error.response?.data?.detail || 'Connection test failed',
+      });
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setSaving(true);
+    try {
+      await integrationsAPI.configureOdoo(odooConfig);
+      setConfigModal(false);
+      fetchIntegrations();
+    } catch (error) {
+      console.error('Failed to save config:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTriggerSync = async (integrationType) => {
+    try {
+      await integrationsAPI.triggerSync(integrationType);
+      // Show success message
+    } catch (error) {
+      console.error('Failed to trigger sync:', error);
+    }
+  };
+
+  const getIntegrationDetails = (type) => {
+    const details = {
+      odoo: {
+        name: 'Odoo ERP',
+        description: 'Connect to Odoo 16+ for accounts, opportunities, orders, and invoices.',
+        color: 'purple',
+      },
+      salesforce: {
+        name: 'Salesforce',
+        description: 'Sync with Salesforce CRM for unified sales data.',
+        color: 'blue',
+      },
+      ms365: {
+        name: 'Microsoft 365',
+        description: 'SSO authentication and calendar integration.',
+        color: 'cyan',
+      },
+      hubspot: {
+        name: 'HubSpot',
+        description: 'Marketing and sales automation integration.',
+        color: 'orange',
+      },
+    };
+    return details[type] || { name: type, description: '', color: 'zinc' };
+  };
 
   return (
-    <div className="space-y-6 animate-in" data-testid="integrations-page">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Integrations</h1>
-          <p className="text-slate-500 mt-0.5">
-            Connect your tools and sync data automatically
-          </p>
+          <h1 className="text-2xl font-bold text-white">Integrations</h1>
+          <p className="text-zinc-400 mt-1">Connect and manage your ERP systems</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-900">{connectedCount}</span> of{" "}
-            {integrations.length} connected
-          </div>
-        </div>
+        <Button
+          onClick={fetchIntegrations}
+          variant="outline"
+          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Info Banner */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-5 h-5 text-indigo-600" />
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-8 h-8 text-zinc-500 animate-spin" />
         </div>
-        <div>
-          <h3 className="font-semibold text-indigo-900">AI-Powered Field Mapping</h3>
-          <p className="text-sm text-indigo-700 mt-0.5">
-            Our AI automatically suggests field mappings when you connect a new integration,
-            saving you hours of manual configuration.
-          </p>
-        </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {integrations.map((integration) => {
+            const details = getIntegrationDetails(integration.integration_type);
+            return (
+              <div
+                key={integration.id}
+                className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6"
+                data-testid={`integration-panel-${integration.integration_type}`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-xl bg-${details.color}-500/10`}>
+                      <Plug2 className={`w-6 h-6 text-${details.color}-500`} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">{details.name}</h3>
+                      <p className="text-zinc-500 text-sm">{details.description}</p>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    integration.enabled 
+                      ? 'bg-emerald-500/10 text-emerald-400' 
+                      : 'bg-zinc-500/10 text-zinc-400'
+                  }`}>
+                    {integration.enabled ? 'Connected' : 'Not Connected'}
+                  </span>
+                </div>
 
-      {/* Integration Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {integrations.map((integration) => (
-          <IntegrationCard key={integration.id} integration={integration} />
-        ))}
-      </div>
+                {/* Status Info */}
+                <div className="bg-zinc-800/50 rounded-lg p-4 mb-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-zinc-500">Status</p>
+                      <p className="text-white capitalize">{integration.sync_status}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500">Last Sync</p>
+                      <p className="text-white">
+                        {integration.last_sync 
+                          ? new Date(integration.last_sync).toLocaleString()
+                          : 'Never'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-      {/* Coming Soon Section */}
-      <div className="border-t border-slate-200 pt-8 mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Coming Soon</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {["Slack", "Zoom", "Google Workspace", "Pipedrive"].map((name) => (
-            <div
-              key={name}
-              className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center opacity-60"
-            >
-              <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center mx-auto mb-2">
-                <Plug className="w-5 h-5 text-slate-400" />
+                {/* Actions */}
+                <div className="flex gap-3">
+                  {integration.integration_type === 'odoo' && (
+                    <Button
+                      onClick={handleConfigureOdoo}
+                      className="flex-1 bg-purple-600 hover:bg-purple-500"
+                      data-testid="configure-odoo-btn"
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Configure
+                    </Button>
+                  )}
+                  {integration.enabled && (
+                    <Button
+                      onClick={() => handleTriggerSync(integration.integration_type)}
+                      variant="outline"
+                      className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                      data-testid={`sync-${integration.integration_type}-btn`}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Sync Now
+                    </Button>
+                  )}
+                </div>
               </div>
-              <p className="text-sm font-medium text-slate-600">{name}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </div>
+      )}
+
+      {/* Odoo Configuration Modal */}
+      <Dialog open={configModal} onOpenChange={setConfigModal}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Configure Odoo Integration</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Connect to your Odoo instance using REST API credentials
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Odoo URL</Label>
+              <Input
+                value={odooConfig.url}
+                onChange={(e) => setOdooConfig({ ...odooConfig, url: e.target.value })}
+                placeholder="https://your-instance.odoo.com"
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="odoo-url-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Database Name</Label>
+              <Input
+                value={odooConfig.database}
+                onChange={(e) => setOdooConfig({ ...odooConfig, database: e.target.value })}
+                placeholder="your_database"
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="odoo-database-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Username</Label>
+              <Input
+                value={odooConfig.username}
+                onChange={(e) => setOdooConfig({ ...odooConfig, username: e.target.value })}
+                placeholder="admin@example.com"
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="odoo-username-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-300">API Key</Label>
+              <Input
+                type="password"
+                value={odooConfig.api_key}
+                onChange={(e) => setOdooConfig({ ...odooConfig, api_key: e.target.value })}
+                placeholder="••••••••••••••••"
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="odoo-apikey-input"
+              />
+              <p className="text-xs text-zinc-500">
+                Generate an API key in Odoo: Settings → Users → API Keys
+              </p>
+            </div>
+
+            {/* Test Result */}
+            {testResult && (
+              <div className={`p-4 rounded-lg ${
+                testResult.testing 
+                  ? 'bg-zinc-800 border border-zinc-700'
+                  : testResult.success 
+                    ? 'bg-emerald-500/10 border border-emerald-500/20'
+                    : 'bg-red-500/10 border border-red-500/20'
+              }`}>
+                {testResult.testing ? (
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Testing connection...
+                  </div>
+                ) : testResult.success ? (
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {testResult.message}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-red-400">
+                    <XCircle className="w-4 h-4" />
+                    {testResult.message}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleTestConnection}
+                variant="outline"
+                className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                data-testid="test-odoo-connection-btn"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Test Connection
+              </Button>
+              <Button
+                onClick={handleSaveConfig}
+                disabled={saving || !testResult?.success}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500"
+                data-testid="save-odoo-config-btn"
+              >
+                {saving ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save & Connect
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
