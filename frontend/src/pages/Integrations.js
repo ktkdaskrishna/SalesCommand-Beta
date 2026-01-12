@@ -64,6 +64,14 @@ const Integrations = () => {
     api_key: '',
   });
 
+  // O365 config form
+  const [o365Config, setO365Config] = useState({
+    client_id: '',
+    tenant_id: '',
+    client_secret: '',
+  });
+  const [o365ConfigModal, setO365ConfigModal] = useState(false);
+
   useEffect(() => {
     fetchIntegrations();
   }, []);
