@@ -55,6 +55,67 @@ async def get_all_permissions(token_data: dict = Depends(require_super_admin)):
     return {"permissions": permissions, "grouped": grouped}
 
 
+class PermissionCreateRequest(BaseModel):
+    code: str
+    name: str
+    module: str
+    resource: str
+    action: str
+    description: Optional[str] = None
+
+
+@router.post("/permissions")
+async def create_permission(
+    request: PermissionCreateRequest,
+    token_data: dict = Depends(require_super_admin)
+):
+    """Create a new custom permission"""
+    db = Database.get_db()
+    
+    # Check if code exists
+    existing = await db.permissions.find_one({"code": request.code})
+    if existing:
+        raise HTTPException(status_code=400, detail="Permission code already exists")
+    
+    now = datetime.now(timezone.utc)
+    permission = {
+        "id": str(__import__("uuid").uuid4()),
+        "code": request.code,
+        "name": request.name,
+        "module": request.module,
+        "resource": request.resource,
+        "action": request.action,
+        "description": request.description,
+        "is_active": True,
+        "is_custom": True,  # Mark as custom permission
+        "created_at": now,
+        "created_by": token_data["id"]
+    }
+    
+    await db.permissions.insert_one(permission)
+    del permission["_id"]
+    return {"message": "Permission created", "permission": permission}
+
+
+@router.delete("/permissions/{perm_id}")
+async def delete_permission(
+    perm_id: str,
+    token_data: dict = Depends(require_super_admin)
+):
+    """Delete a custom permission"""
+    db = Database.get_db()
+    
+    perm = await db.permissions.find_one({"id": perm_id})
+    if not perm:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    
+    if not perm.get("is_custom"):
+        raise HTTPException(status_code=400, detail="Cannot delete system permissions")
+    
+    await db.permissions.delete_one({"id": perm_id})
+    return {"message": "Permission deleted"}
+
+
 @router.get("/permissions/{module}")
 async def get_permissions_by_module(
     module: str,
