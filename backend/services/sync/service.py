@@ -130,7 +130,8 @@ class SyncService:
             EntityType.CONTACT: {
                 "model": "res.partner", 
                 "method": connector.get_partners,
-                "filter": [("is_company", "=", False), ("parent_id", "!=", False)]
+                # Use proper Odoo domain - contacts are non-company partners
+                "filter": [("is_company", "=", False)]
             },
             EntityType.OPPORTUNITY: {
                 "model": "crm.lead",
