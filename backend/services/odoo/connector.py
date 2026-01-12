@@ -144,7 +144,11 @@ class OdooConnector:
         result = response.json()
         
         if "error" in result:
-            error_msg = result["error"].get("message", str(result["error"]))
+            error_data = result["error"]
+            error_msg = error_data.get("message", "Unknown error")
+            error_data_detail = error_data.get("data", {})
+            debug_info = error_data_detail.get("debug", "")
+            logger.error(f"Odoo API error details - Message: {error_msg}, Debug: {debug_info[:500] if debug_info else 'N/A'}")
             raise Exception(f"Odoo API error: {error_msg}")
         
         return result.get("result")
