@@ -233,24 +233,24 @@ class SyncService:
         entity_type: EntityType
     ) -> Dict[str, Any]:
         """
-        Normalize Odoo record to canonical schema
+        Normalize Odoo record to canonical schema.
+        Field names now match Odoo naming conventions more closely.
         """
         if entity_type == EntityType.ACCOUNT:
             return {
                 "name": record.get("name", ""),
                 "email": record.get("email") or "",
-                "phone": record.get("phone") or record.get("mobile") or "",
+                "phone": record.get("phone") or "",
                 "website": record.get("website") or "",
-                "industry": self._extract_name(record.get("industry_id")),
-                "address_street": record.get("street") or "",
-                "address_city": record.get("city") or "",
-                "address_state": self._extract_name(record.get("state_id")),
-                "address_country": self._extract_name(record.get("country_id")),
-                "address_zip": record.get("zip") or "",
-                "owner_id": self._extract_id(record.get("user_id")),
-                "owner_name": self._extract_name(record.get("user_id")),
-                "created_date": record.get("create_date"),
-                "modified_date": record.get("write_date"),
+                "street": record.get("street") or "",
+                "city": record.get("city") or "",
+                "zip": record.get("zip") or "",
+                "state_name": self._extract_name(record.get("state_id")),
+                "country_name": self._extract_name(record.get("country_id")),
+                "salesperson_id": self._extract_id(record.get("user_id")),
+                "salesperson_name": self._extract_name(record.get("user_id")),
+                "create_date": record.get("create_date"),
+                "write_date": record.get("write_date"),
             }
         
         elif entity_type == EntityType.CONTACT:
@@ -258,65 +258,60 @@ class SyncService:
                 "name": record.get("name", ""),
                 "email": record.get("email") or "",
                 "phone": record.get("phone") or "",
-                "mobile": record.get("mobile") or "",
-                "account_id": self._extract_id(record.get("parent_id")),
-                "account_name": self._extract_name(record.get("parent_id")),
-                "created_date": record.get("create_date"),
-                "modified_date": record.get("write_date"),
+                "company_id": self._extract_id(record.get("parent_id")),
+                "company_name": self._extract_name(record.get("parent_id")),
+                "function": record.get("function") or "",
+                "create_date": record.get("create_date"),
+                "write_date": record.get("write_date"),
             }
         
         elif entity_type == EntityType.OPPORTUNITY:
             return {
                 "name": record.get("name", ""),
-                "account_id": self._extract_id(record.get("partner_id")),
-                "account_name": self._extract_name(record.get("partner_id")),
-                "value": record.get("expected_revenue") or 0,
+                "partner_id": self._extract_id(record.get("partner_id")),
+                "partner_name": self._extract_name(record.get("partner_id")),
+                "expected_revenue": record.get("expected_revenue") or 0,
                 "probability": record.get("probability") or 0,
-                "stage": self._extract_name(record.get("stage_id")),
-                "close_date": record.get("date_deadline"),
+                "stage_name": self._extract_name(record.get("stage_id")),
+                "date_deadline": record.get("date_deadline"),
                 "description": record.get("description") or "",
-                "owner_id": self._extract_id(record.get("user_id")),
-                "owner_name": self._extract_name(record.get("user_id")),
-                "created_date": record.get("create_date"),
-                "modified_date": record.get("write_date"),
+                "salesperson_id": self._extract_id(record.get("user_id")),
+                "salesperson_name": self._extract_name(record.get("user_id")),
+                "create_date": record.get("create_date"),
+                "write_date": record.get("write_date"),
             }
         
         elif entity_type == EntityType.ORDER:
             return {
                 "name": record.get("name", ""),
-                "order_number": record.get("name", ""),
-                "account_id": self._extract_id(record.get("partner_id")),
-                "account_name": self._extract_name(record.get("partner_id")),
-                "total_amount": record.get("amount_total") or 0,
-                "subtotal": record.get("amount_untaxed") or 0,
-                "tax_amount": record.get("amount_tax") or 0,
-                "status": record.get("state") or "",
-                "order_date": record.get("date_order"),
-                "delivery_date": record.get("commitment_date"),
-                "invoice_status": record.get("invoice_status") or "",
-                "owner_id": self._extract_id(record.get("user_id")),
-                "owner_name": self._extract_name(record.get("user_id")),
-                "created_date": record.get("create_date"),
-                "modified_date": record.get("write_date"),
+                "partner_id": self._extract_id(record.get("partner_id")),
+                "partner_name": self._extract_name(record.get("partner_id")),
+                "amount_total": record.get("amount_total") or 0,
+                "amount_untaxed": record.get("amount_untaxed") or 0,
+                "amount_tax": record.get("amount_tax") or 0,
+                "state": record.get("state") or "",
+                "date_order": record.get("date_order"),
+                "salesperson_id": self._extract_id(record.get("user_id")),
+                "salesperson_name": self._extract_name(record.get("user_id")),
+                "create_date": record.get("create_date"),
+                "write_date": record.get("write_date"),
             }
         
         elif entity_type == EntityType.INVOICE:
             return {
                 "name": record.get("name", ""),
-                "invoice_number": record.get("name", ""),
-                "account_id": self._extract_id(record.get("partner_id")),
-                "account_name": self._extract_name(record.get("partner_id")),
-                "total_amount": record.get("amount_total") or 0,
-                "amount_due": record.get("amount_residual") or 0,
-                "amount_paid": record.get("amount_total", 0) - record.get("amount_residual", 0),
-                "status": record.get("state") or "",
-                "payment_status": record.get("payment_state") or "",
+                "partner_id": self._extract_id(record.get("partner_id")),
+                "partner_name": self._extract_name(record.get("partner_id")),
+                "amount_total": record.get("amount_total") or 0,
+                "amount_residual": record.get("amount_residual") or 0,
+                "state": record.get("state") or "",
+                "payment_state": record.get("payment_state") or "",
                 "invoice_date": record.get("invoice_date"),
-                "due_date": record.get("invoice_date_due"),
-                "owner_id": self._extract_id(record.get("user_id")),
-                "owner_name": self._extract_name(record.get("user_id")),
-                "created_date": record.get("create_date"),
-                "modified_date": record.get("write_date"),
+                "invoice_date_due": record.get("invoice_date_due"),
+                "salesperson_id": self._extract_id(record.get("user_id")),
+                "salesperson_name": self._extract_name(record.get("user_id")),
+                "create_date": record.get("create_date"),
+                "write_date": record.get("write_date"),
             }
         
         return record
