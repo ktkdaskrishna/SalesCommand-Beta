@@ -150,8 +150,8 @@ async def get_users(
 # ===================== MICROSOFT SSO ROUTES =====================
 
 @router.get("/microsoft/login")
-async def microsoft_login():
-    """Get Microsoft OAuth authorization URL"""
+async def microsoft_login(code_challenge: str = None):
+    """Get Microsoft OAuth authorization URL with PKCE support"""
     db = Database.get_db()
     
     # Get O365 config
@@ -192,6 +192,10 @@ async def microsoft_login():
         f"scope={' '.join(scopes)}&"
         f"state=salesintel"
     )
+    
+    # Add PKCE parameters if code_challenge provided
+    if code_challenge:
+        auth_url += f"&code_challenge={code_challenge}&code_challenge_method=S256"
     
     return {"auth_url": auth_url}
 
