@@ -326,7 +326,7 @@ const Integrations = () => {
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="odoo-database-input"
               />
-              <p className="text-xs text-zinc-500">Usually your subdomain (e.g., "securadotest")</p>
+              <p className="text-xs text-zinc-500">Usually your subdomain (e.g., &quot;securadotest&quot;)</p>
             </div>
 
             <div className="space-y-2">
