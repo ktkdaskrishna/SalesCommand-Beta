@@ -94,6 +94,41 @@ const Integrations = () => {
     setTestResult(null);
   };
 
+  const handleConfigureO365 = () => {
+    setSelectedIntegration('ms365');
+    setO365ConfigModal(true);
+    setTestResult(null);
+  };
+
+  const handleTestO365Connection = async () => {
+    setTestResult({ testing: true });
+    try {
+      const response = await integrationsAPI.testO365(o365Config);
+      setTestResult(response.data);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: error.response?.data?.detail || 'Connection test failed',
+      });
+    }
+  };
+
+  const handleSaveO365Config = async () => {
+    setSaving(true);
+    try {
+      await integrationsAPI.configureO365(o365Config);
+      toast.success('Microsoft 365 configured successfully!');
+      setO365ConfigModal(false);
+      setTestResult(null);
+      await fetchIntegrations();
+    } catch (error) {
+      console.error('Failed to save O365 config:', error);
+      toast.error(error.response?.data?.detail || 'Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleTestConnection = async () => {
     setTestResult({ testing: true });
     try {
