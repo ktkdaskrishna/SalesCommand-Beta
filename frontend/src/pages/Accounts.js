@@ -1,594 +1,457 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import api, { accountsAPI } from "../services/api";
-import { formatCurrency, cn } from "../lib/utils";
-import { toast } from "sonner";
+/**
+ * Accounts Page
+ * List and manage customer accounts with table/card toggle view
+ */
+import React, { useState, useEffect } from 'react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { accountsAPI, opportunitiesAPI } from '../services/api';
 import {
-  Building2,
-  Plus,
-  Search,
-  Filter,
-  Loader2,
-  X,
-  RefreshCw,
-  DollarSign,
-  FileText,
-  ShoppingCart,
-  Users,
-  ChevronRight,
-  ExternalLink,
-} from "lucide-react";
-
-const relationshipColors = {
-  new: "bg-slate-100 text-slate-700 border-slate-200",
-  developing: "bg-blue-100 text-blue-700 border-blue-200",
-  established: "bg-amber-100 text-amber-700 border-amber-200",
-  strategic: "bg-emerald-100 text-emerald-700 border-emerald-200",
-};
+  Building2, Plus, Search, LayoutGrid, List, Filter,
+  ChevronRight, TrendingUp, TrendingDown, Minus,
+  Phone, Globe, MapPin, Users, DollarSign, X, Save,
+  MoreVertical, Edit2, Trash2, ExternalLink
+} from 'lucide-react';
 
 const Accounts = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
+  const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [enriching, setEnriching] = useState(null);
+  const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterIndustry, setFilterIndustry] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+
+  // Form state
   const [formData, setFormData] = useState({
-    name: "",
-    industry: "",
-    website: "",
-    annual_revenue: "",
-    employee_count: "",
-    business_overview: "",
-    relationship_maturity: "new",
-    strategic_notes: "",
-    total_budget: "",
+    name: '',
+    industry: '',
+    website: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: '',
+    annual_revenue: '',
+    employee_count: ''
   });
-  const [saving, setSaving] = useState(false);
-  const [accountFields, setAccountFields] = useState(null);
 
-  // Check if user can create accounts (only super_admin and ceo)
-  const canCreateAccount = user?.role === "super_admin" || user?.role === "ceo";
-
+  // Fetch data
   useEffect(() => {
-    fetchAccounts();
-    fetchAccountFields();
+    fetchData();
   }, []);
 
-  const fetchAccounts = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await accountsAPI.getAll();
-      setAccounts(response.data);
-    } catch (error) {
-      console.error("Error fetching accounts:", error);
-      toast.error("Failed to load accounts");
+      const [accountsRes, oppsRes] = await Promise.all([
+        accountsAPI.getAll(),
+        opportunitiesAPI.getAll()
+      ]);
+      setAccounts(accountsRes.data || []);
+      setOpportunities(oppsRes.data || []);
+    } catch (err) {
+      setError('Failed to load accounts');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAccountFields = async () => {
-    try {
-      const response = await api.get("/config/account-fields");
-      setAccountFields(response.data);
-    } catch (error) {
-      console.error("Error fetching account fields:", error);
-    }
+  // Calculate account metrics
+  const getAccountMetrics = (accountId) => {
+    const accountOpps = opportunities.filter(o => o.account_id === accountId);
+    const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost'].includes(o.stage));
+    const wonOpps = accountOpps.filter(o => o.stage === 'closed_won');
+    const lostOpps = accountOpps.filter(o => o.stage === 'closed_lost');
+    
+    const pipelineValue = activeOpps.reduce((sum, o) => sum + (o.value || 0), 0);
+    const wonValue = wonOpps.reduce((sum, o) => sum + (o.value || 0), 0);
+    const winRate = (wonOpps.length + lostOpps.length) > 0 
+      ? Math.round((wonOpps.length / (wonOpps.length + lostOpps.length)) * 100) 
+      : null;
+
+    return { activeOpps: activeOpps.length, pipelineValue, wonValue, winRate };
   };
 
-  const handleSubmit = async (e, dynamicFormData) => {
-    e.preventDefault();
-    setSaving(true);
+  // Get health score
+  const getHealthScore = (accountId) => {
+    const metrics = getAccountMetrics(accountId);
+    if (metrics.winRate === null) return 'new';
+    if (metrics.winRate >= 60) return 'healthy';
+    if (metrics.winRate >= 30) return 'at-risk';
+    return 'critical';
+  };
+
+  // Filter accounts
+  const filteredAccounts = accounts.filter(account => {
+    const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesIndustry = !filterIndustry || account.industry === filterIndustry;
+    return matchesSearch && matchesIndustry;
+  });
+
+  // Get unique industries
+  const industries = [...new Set(accounts.map(a => a.industry).filter(Boolean))];
+
+  // Create account
+  const handleCreate = async () => {
     try {
-      // Use dynamic form data if provided, otherwise use local formData
-      const dataToSubmit = dynamicFormData || {
+      await accountsAPI.create({
         ...formData,
         annual_revenue: formData.annual_revenue ? parseFloat(formData.annual_revenue) : null,
-        employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
-        total_budget: formData.total_budget ? parseFloat(formData.total_budget) : null,
-      };
-      await accountsAPI.create(dataToSubmit);
-      toast.success("Account created successfully");
-      setShowModal(false);
-      setFormData({
-        name: "",
-        industry: "",
-        website: "",
-        annual_revenue: "",
-        employee_count: "",
-        business_overview: "",
-        relationship_maturity: "new",
-        strategic_notes: "",
-        total_budget: "",
+        employee_count: formData.employee_count ? parseInt(formData.employee_count) : null
       });
-      fetchAccounts();
-    } catch (error) {
-      console.error("Error creating account:", error);
-      toast.error(error.response?.data?.detail || "Failed to create account");
-    } finally {
-      setSaving(false);
+      setShowCreateModal(false);
+      setFormData({ name: '', industry: '', website: '', phone: '', address: '', city: '', country: '', annual_revenue: '', employee_count: '' });
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to create account');
     }
   };
 
-  const handleEnrich = async (accountId) => {
-    setEnriching(accountId);
-    try {
-      const response = await api.post(`/accounts/${accountId}/enrich`);
-      toast.success(`Account enriched: ${response.data.summary.orders_count} orders, ${response.data.summary.invoices_count} invoices synced`);
-      fetchAccounts();
-    } catch (error) {
-      console.error("Error enriching account:", error);
-      toast.error(error.response?.data?.detail || "Failed to enrich account");
-    } finally {
-      setEnriching(null);
-    }
+  // Format currency
+  const formatCurrency = (value) => {
+    if (!value) return '-';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   };
 
-  const filteredAccounts = accounts.filter(
-    (a) =>
-      a.name?.toLowerCase().includes(search.toLowerCase()) ||
-      a.industry?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (loading) {
+  // Health badge component
+  const HealthBadge = ({ status }) => {
+    const styles = {
+      healthy: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
+      'at-risk': 'bg-amber-500/20 text-amber-400 border-amber-500/50',
+      critical: 'bg-red-500/20 text-red-400 border-red-500/50',
+      new: 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+    };
+    const labels = { healthy: 'Healthy', 'at-risk': 'At Risk', critical: 'Critical', new: 'New' };
+    
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-      </div>
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>
+        {labels[status]}
+      </span>
     );
-  }
+  };
 
   return (
-    <div className="space-y-6" data-testid="accounts-page">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-            <Building2 className="w-7 h-7" style={{ color: "#800000" }} />
-            Accounts
-          </h1>
-          <p className="text-slate-500 mt-1">
-            {canCreateAccount ? "Manage customer accounts and organizations" : "View your assigned accounts"}
-          </p>
+          <h1 className="text-2xl font-bold text-white">Accounts</h1>
+          <p className="text-sm text-zinc-400 mt-1">Manage your customer accounts and relationships</p>
         </div>
-        {canCreateAccount && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="btn-primary flex items-center gap-2"
-            data-testid="create-account-btn"
+        <Button onClick={() => setShowCreateModal(true)} className="bg-emerald-600 hover:bg-emerald-500">
+          <Plus className="w-4 h-4 mr-2" />
+          New Account
+        </Button>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
+        <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input
+              placeholder="Search accounts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-zinc-800 border-zinc-700 text-white"
+            />
+          </div>
+          
+          <select
+            value={filterIndustry}
+            onChange={(e) => setFilterIndustry(e.target.value)}
+            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300"
           >
-            <Plus className="w-4 h-4" />
-            Create Account
+            <option value="">All Industries</option>
+            {industries.map(ind => (
+              <option key={ind} value={ind}>{ind}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex items-center gap-1 bg-zinc-800 p-1 rounded-lg">
+          <button
+            onClick={() => setViewMode('card')}
+            className={`p-2 rounded ${viewMode === 'card' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <LayoutGrid className="w-4 h-4" />
           </button>
-        )}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search accounts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pl-10 w-full"
-            data-testid="search-accounts"
-          />
-        </div>
-        <button className="btn-secondary flex items-center gap-2">
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{accounts.length}</p>
-              <p className="text-xs text-slate-500">Total Accounts</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(accounts.reduce((sum, a) => sum + (a.total_budget || 0), 0))}
-              </p>
-              <p className="text-xs text-slate-500">Total Budget</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(accounts.reduce((sum, a) => sum + (a.total_orders || 0), 0))}
-              </p>
-              <p className="text-xs text-slate-500">Total Orders</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(accounts.reduce((sum, a) => sum + (a.outstanding_amount || 0), 0))}
-              </p>
-              <p className="text-xs text-slate-500">Outstanding</p>
-            </div>
-          </div>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`p-2 rounded ${viewMode === 'table' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <List className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Accounts List */}
-      <div className="card overflow-hidden">
-        <table className="w-full" data-testid="accounts-table">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Account</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Industry</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Status</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Total Budget</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Total Orders</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Outstanding</th>
-              <th className="text-left p-4 text-xs font-semibold text-slate-600">Assigned AM</th>
-              <th className="text-right p-4 text-xs font-semibold text-slate-600">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredAccounts.map((account) => (
-              <tr
+      {/* Error */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
+          {error}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredAccounts.length === 0 ? (
+        <div className="text-center py-12">
+          <Building2 className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-zinc-400">No accounts found</h3>
+          <p className="text-sm text-zinc-500 mt-1">Create your first account to get started</p>
+          <Button onClick={() => setShowCreateModal(true)} className="mt-4 bg-emerald-600 hover:bg-emerald-500">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Account
+          </Button>
+        </div>
+      ) : viewMode === 'card' ? (
+        /* Card View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAccounts.map(account => {
+            const metrics = getAccountMetrics(account.id);
+            const health = getHealthScore(account.id);
+            
+            return (
+              <div
                 key={account.id}
-                className="hover:bg-slate-50 cursor-pointer"
-                onClick={() => navigate(`/accounts/${account.id}`)}
-                data-testid={`account-row-${account.id}`}
+                className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all cursor-pointer group"
+                onClick={() => setSelectedAccount(account)}
               >
-                <td className="p-4">
+                <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-slate-600" />
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-slate-900">{account.name}</p>
-                      {account.website && (
-                        <a
-                          href={account.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {account.website.replace(/^https?:\/\//, "")}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
+                      <h3 className="font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                        {account.name}
+                      </h3>
+                      <p className="text-xs text-zinc-500">{account.industry || 'No industry'}</p>
                     </div>
                   </div>
-                </td>
-                <td className="p-4">
-                  <span className="text-sm text-slate-600 capitalize">
-                    {account.industry?.replace(/_/g, " ") || "-"}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-1 rounded-full border capitalize",
-                      relationshipColors[account.relationship_maturity] || relationshipColors.new
-                    )}
-                  >
-                    {account.relationship_maturity || "new"}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className="font-medium text-slate-900">
-                    {account.total_budget ? formatCurrency(account.total_budget) : "-"}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className={cn("font-medium", account.total_orders > 0 ? "text-emerald-600" : "text-slate-400")}>
-                    {account.total_orders ? formatCurrency(account.total_orders) : "-"}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className={cn("font-medium", account.outstanding_amount > 0 ? "text-red-600" : "text-slate-400")}>
-                    {account.outstanding_amount ? formatCurrency(account.outstanding_amount) : "-"}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center">
-                      <Users className="w-3 h-3 text-slate-600" />
-                    </div>
-                    <span className="text-sm text-slate-600">
-                      {account.assigned_am_name || "Unassigned"}
+                  <HealthBadge status={health} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-zinc-800/50 rounded-lg p-3">
+                    <p className="text-xs text-zinc-500 mb-1">Pipeline</p>
+                    <p className="text-sm font-semibold text-white">{formatCurrency(metrics.pipelineValue)}</p>
+                  </div>
+                  <div className="bg-zinc-800/50 rounded-lg p-3">
+                    <p className="text-xs text-zinc-500 mb-1">Won Revenue</p>
+                    <p className="text-sm font-semibold text-emerald-400">{formatCurrency(metrics.wonValue)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>{metrics.activeOpps} active opportunities</span>
+                  {metrics.winRate !== null && (
+                    <span className={metrics.winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}>
+                      {metrics.winRate}% win rate
                     </span>
+                  )}
+                </div>
+
+                {account.website && (
+                  <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2 text-xs text-zinc-500">
+                    <Globe className="w-3 h-3" />
+                    <a href={account.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400" onClick={(e) => e.stopPropagation()}>
+                      {account.website.replace(/^https?:\/\//, '')}
+                    </a>
                   </div>
-                </td>
-                <td className="p-4 text-right">
-                  <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleEnrich(account.id)}
-                      disabled={enriching === account.id}
-                      className="btn-secondary text-xs flex items-center gap-1"
-                      title="Enrich from Odoo"
-                      data-testid={`enrich-btn-${account.id}`}
-                    >
-                      {enriching === account.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-3 h-3" />
-                      )}
-                      Enrich
-                    </button>
-                    <button
-                      onClick={() => navigate(`/accounts/${account.id}`)}
-                      className="p-2 hover:bg-slate-100 rounded"
-                    >
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    </button>
-                  </div>
-                </td>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Account</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Industry</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Health</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Pipeline</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Won</th>
+                <th className="text-center px-4 py-3 text-sm font-medium text-zinc-400">Opportunities</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredAccounts.map(account => {
+                const metrics = getAccountMetrics(account.id);
+                const health = getHealthScore(account.id);
+                
+                return (
+                  <tr 
+                    key={account.id} 
+                    className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer"
+                    onClick={() => setSelectedAccount(account)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                          <Building2 className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{account.name}</p>
+                          {account.website && (
+                            <p className="text-xs text-zinc-500">{account.website.replace(/^https?:\/\//, '')}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-zinc-300">{account.industry || '-'}</td>
+                    <td className="px-4 py-3"><HealthBadge status={health} /></td>
+                    <td className="px-4 py-3 text-right text-sm text-white">{formatCurrency(metrics.pipelineValue)}</td>
+                    <td className="px-4 py-3 text-right text-sm text-emerald-400">{formatCurrency(metrics.wonValue)}</td>
+                    <td className="px-4 py-3 text-center text-sm text-zinc-300">{metrics.activeOpps}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button className="p-1 text-zinc-400 hover:text-white" onClick={(e) => e.stopPropagation()}>
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-        {filteredAccounts.length === 0 && (
-          <div className="p-8 text-center text-slate-500">
-            {search ? "No accounts match your search" : "No accounts yet"}
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white">Create New Account</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="text-zinc-300">Account Name *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Acme Corporation"
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-zinc-300">Industry</Label>
+                  <Input
+                    value={formData.industry}
+                    onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
+                    placeholder="e.g., Technology"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-zinc-300">Website</Label>
+                  <Input
+                    value={formData.website}
+                    onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                    placeholder="https://..."
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-zinc-300">Phone</Label>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+1 555 123 4567"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-zinc-300">Employee Count</Label>
+                  <Input
+                    type="number"
+                    value={formData.employee_count}
+                    onChange={(e) => setFormData(prev => ({ ...prev, employee_count: e.target.value }))}
+                    placeholder="e.g., 500"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-zinc-300">Annual Revenue</Label>
+                <Input
+                  type="number"
+                  value={formData.annual_revenue}
+                  onChange={(e) => setFormData(prev => ({ ...prev, annual_revenue: e.target.value }))}
+                  placeholder="e.g., 10000000"
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                />
+              </div>
+
+              <div>
+                <Label className="text-zinc-300">Address</Label>
+                <Input
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Street address"
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-zinc-300">City</Label>
+                  <Input
+                    value={formData.city}
+                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="City"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-zinc-300">Country</Label>
+                  <Input
+                    value={formData.country}
+                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    placeholder="Country"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-zinc-800">
+              <Button variant="outline" onClick={() => setShowCreateModal(false)} className="border-zinc-700 text-zinc-300">
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={!formData.name} className="bg-emerald-600 hover:bg-emerald-500">
+                <Save className="w-4 h-4 mr-2" />
+                Create Account
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Create Account Modal - Dynamic fields from config */}
-      {showModal && canCreateAccount && (
-        <DynamicAccountForm
-          accountFields={accountFields}
-          onSave={handleSubmit}
-          onCancel={() => setShowModal(false)}
-          saving={saving}
-        />
+        </div>
       )}
     </div>
   );
 };
-
-// Dynamic Account Form Component - Uses Account Fields Config
-const DynamicAccountForm = ({ accountFields, onSave, onCancel, saving }) => {
-  const [formData, setFormData] = useState({});
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    // Fetch users for relationship fields
-    const fetchUsers = async () => {
-      try {
-        const response = await api.get("/config/users");
-        setUsers(response.data);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      }
-    };
-    fetchUsers();
-  }, []);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Convert numeric fields
-    const processedData = { ...formData };
-    accountFields?.fields?.forEach(field => {
-      if ((field.field_type === "number" || field.field_type === "currency") && processedData[field.id]) {
-        processedData[field.id] = parseFloat(processedData[field.id]);
-      }
-    });
-    onSave(e, processedData);
-  };
-
-  const renderField = (field) => {
-    const value = formData[field.id] || "";
-    const onChange = (val) => setFormData({ ...formData, [field.id]: val });
-
-    // Skip computed fields in create form
-    if (field.field_type === "computed") return null;
-
-    switch (field.field_type) {
-      case "textarea":
-      case "rich_text":
-        return (
-          <div key={field.id} className="col-span-2">
-            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-            <textarea
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="input w-full h-24"
-              placeholder={field.placeholder || field.description}
-              required={field.validation?.required}
-            />
-          </div>
-        );
-      case "number":
-      case "currency":
-      case "percentage":
-        return (
-          <div key={field.id}>
-            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-            <input
-              type="number"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="input w-full"
-              placeholder={field.placeholder || "0"}
-              required={field.validation?.required}
-            />
-          </div>
-        );
-      case "date":
-        return (
-          <div key={field.id}>
-            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-            <input
-              type="date"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="input w-full"
-              required={field.validation?.required}
-            />
-          </div>
-        );
-      case "dropdown":
-        return (
-          <div key={field.id}>
-            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-            <select
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="input w-full"
-              required={field.validation?.required}
-            >
-              <option value="">Select {field.name}...</option>
-              {field.options?.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        );
-      case "checkbox":
-        return (
-          <div key={field.id} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={!!value}
-              onChange={(e) => onChange(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            <label className="text-sm text-slate-600">{field.name}</label>
-          </div>
-        );
-      case "relationship":
-        if (field.related_entity === "users") {
-          return (
-            <div key={field.id}>
-              <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="input w-full"
-                required={field.validation?.required}
-              >
-                <option value="">Select User...</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                ))}
-              </select>
-            </div>
-          );
-        }
-        return null;
-      default:
-        return (
-          <div key={field.id}>
-            <label className="text-sm text-slate-600">{field.name} {field.validation?.required && "*"}</label>
-            <input
-              type={field.field_type === "email" ? "email" : field.field_type === "url" ? "url" : "text"}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="input w-full"
-              placeholder={field.placeholder || field.description}
-              required={field.validation?.required}
-            />
-          </div>
-        );
-    }
-  };
-
-  const fields = accountFields?.fields || [];
-  const sections = accountFields?.layout?.sections || [];
-
-  // Section icons mapping
-  const sectionIcons = {
-    basic: Building2,
-    financial: DollarSign,
-    contacts: Users,
-    address: MapPin,
-    notes: FileText,
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
-        <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">
-          <h2 className="text-xl font-semibold">Create New Account</h2>
-          <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Render sections from config */}
-          {sections
-            .filter(section => section.id !== "erp_summary") // Skip computed fields section
-            .sort((a, b) => a.order - b.order)
-            .map((section) => {
-              const sectionFields = fields.filter(
-                f => f.section_id === section.id && 
-                f.editable !== false && 
-                f.field_type !== "computed"
-              );
-              if (sectionFields.length === 0) return null;
-
-              const SectionIcon = sectionIcons[section.id] || FileText;
-
-              return (
-                <div key={section.id}>
-                  <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                    <SectionIcon className="w-4 h-4" />
-                    {section.name}
-                  </h3>
-                  <div className={cn("grid gap-4", `grid-cols-${Math.min(section.columns || 2, 2)}`)}>
-                    {sectionFields.sort((a, b) => a.order - b.order).map(renderField)}
-                  </div>
-                </div>
-              );
-            })}
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button type="button" onClick={onCancel} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Account
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Add missing icon import
-const MapPin = ({ className }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-    <circle cx="12" cy="10" r="3"></circle>
-  </svg>
-);
 
 export default Accounts;
