@@ -1347,7 +1347,7 @@ async def get_real_dashboard(
     
     # ---- INVOICES FROM DATA LAKE ----
     invoices_data = []
-    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    inv_docs = await db.data_lake_serving.find(active_entity_filter("invoice")).to_list(1000)
     
     for doc in inv_docs:
         inv = doc.get("data", {})
@@ -1401,7 +1401,7 @@ async def get_receivables(
     
     # Get invoices from data lake
     invoices = []
-    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    inv_docs = await db.data_lake_serving.find(active_entity_filter("invoice")).to_list(1000)
     
     for doc in inv_docs:
         inv = doc.get("data", {})
