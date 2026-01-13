@@ -29,25 +29,12 @@ import Layout from './components/Layout';
 const RoleBasedDashboard = () => {
   const { user, isSuperAdmin } = useAuth();
   
-  // Sales roles see the AccountManagerDashboard with Kanban
-  const salesRoles = ['account_manager', 'sales_director', 'sales_rep', 'presales'];
-  const isSalesRole = salesRoles.includes(user?.role?.toLowerCase());
+  // All users now see the CRM-focused AccountManagerDashboard
+  // Super Admin gets additional admin controls on that dashboard
+  // The old technical Dashboard is available at /admin-dashboard for system monitoring
   
-  // CEO and Sales Director also see the sales dashboard
-  const executiveWithSales = ['ceo', 'sales_director'].includes(user?.role?.toLowerCase());
-  
-  // Super Admin sees the admin dashboard by default
-  if (isSuperAdmin && !executiveWithSales) {
-    return <Dashboard />;
-  }
-  
-  // Sales roles and CEO see AccountManagerDashboard with Kanban
-  if (isSalesRole || executiveWithSales) {
-    return <AccountManagerDashboard />;
-  }
-  
-  // Default to admin dashboard
-  return <Dashboard />;
+  // Show AccountManagerDashboard for everyone (CRM data)
+  return <AccountManagerDashboard />;
 };
 
 // Protected Route Component
