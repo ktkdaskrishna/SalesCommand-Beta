@@ -73,9 +73,9 @@ DEFAULT_NAV_ITEMS = [
     {"id": "dashboard", "label": "Dashboard", "icon": "LayoutDashboard", "path": "/dashboard", "order": 1},
     {"id": "accounts", "label": "Accounts", "icon": "Building2", "path": "/accounts", "order": 2},
     {"id": "opportunities", "label": "Opportunities", "icon": "Target", "path": "/opportunities", "order": 3},
-    {"id": "kpis", "label": "KPIs", "icon": "BarChart3", "path": "/kpis", "order": 4},
-    {"id": "email", "label": "Email", "icon": "Mail", "path": "/email", "order": 5},
-    {"id": "reports", "label": "Reports", "icon": "FileText", "path": "/reports", "order": 6},
+    {"id": "invoices", "label": "Invoices", "icon": "FileText", "path": "/invoices", "order": 4},
+    {"id": "kpis", "label": "KPIs", "icon": "BarChart3", "path": "/kpis", "order": 5},
+    {"id": "email", "label": "Email", "icon": "Mail", "path": "/my-outlook", "order": 6},
 ]
 
 ADMIN_NAV_ITEMS = [
