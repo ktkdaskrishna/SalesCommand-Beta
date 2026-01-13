@@ -161,6 +161,7 @@ function AppRoutes() {
         <Route path="accounts" element={<Accounts />} />
         <Route path="opportunities" element={<Opportunities />} />
         <Route path="kpis" element={<KPIs />} />
+        <Route path="receivables" element={<Receivables />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/:type" element={<Integrations />} />
         <Route path="field-mapping" element={<FieldMapping />} />
