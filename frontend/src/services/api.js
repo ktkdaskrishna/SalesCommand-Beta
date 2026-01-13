@@ -179,4 +179,14 @@ export const configAPI = {
   createPipelineStage: (params) => api.post('/config/pipeline-stages', null, { params }),
 };
 
+// ===================== KPIs API =====================
+
+export const kpisAPI = {
+  getAll: (params) => api.get('/kpis', { params }),
+  getById: (id) => api.get(`/kpis/${id}`),
+  create: (data) => api.post('/kpis', data),
+  update: (id, data) => api.put(`/kpis/${id}`, data),
+  delete: (id) => api.delete(`/kpis/${id}`),
+};
+
 export default api;
