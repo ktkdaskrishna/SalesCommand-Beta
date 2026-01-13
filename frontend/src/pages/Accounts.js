@@ -111,21 +111,28 @@ const Accounts = () => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   };
 
-  // Health badge component - updated styling
-  const HealthBadge = ({ status }) => {
+  // Filter accounts - preserved from original
+  const filteredAccounts = accounts.filter(account => {
+    const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesIndustry = !filterIndustry || account.industry === filterIndustry;
+    return matchesSearch && matchesIndustry;
+  });
+
+  // Get health badge styling
+  const getHealthBadgeStyle = (status) => {
     const styles = {
       healthy: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       'at-risk': 'bg-amber-50 text-amber-700 border-amber-200',
       critical: 'bg-red-50 text-red-700 border-red-200',
       new: 'bg-blue-50 text-blue-700 border-blue-200'
     };
+    return styles[status] || styles.new;
+  };
+
+  const getHealthLabel = (status) => {
     const labels = { healthy: 'Healthy', 'at-risk': 'At Risk', critical: 'Critical', new: 'New' };
-    
-    return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${styles[status]}`}>
-        {labels[status]}
-      </span>
-    );
+    return labels[status] || 'New';
   };
 
   return (
