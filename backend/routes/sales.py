@@ -161,16 +161,17 @@ async def get_opportunities(
     """Get opportunities from data_lake_serving (real Odoo-synced data)"""
     db = Database.get_db()
     user_id = token_data["id"]
-    user_email = token_data.get("email", "")
+    user_email = token_data.get("email", "").lower()
     user_role = token_data.get("role", "")
     
-    # Get user details
-    user = token_data.get("user")
-    if user:
-        is_super_admin = getattr(user, "is_super_admin", False)
-    else:
-        user_doc = await db.users.find_one({"id": user_id})
-        is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
+    # Get full user details including Odoo enrichment
+    user_doc = await db.users.find_one({"id": user_id})
+    is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
+    
+    # Get Odoo salesperson identifier (could be email or name from Odoo)
+    odoo_salesperson_name = user_doc.get("odoo_salesperson_name", "").lower() if user_doc else ""
+    odoo_user_id = user_doc.get("odoo_user_id") if user_doc else None
+    odoo_team_id = user_doc.get("odoo_team_id") if user_doc else None
     
     # Fetch from data_lake_serving (real Odoo data)
     opportunities = []
@@ -180,9 +181,32 @@ async def get_opportunities(
         opp_data = doc.get("data", {})
         
         # User-based filtering for non-admin users
-        if not is_super_admin and user_role == "account_manager":
-            salesperson = opp_data.get("salesperson_name", "")
-            if salesperson and user_email not in salesperson:
+        # Odoo is source of truth - filter by salesperson assignment
+        if not is_super_admin:
+            salesperson_name = (opp_data.get("salesperson_name") or "").lower()
+            salesperson_id = opp_data.get("salesperson_id")
+            opp_team_id = opp_data.get("team_id")
+            
+            # Match by: email in salesperson name, OR odoo_user_id, OR team membership
+            user_has_access = False
+            
+            # 1. Check if user email is in salesperson name
+            if user_email and salesperson_name and user_email in salesperson_name:
+                user_has_access = True
+            
+            # 2. Check if odoo_salesperson_name matches
+            if odoo_salesperson_name and salesperson_name and odoo_salesperson_name in salesperson_name:
+                user_has_access = True
+            
+            # 3. Check if Odoo user ID matches
+            if odoo_user_id and salesperson_id and odoo_user_id == salesperson_id:
+                user_has_access = True
+            
+            # 4. Check team membership (if user is assigned to same team)
+            if odoo_team_id and opp_team_id and odoo_team_id == opp_team_id:
+                user_has_access = True
+            
+            if not user_has_access:
                 continue
         
         # Map Odoo stage to internal stage
