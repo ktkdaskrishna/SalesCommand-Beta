@@ -874,7 +874,7 @@ const FieldMapping = () => {
                     <span className="text-xs text-amber-400/70">unmapped</span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   {info.description} ({info.type})
                   {info.required && <span className="text-red-400 ml-1">*</span>}
                 </p>
