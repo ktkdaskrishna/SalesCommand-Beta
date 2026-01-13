@@ -323,8 +323,8 @@ const Accounts = () => {
         /* Card View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAccounts.map(account => {
-            const metrics = getAccountMetrics(account.id);
-            const health = getHealthScore(account.id);
+            const metrics = getAccountMetrics(account);
+            const health = getHealthScore(account);
             
             return (
               <div
@@ -426,8 +426,8 @@ const Accounts = () => {
             </thead>
             <tbody>
               {filteredAccounts.map((account, idx) => {
-                const metrics = getAccountMetrics(account.id);
-                const health = getHealthScore(account.id);
+                const metrics = getAccountMetrics(account);
+                const health = getHealthScore(account);
                 
                 return (
                   <tr 
