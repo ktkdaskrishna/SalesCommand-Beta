@@ -190,6 +190,12 @@ const Accounts = () => {
     return labels[status] || 'New';
   };
 
+  // Open 360° Account View
+  const handleOpen360View = (accountId) => {
+    setSelected360AccountId(accountId);
+    setShow360Panel(true);
+  };
+
   return (
     <div className="space-y-6 animate-in" data-testid="accounts-page">
       {/* Header */}
