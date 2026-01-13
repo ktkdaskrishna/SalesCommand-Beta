@@ -8,7 +8,7 @@ import api from '../services/api';
 import { 
   User, Mail, Briefcase, Building2, Phone, MapPin, 
   Calendar, Shield, CheckCircle, AlertCircle, RefreshCw,
-  Link as LinkIcon
+  Link as LinkIcon, Users
 } from 'lucide-react';
 
 const Profile = () => {
