@@ -114,7 +114,7 @@ async def get_my_emails(
 
 @router.post("/emails/sync")
 async def sync_my_emails(
-    token_data: dict = Depends(get_current_user_from_token)
+    token_data: dict = Depends(require_approved())
 ):
     """
     Force sync emails from Microsoft 365.
@@ -174,7 +174,7 @@ async def sync_my_emails(
 @router.get("/calendar")
 async def get_my_calendar(
     limit: int = 50,
-    token_data: dict = Depends(get_current_user_from_token)
+    token_data: dict = Depends(require_approved())
 ):
     """
     Get current user's calendar events from Microsoft 365.
