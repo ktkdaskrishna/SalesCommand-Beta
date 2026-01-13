@@ -595,6 +595,141 @@ async def reject_user(
     }
 
 
+@router.post("/users/{user_id}/relink")
+async def relink_user_to_odoo(
+    user_id: str,
+    force_email: Optional[str] = None,
+    token_data: dict = Depends(require_super_admin)
+):
+    """
+    Re-attempt to link a user to their Odoo profile.
+    This can be called if:
+    - Odoo sync has completed after user approval
+    - User was approved before Odoo data was available
+    - Email matching needs to be re-attempted
+    
+    Optionally provide force_email to override the user's email for matching
+    """
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") != "approved":
+        raise HTTPException(status_code=400, detail="Only approved users can be re-linked")
+    
+    user_email = (force_email or user.get("email", "")).lower()
+    odoo_enrichment = {}
+    odoo_match_status = "not_matched"
+    
+    try:
+        # 1. Check data_lake_serving for users
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{user_email}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            odoo_enrichment = {
+                "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id"),
+                "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "odoo_salesperson_name": odoo_data.get("name"),
+                "odoo_matched": True,
+                "odoo_match_email": user_email,
+            }
+            odoo_match_status = "matched_from_sync"
+        
+        # 2. Check by name if email didn't match
+        if not odoo_enrichment and user.get("name"):
+            user_name = user.get("name")
+            odoo_user_by_name = await db.data_lake_serving.find_one({
+                "entity_type": "user",
+                "data.name": {"$regex": f"^{user_name}$", "$options": "i"}
+            })
+            if odoo_user_by_name:
+                odoo_data = odoo_user_by_name.get("data", {})
+                odoo_enrichment = {
+                    "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                    "odoo_employee_id": odoo_data.get("odoo_employee_id"),
+                    "odoo_department_id": odoo_data.get("department_odoo_id"),
+                    "odoo_department_name": odoo_data.get("department_name"),
+                    "odoo_job_title": odoo_data.get("job_title"),
+                    "odoo_salesperson_name": odoo_data.get("name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": odoo_data.get("email") or odoo_data.get("work_email"),
+                }
+                odoo_match_status = "matched_by_name"
+        
+        # 3. Check by salesperson in opportunities
+        if not odoo_enrichment:
+            opp = await db.data_lake_serving.find_one({
+                "entity_type": "opportunity",
+                "$or": [
+                    {"data.salesperson_name": {"$regex": user_email, "$options": "i"}},
+                    {"data.salesperson_name": {"$regex": user.get("name", "NOMATCH"), "$options": "i"}}
+                ]
+            })
+            if opp:
+                opp_data = opp.get("data", {})
+                odoo_enrichment = {
+                    "odoo_salesperson_name": opp_data.get("salesperson_name") or user.get("name"),
+                    "odoo_team_id": opp_data.get("team_id"),
+                    "odoo_team_name": opp_data.get("team_name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": user_email,
+                }
+                odoo_match_status = "matched_from_opportunities"
+        
+    except Exception as e:
+        logger.error(f"Error re-linking user to Odoo: {e}")
+        odoo_match_status = f"error: {str(e)}"
+    
+    if odoo_enrichment:
+        # Update user with Odoo data
+        update_data = {
+            "updated_at": datetime.now(timezone.utc),
+            "odoo_match_status": odoo_match_status,
+            **odoo_enrichment
+        }
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        
+        # Log the re-link
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "action": "user_relinked",
+            "user_id": user_id,
+            "relinked_by": token_data["id"],
+            "odoo_match_status": odoo_match_status,
+            "odoo_enrichment": odoo_enrichment,
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "message": "User re-linked successfully",
+            "user_email": user.get("email"),
+            "odoo_match_status": odoo_match_status,
+            "odoo_enrichment": odoo_enrichment
+        }
+    else:
+        return {
+            "message": "No Odoo match found",
+            "user_email": user.get("email"),
+            "odoo_match_status": odoo_match_status,
+            "suggestion": "Ensure Odoo users are synced first, or check the user's email matches their Odoo work email"
+        }
+
+
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: str, 
