@@ -24,6 +24,7 @@ import {
   Command,
   Sparkles,
   Users,
+  User,
   Shield,
   Plug,
   Database,
