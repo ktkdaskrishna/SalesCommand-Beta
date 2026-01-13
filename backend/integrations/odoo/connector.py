@@ -467,19 +467,172 @@ class OdooConnector(BaseConnector):
         logger.info(f"Fetched {len(users)} users from Odoo (fallback)")
         return users
 
-                    'department_name': rec.get('department_id')[1] if rec.get('department_id') else None,
-                    'manager_odoo_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
-                    'manager_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+    async def fetch_accounts(self) -> List[Dict[str, Any]]:
+        """Fetch all accounts (companies) from Odoo res.partner model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'res.partner'
+        fields = self._get_fields_for_model(model, 'account')
+        domain = [('is_company', '=', True), ('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            accounts = []
+            for rec in records:
+                accounts.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email': rec.get('email'),
+                    'phone': rec.get('phone'),
+                    'mobile': rec.get('mobile'),
+                    'website': rec.get('website'),
+                    'street': rec.get('street'),
+                    'city': rec.get('city'),
+                    'state_name': rec.get('state_id')[1] if rec.get('state_id') else None,
+                    'country_name': rec.get('country_id')[1] if rec.get('country_id') else None,
+                    'zip': rec.get('zip'),
+                    'industry': rec.get('industry_id')[1] if rec.get('industry_id') else None,
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'team_id': rec.get('team_id')[0] if rec.get('team_id') else None,
+                    'team_name': rec.get('team_id')[1] if rec.get('team_id') else None,
+                    'comment': rec.get('comment'),
                     'active': rec.get('active', True),
-                    'source': 'odoo',
-                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
                 })
             
-            logger.info(f"Fetched {len(users)} employees from Odoo")
-            return users
+            logger.info(f"Fetched {len(accounts)} accounts from Odoo")
+            return accounts
             
         except Exception as e:
-            logger.error(f"Failed to fetch employees from Odoo: {e}")
-            # Fallback to res.users if hr.employee fails
-            logger.info("Falling back to res.users model")
-            return await self._fetch_users_fallback()
+            logger.error(f"Failed to fetch accounts from Odoo: {e}")
+            raise
+
+    async def fetch_opportunities(self) -> List[Dict[str, Any]]:
+        """Fetch all opportunities from Odoo crm.lead model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'crm.lead'
+        fields = self._get_fields_for_model(model, 'opportunity')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            opportunities = []
+            for rec in records:
+                opportunities.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email_from': rec.get('email_from'),
+                    'phone': rec.get('phone'),
+                    'contact_name': rec.get('contact_name'),
+                    'partner_id': rec.get('partner_id')[0] if rec.get('partner_id') else None,
+                    'partner_name': rec.get('partner_id')[1] if rec.get('partner_id') else None,
+                    'expected_revenue': rec.get('expected_revenue', 0),
+                    'probability': rec.get('probability', 0),
+                    'stage_id': rec.get('stage_id')[0] if rec.get('stage_id') else None,
+                    'stage_name': rec.get('stage_id')[1] if rec.get('stage_id') else 'New',
+                    'type': rec.get('type'),
+                    'priority': rec.get('priority'),
+                    'date_deadline': rec.get('date_deadline'),
+                    'date_closed': rec.get('date_closed'),
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'team_id': rec.get('team_id')[0] if rec.get('team_id') else None,
+                    'team_name': rec.get('team_id')[1] if rec.get('team_id') else None,
+                    'description': rec.get('description'),
+                    'active': rec.get('active', True),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(opportunities)} opportunities from Odoo")
+            return opportunities
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch opportunities from Odoo: {e}")
+            raise
+
+    async def fetch_invoices(self) -> List[Dict[str, Any]]:
+        """Fetch all invoices from Odoo account.move model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'account.move'
+        fields = ['id', 'name', 'partner_id', 'invoice_date', 'invoice_date_due', 
+                  'amount_total', 'amount_residual', 'state', 'payment_state',
+                  'move_type', 'currency_id', 'create_date', 'write_date']
+        domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]  # Customer invoices only
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            invoices = []
+            for rec in records:
+                invoices.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'partner_id': rec.get('partner_id')[0] if rec.get('partner_id') else None,
+                    'partner_name': rec.get('partner_id')[1] if rec.get('partner_id') else None,
+                    'invoice_date': rec.get('invoice_date'),
+                    'due_date': rec.get('invoice_date_due'),
+                    'amount_total': rec.get('amount_total', 0),
+                    'amount_due': rec.get('amount_residual', 0),
+                    'state': rec.get('state'),
+                    'payment_state': rec.get('payment_state'),
+                    'move_type': rec.get('move_type'),
+                    'currency': rec.get('currency_id')[1] if rec.get('currency_id') else 'USD',
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(invoices)} invoices from Odoo")
+            return invoices
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch invoices from Odoo: {e}")
+            raise
