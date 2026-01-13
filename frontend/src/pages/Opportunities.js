@@ -317,7 +317,7 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
 };
 
 // Enhanced Kanban Card with Blue Sheet, Activities, and Segment
-const KanbanCard = ({ opportunity, index, onOpenBlueSheet }) => {
+const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
   const productTag = opportunity.product_lines?.[0] || null;
   const activityCount = opportunity.activity_count || 0;
   
@@ -328,14 +328,15 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet }) => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "bg-white rounded-lg border p-4 mb-3 shadow-sm hover:shadow-md transition-all",
+            "bg-white rounded-lg border p-4 mb-3 shadow-sm hover:shadow-md transition-all cursor-pointer",
             snapshot.isDragging && "shadow-lg ring-2 ring-blue-500"
           )}
+          onClick={() => onViewDetails && onViewDetails(opportunity)}
           data-testid={`opp-card-${opportunity.id}`}
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-2">
-            <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100">
+            <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100" onClick={(e) => e.stopPropagation()}>
               <GripVertical className="w-4 h-4 text-slate-400" />
             </div>
             {/* Product/Segment Tag */}
