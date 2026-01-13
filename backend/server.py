@@ -38,6 +38,14 @@ async def lifespan(app: FastAPI):
         # Seed demo data if needed
         await seed_demo_data()
         
+        # Start background sync service (5 minute interval)
+        try:
+            from services.sync.background_sync import start_background_sync
+            await start_background_sync(interval_minutes=5)
+            logger.info("Background sync service started (5 min interval)")
+        except Exception as e:
+            logger.warning(f"Failed to start background sync: {e}")
+        
     except Exception as e:
         logger.error(f"Startup error: {e}")
         raise
@@ -46,6 +54,14 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down...")
+    
+    # Stop background sync
+    try:
+        from services.sync.background_sync import stop_background_sync
+        await stop_background_sync()
+    except Exception:
+        pass
+        
     await Database.disconnect()
 
 
