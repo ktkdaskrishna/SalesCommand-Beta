@@ -123,11 +123,15 @@ The user (CTO) mandated a shift from feature development to a full architectural
 
 ## Key Files
 - `/app/backend/routes/sales.py` - Dashboard, opportunity, and 360° account APIs
-- `/app/backend/routes/config.py` - Role-based target configuration
+- `/app/backend/routes/goals.py` - Goals CRUD API (new)
+- `/app/backend/routes/admin.py` - User management with Odoo re-link endpoint
+- `/app/backend/routes/config.py` - Role-based target configuration, navigation config
+- `/app/backend/integrations/odoo/connector.py` - Odoo sync including employees
 - `/app/frontend/src/pages/AccountManagerDashboard.js` - Sales dashboard
 - `/app/frontend/src/pages/Opportunities.js` - Kanban and list views (with expand/collapse)
 - `/app/frontend/src/pages/Accounts.js` - Account management with 360° view integration
-- `/app/frontend/src/pages/FieldMapping.js` - Field mapping configuration
-- `/app/frontend/src/components/OpportunityDetailPanel.js` - Slide-over detail panel
+- `/app/frontend/src/pages/Goals.js` - Goals dashboard with KPI tracking (new)
+- `/app/frontend/src/pages/ActivityTimeline.js` - Activity timeline page (new)
+- `/app/frontend/src/pages/Profile.js` - User profile with Odoo re-link button
 - `/app/frontend/src/components/Account360Panel.js` - 360° account view slide-over panel
 - `/app/frontend/src/components/DataTable.js` - Enterprise-grade table with sorting/filtering
