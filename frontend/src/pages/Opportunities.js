@@ -616,12 +616,12 @@ const Opportunities = () => {
     .filter((o) => !["closed_won", "closed_lost"].includes(o.stage))
     .reduce((sum, o) => sum + (o.value || 0), 0);
     
-  const wonValue = opportunities
+  const wonValue = filteredOpportunities
     .filter((o) => o.stage === "closed_won")
     .reduce((sum, o) => sum + (o.value || 0), 0);
     
-  const avgDealSize = opportunities.length > 0
-    ? opportunities.reduce((sum, o) => sum + (o.value || 0), 0) / opportunities.length
+  const avgDealSize = filteredOpportunities.length > 0
+    ? filteredOpportunities.reduce((sum, o) => sum + (o.value || 0), 0) / filteredOpportunities.length
     : 0;
 
   const columns = [
