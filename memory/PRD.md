@@ -4,7 +4,7 @@
 Enterprise-grade Sales CRM with ERP Integration, designed with a microservices architecture and three-zone Data Lake.
 
 ## Version
-**v2.2.0** - RBAC & Admin Panel (Jan 12, 2026)
+**v2.3.0** - Account Manager Dashboard & Blue Sheet (Jan 13, 2026)
 
 ---
 
@@ -14,224 +14,135 @@ The user has mandated a complete architectural rebuild of the application, trans
 1. **Core Integrations:** Odoo ERP (v16+), with Microsoft 365 / Azure AD for SSO
 2. **Data Lake Architecture:** Three-zone MongoDB Data Lake (Raw, Canonical, Serving)
 3. **Modular Sync Engine:** Connector -> Mapper -> Validator -> Normalizer -> Loader -> Logger
-4. **AI-Powered Features:** GPT-5.2 for intelligent field mapping with BYOK support
-5. **Microservices Architecture:** Each integration as a separate service for scalability
-6. **Docker-First Deployment:** Single `docker-compose up` command
+4. **AI-Powered Features:** GPT-4o for intelligent field mapping and Blue Sheet recommendations (Emergent LLM Key)
+5. **Sales Features:** Account Manager Dashboard with Kanban pipeline, Blue Sheet Probability Calculator, Incentive Calculator
+6. **Microservices Architecture:** Each integration as a separate service for scalability
 7. **Role-Based Access Control:** Configurable roles, permissions, and data scoping
-
----
-
-## Odoo Models Reference (v16+)
-Key Odoo models used for sync:
-- **res.partner** - Accounts (is_company=True) and Contacts (is_company=False)
-- **crm.lead** - Opportunities/CRM Leads
-- **sale.order** - Sales Orders
-- **account.move** - Invoices
-
-Odoo Field Types:
-- Char, Text, Boolean, Integer, Float, Date, Datetime, Selection
-- Many2one returns [id, name] tuple
-
-Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
-
----
-
-## Architecture
-
-### Backend Structure
-```
-/app/backend/
-├── server.py              # Main FastAPI application
-├── core/
-│   ├── config.py          # Settings with BYOK support
-│   └── database.py        # MongoDB + Data Lake zones
-├── models/
-│   └── base.py            # Pydantic models (User, DataLake, Mapping, Sync)
-├── routes/
-│   ├── auth.py            # JWT authentication
-│   ├── data_lake.py       # Data Lake API endpoints
-│   ├── integrations.py    # Integration management + Sync
-│   └── webhooks.py        # Real-time sync webhooks (stub)
-├── services/
-│   ├── auth/
-│   │   └── jwt_handler.py # Token management
-│   ├── data_lake/
-│   │   └── manager.py     # Three-zone operations
-│   ├── odoo/
-│   │   └── connector.py   # REST API connector (v16+)
-│   ├── sync/
-│   │   ├── service.py     # Sync service with custom mapping support
-│   │   └── scheduler.py   # Scheduled sync (stub)
-│   └── ai_mapping/
-│       └── mapper.py      # LLM-powered field mapping
-└── tests/
-    └── test_sync_modal_api.py  # API tests
-```
-
-### Frontend Structure
-```
-/app/frontend/src/
-├── App.js                 # Main routing
-├── context/
-│   └── AuthContext.js     # Authentication state
-├── services/
-│   └── api.js             # API client
-├── pages/
-│   ├── Login.js           # Authentication
-│   ├── Dashboard.js       # Data Lake health + Integrations
-│   ├── Integrations.js    # Integration management + Sync Modal
-│   ├── FieldMapping.js    # AI Field Mapping UI
-│   └── DataLake.js        # Data exploration
-└── components/
-    ├── Layout.js          # Sidebar navigation
-    └── ui/                # Shadcn components
-```
-
-### Data Lake Zones
-| Zone | Collection | Purpose |
-|------|------------|---------|
-| Raw (Bronze) | `data_lake_raw` | Unmodified source data |
-| Canonical (Silver) | `data_lake_canonical` | Normalized, validated |
-| Serving (Gold) | `data_lake_serving` | Aggregated, dashboard-ready |
 
 ---
 
 ## Completed Work
 
-### Phase 1: Foundation Shell ✅ (Jan 12, 2026)
+### Phase 2.4: Account Manager Dashboard & Blue Sheet ✅ (Jan 13, 2026)
+
+#### Account Manager Dashboard
+- [x] **KPI Cards** - Pipeline Value, Won Revenue, Active Opportunities, Activity Completion Rate
+- [x] **Sales Metrics Section** - Orders Won, Booked, Invoiced, Collected, Commission Earned by period
+- [x] **Kanban Pipeline Board** - Drag-drop opportunities between 7 stages with @hello-pangea/dnd
+- [x] **Opportunity Cards** - Name, Account, Value, Probability, Product Line, Activity Count
+- [x] **Expandable Container** - Fullscreen mode for Kanban board
+
+#### Blue Sheet Probability Calculator
+- [x] **Miller Heiman Methodology** - Buying Influences, Red Flags, Win Results, Action Plan scoring
+- [x] **Buying Influences Section** - Economic Buyer, User Buyers, Technical Buyers, Coach
+- [x] **Red Flags Section** - No Access to Economic Buyer, Budget Not Confirmed, Competition Preferred, Reorganization, Timeline Unclear
+- [x] **Win Results Section** - Clear Business Results, Quantifiable Value
+- [x] **Action Plan Section** - Next Steps Defined, Mutual Action Plan
+- [x] **AI Recommendations** - GPT-4o powered recommendations via Emergent LLM Key
+- [x] **Score Breakdown** - Visual breakdown of score components
+- [x] **Confidence Level** - Low/Medium/High based on analysis completeness
+
+#### Incentive Calculator (Cybersecurity SI Focus)
+- [x] **Commission Templates** - Cybersecurity Standard, MSSP Recurring Revenue, etc.
+- [x] **Tiered Commission Structure** - 5% base → 8% at quota → 12% over (configurable)
+- [x] **Product Line Weights** - MSSP (1.2x), Application Security (1.0x), Network Security (1.0x), GRC (1.1x)
+- [x] **New Logo Multiplier** - 1.5x default for new customer acquisition
+- [x] **Commission Breakdown Display** - Revenue, Attainment, Base Commission, Multipliers, Final Commission
+
+#### Supporting Features
+- [x] **Global Search** - Search across Accounts, Opportunities, Activities
+- [x] **Activities Management** - Create, update status, filter by opportunity/account
+- [x] **Accounts Management** - Create accounts with industry, revenue, employee count
+- [x] **Pipeline Stages** - 7 default stages with colors and probability defaults
+- [x] **Role-Based Navigation** - Sales Dashboard link visible in sidebar
+
+### Backend APIs Added (Phase 2.4)
+- `GET /api/dashboard/stats` - KPI data for dashboard cards
+- `GET /api/opportunities/kanban` - Kanban board with stages and opportunities
+- `GET /api/opportunities` - List all opportunities
+- `POST /api/opportunities` - Create opportunity
+- `PUT /api/opportunities/{id}` - Update opportunity
+- `PATCH /api/opportunities/{id}/stage` - Update stage (drag-drop)
+- `POST /api/opportunities/{id}/calculate-probability` - Blue Sheet calculation with AI
+- `GET /api/sales-metrics/{user_id}` - User sales metrics by period
+- `POST /api/incentive-calculator` - Commission calculation
+- `GET /api/commission-templates` - Available commission templates
+- `POST /api/commission-templates` - Create template
+- `GET /api/search?q={query}` - Global search
+- `GET /api/activities` - List activities
+- `POST /api/activities` - Create activity
+- `PATCH /api/activities/{id}/status` - Update activity status
+- `GET /api/accounts` - List accounts
+- `POST /api/accounts` - Create account
+- `GET /api/config/llm` - Get LLM configuration
+- `PUT /api/config/llm` - Update LLM configuration
+
+### Earlier Completed Phases
+
+#### Phase 2.3: RBAC & Admin Panel ✅ (Jan 12, 2026)
+- [x] Database-driven roles and permissions (42 permissions)
+- [x] Admin Panel with User Management, Roles & Permissions, Departments
+- [x] Data scoping (Own, Team, Department, All)
+- [x] My Outlook page for personal email/calendar
+- [x] New user approval flow for SSO users
+
+#### Phase 2.2: Microsoft 365 SSO Integration ✅ (Jan 12, 2026)
+- [x] MSAL Library Integration for SPA OAuth
+- [x] Microsoft SSO button on login page
+- [x] User creation/update with MS365 tokens
+
+#### Phase 2.1: Multi-Entity Sync Modal ✅ (Jan 12, 2026)
+- [x] Entity selection toggles for Odoo sync
+- [x] Custom field mapping integration
+- [x] Sync service with custom mappings
+
+#### Phase 1: Foundation Shell ✅ (Jan 12, 2026)
 - [x] Clean modular backend architecture
-- [x] Core configuration with BYOK support for AI keys
-- [x] MongoDB Data Lake with 3 zones (Raw, Canonical, Serving)
-- [x] JWT authentication system
-- [x] Data Lake health API endpoints
-- [x] Odoo REST API connector (v16+ compatible) with URL normalization
-- [x] AI field mapping service (with fallback rule-based)
-- [x] Integration configuration endpoints
-- [x] Modern dark-themed React frontend shell
-- [x] Login page with demo credentials
-- [x] Dashboard with Data Lake health visualization
-- [x] Integrations page with Odoo configuration modal (scrollable, user-friendly)
-- [x] Data Lake exploration page with zone tabs
-
-### Phase 2: Expanded Sync & Field Mapping UI ✅ (Jan 12, 2026)
-- [x] Extended Odoo sync to support 5 entity types: Account, Contact, Opportunity, Order, Invoice
-- [x] Added normalization logic for Orders and Invoices
-- [x] Extended canonical schemas for all entity types
-- [x] AI Field Mapping UI with 3-column layout (Source Fields | Mappings | Target Schema)
-- [x] AI Auto-Map button with confidence scores
-- [x] Default mappings fallback when AI unavailable
-- [x] Save/Load mapping configurations
-- [x] Help dialog explaining field mapping concepts
-
-### Phase 2.1: Multi-Entity Sync Modal ✅ (Jan 12, 2026)
-- [x] **Sync Modal UI** - Select specific Odoo objects to sync (Accounts, Contacts, Opportunities, Orders, Invoices)
-- [x] **Entity Selection Toggles** - Interactive checkboxes with visual feedback
-- [x] **Dynamic Button Count** - "Start Sync (N)" shows selected entity count
-- [x] **Backend Entity Types** - Sync endpoint accepts entity_types in request body
-- [x] **Custom Field Mapping Integration** - Sync service loads and uses saved field mappings
-- [x] **_apply_custom_mappings()** - Transforms records using user-defined mappings with transforms
-
-### Phase 2.2: Microsoft 365 SSO Integration ✅ (Jan 12, 2026)
-- [x] **MSAL Library Integration** - Frontend uses @azure/msal-browser for proper SPA OAuth flow
-- [x] **Microsoft SSO Button** - "Sign in with Microsoft" on login page
-- [x] **Backend Config Endpoint** - GET /api/auth/microsoft/config returns client_id and tenant_id
-- [x] **Backend Complete Endpoint** - POST /api/auth/microsoft/complete validates tokens via Microsoft Graph API
-- [x] **User Creation/Update** - SSO users are created or updated in the database with ms_id
-- [x] **Popup/Redirect Fallback** - MSAL popup with fallback to redirect if blocked
-- [x] **Error Handling** - Proper handling for user cancellation and popup blocked scenarios
-
-### Phase 2.3: RBAC & Admin Panel ✅ (Jan 12, 2026)
-- [x] **Database-Driven Roles** - Roles stored in `roles` collection, fully configurable
-- [x] **42 Permissions** - Granular permissions for CRM, Data Lake, Integrations, Admin
-- [x] **5 Default Departments** - Sales, Presales, Product, Strategy, Operations
-- [x] **7 Default Roles** - Super Admin, CEO, Sales Director, Product Director, Account Manager, Presales, Strategy
-- [x] **Data Scoping** - Own, Team, Department, All - controls data visibility per role
-- [x] **Admin Panel UI** - System Config page with User Management, Roles & Permissions, Departments
-- [x] **User Management** - View/Edit users, assign roles and departments
-- [x] **is_super_admin Flag** - Separate admin privilege from business role
-- [x] **Permission-Based Navigation** - Admin section only visible to super admins
-- [x] **Azure AD Sync Button** - "Sync from Azure AD" to populate users from directory
-- [x] **My Outlook Page** - Personal email/calendar view (user-scoped)
-- [x] **Personal Data APIs** - GET /api/my/emails, /api/my/calendar, /api/my/connection-status
+- [x] MongoDB Data Lake with 3 zones
+- [x] JWT authentication
+- [x] Odoo REST API connector
+- [x] AI field mapping service
 
 ---
 
-## Upcoming Phases
+## Known Issues
+
+### P0 - Critical
+- **MS365 Email Sync Token Expiration** - MS365 access tokens expire after ~1 hour. The app now handles token expiration gracefully by prompting users to re-authenticate. A refresh token mechanism would improve UX.
+
+### P1 - Important
+- None currently
+
+### P2 - Nice to Have
+- None currently
+
+---
+
+## Upcoming Tasks
 
 ### Phase 3: Real-Time Sync 🔜
 - [ ] Implement Odoo webhooks in `/api/webhooks/odoo/{tenant_id}`
 - [ ] Scheduled polling via `/backend/services/sync/scheduler.py`
 - [ ] UI options for sync method (Manual, Webhook, Scheduled)
-- [ ] Incremental sync with `write_date` tracking
 
-### Phase 3.1: O365 User Directory Sync 🔜
-- [ ] Admin-initiated sync of Azure AD user directory (identity info only)
-- [ ] Field mapping for Azure AD → User schema
-- [ ] Auto-populate user list for role assignment
-- [ ] NO personal emails/calendar in admin sync
+### Phase 4: Dashboard Analytics 🔜
+- [ ] Aggregate opportunities to Serving Zone
+- [ ] Sales analytics charts (pipeline by stage, revenue by product line)
+- [ ] Team performance dashboards
 
-### Phase 3.2: Personal "My Outlook" Page 🔜
-- [ ] User-scoped email/calendar view
-- [ ] Each user sees only their own data
-- [ ] Stored with owner_user_id for isolation
-- [ ] Super Admin CANNOT see other users' emails
-
-### Phase 4: GPT-5.2 AI Mapping
-- [ ] Integrate GPT-5.2 via `integration_playbook_expert_v2`
-- [ ] BYOK (Bring Your Own Key) functionality
-- [ ] Improved confidence scoring
-- [ ] Learning from confirmed mappings
-
-### Phase 5: Dashboard & Serving Layer
-- [ ] Aggregate accounts/opportunities to Serving Zone
-- [ ] Sales dashboard from gold zone
-- [x] Role-based data visibility (RBAC) - COMPLETED
-
-### Phase 6: Additional Integrations
-- [x] **Microsoft 365 SSO** - MSAL-based authentication (COMPLETED)
-- [ ] Microsoft 365 Data Sync - Emails, Calendar, Contacts via Graph API
+### Phase 5: Additional Integrations 🔜
 - [ ] Salesforce connector
 - [ ] HubSpot connector
-
-### Phase 7: Production Hardening
-- [ ] Celery/Redis background workers
-- [ ] Comprehensive E2E testing
-- [ ] Monitoring and logging
-- [ ] Docker compose optimization
+- [ ] MS365 refresh token mechanism
 
 ---
 
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - Login & get token
-- `GET /api/auth/me` - Current user info
-- `GET /api/auth/users` - List users (admin)
-- `GET /api/auth/microsoft/config` - Get Microsoft OAuth config for frontend MSAL
-- `POST /api/auth/microsoft/complete` - Complete Microsoft SSO (validates token via Graph API)
-
-### Data Lake
-- `GET /api/data-lake/health` - Zone health stats
-- `GET /api/data-lake/raw` - Raw records (admin)
-- `GET /api/data-lake/canonical` - Canonical records
-- `GET /api/data-lake/serving` - Serving records
-
-### Integrations
-- `GET /api/integrations/` - List all integrations
-- `POST /api/integrations/odoo/configure` - Configure Odoo
-- `POST /api/integrations/odoo/test` - Test connection
-- `GET /api/integrations/odoo/fields/{model}` - Get Odoo model fields
-
-### Field Mappings
-- `GET /api/integrations/mappings/{type}/{entity}` - Get saved mappings
-- `POST /api/integrations/mappings/{type}` - Save field mappings
-- `POST /api/integrations/mappings/{type}/auto-map` - AI auto-mapping
-
-### Sync
-- `POST /api/integrations/sync/{type}` - Trigger sync with entity_types body
-- `GET /api/integrations/sync/status` - Get recent sync jobs
-- `GET /api/integrations/sync/{job_id}` - Get sync job details
+## Technology Stack
+- **Backend:** FastAPI, Pydantic v2, Motor (async MongoDB)
+- **Frontend:** React 19, Tailwind CSS, Shadcn/UI, @hello-pangea/dnd, Recharts
+- **Database:** MongoDB with Data Lake architecture
+- **AI:** GPT-4o via Emergent LLM Key (BYOK supported)
+- **Auth:** JWT with bcrypt password hashing
 
 ---
 
@@ -243,9 +154,7 @@ Automatic Odoo Fields: id, create_date, create_uid, write_date, write_uid
 
 ---
 
-## Technology Stack
-- **Backend:** FastAPI, Pydantic v2, Motor (async MongoDB)
-- **Frontend:** React 19, Tailwind CSS, Shadcn/UI
-- **Database:** MongoDB with Data Lake architecture
-- **AI:** GPT-5.2 via Emergent LLM Key (BYOK supported)
-- **Auth:** JWT with bcrypt password hashing
+## Test Results (Jan 13, 2026)
+- **Backend Tests:** 19/19 passed (100%)
+- **Frontend Tests:** All UI flows working (100%)
+- **Test Report:** `/app/test_reports/iteration_14.json`
