@@ -290,7 +290,7 @@ class OdooConnector(BaseConnector):
         
         if model == 'res.partner':
             return base_fields + [
-                'email', 'phone', 'mobile', 'website',
+                'email', 'phone', 'website',
                 'street', 'city', 'state_id', 'country_id', 'zip',
                 'is_company', 'parent_id', 'function', 'title',
                 'user_id', 'team_id', 'category_id',
@@ -299,7 +299,7 @@ class OdooConnector(BaseConnector):
         
         elif model == 'crm.lead':
             return base_fields + [
-                'email_from', 'phone', 'mobile',
+                'email_from', 'phone',
                 'partner_id', 'contact_name',
                 'expected_revenue', 'probability',
                 'stage_id', 'type', 'priority',
