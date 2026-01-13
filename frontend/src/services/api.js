@@ -84,6 +84,7 @@ export const integrationsAPI = {
   // Sync
   triggerSync: (integrationType, entityTypes) => 
     api.post(`/integrations/sync/${integrationType}`, { entity_types: entityTypes }),
+  syncAllFromOdoo: () => api.post('/integrations/odoo/sync-all'),
   getSyncStatus: () => api.get('/integrations/sync/status'),
   getSyncJob: (jobId) => api.get(`/integrations/sync/${jobId}`),
 };
