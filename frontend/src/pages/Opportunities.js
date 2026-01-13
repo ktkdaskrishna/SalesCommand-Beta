@@ -315,7 +315,7 @@ const Opportunities = () => {
       key: "product_lines",
       header: "Products",
       render: (opp) =>
-        opp.product_lines?.length > 0 ? opp.product_lines.join(", ") : "—",
+        opp?.product_lines?.length > 0 ? opp.product_lines.join(", ") : "—",
     },
     {
       key: "expected_close_date",
