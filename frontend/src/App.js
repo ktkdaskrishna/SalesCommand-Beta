@@ -20,6 +20,7 @@ import FieldMapping from './pages/FieldMapping';
 import AdminPanel from './pages/AdminPanel';
 import MyOutlook from './pages/MyOutlook';
 import PendingApproval from './pages/PendingApproval';
+import Receivables from './pages/Receivables';
 
 // Components
 import Layout from './components/Layout';
