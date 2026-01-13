@@ -1012,6 +1012,43 @@ async def get_sync_job(
 
 # ===================== BACKGROUND SYNC SERVICE =====================
 
+# User-level rate limiting for sync requests
+_user_sync_timestamps = {}
+
+@router.post("/user-sync/refresh")
+async def user_trigger_sync_refresh(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    User-accessible sync trigger with rate limiting.
+    Any approved user can trigger a data refresh (max once per 30 seconds).
+    """
+    import time
+    from services.sync.background_sync import sync_service
+    
+    user_id = token_data.get("id")
+    current_time = time.time()
+    
+    # Check rate limit (30 seconds between syncs per user)
+    last_sync = _user_sync_timestamps.get(user_id, 0)
+    if current_time - last_sync < 30:
+        remaining = int(30 - (current_time - last_sync))
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Please wait {remaining} seconds before syncing again."
+        )
+    
+    # Update timestamp
+    _user_sync_timestamps[user_id] = current_time
+    
+    # Trigger sync
+    result = await sync_service.trigger_sync_now()
+    result["triggered_by"] = token_data.get("email")
+    result["rate_limit_remaining"] = 30
+    
+    return result
+
+
 @router.get("/background-sync/status")
 async def get_background_sync_status(
     token_data: dict = Depends(get_current_user_from_token)
