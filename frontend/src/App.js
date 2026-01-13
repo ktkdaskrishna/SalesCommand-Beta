@@ -22,6 +22,8 @@ import MyOutlook from './pages/MyOutlook';
 import PendingApproval from './pages/PendingApproval';
 import Invoices from './pages/Invoices';
 import Profile from './pages/Profile';
+import Goals from './pages/Goals';
+import ActivityTimeline from './pages/ActivityTimeline';
 
 // Components
 import Layout from './components/Layout';
