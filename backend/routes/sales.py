@@ -1754,26 +1754,74 @@ async def get_account_360_view(
             "priority": act.get("priority", "medium"),
         })
     
-    # Get related contacts (child accounts/contacts in Odoo)
+    # Get related contacts from data_lake_serving
+    # Contacts have entity_type: "contact" with account_id field
     contacts = []
+    
+    # Helper to clean Odoo False values
+    def clean_val(val, default=""):
+        if val is False or val is None:
+            return default
+        return val
+    
+    # Query contacts - handle different account_id formats:
+    # - account_id: false (unlinked)
+    # - account_id: [12, "VM"] (array with ID and name)
+    # - account_id: 12 (just ID)
     contact_docs = await db.data_lake_serving.find({
-        "entity_type": "account",
-        "$or": [
-            {"data.parent_id": account_id},
-            {"data.parent_id": int(account_id) if account_id.isdigit() else None}
-        ]
-    }).to_list(50)
+        "entity_type": "contact"
+    }).to_list(100)
     
     for doc in contact_docs:
         contact = doc.get("data", {})
-        if not contact.get("is_company", False):
+        contact_account_id = contact.get("account_id")
+        
+        # Check if contact belongs to this account
+        contact_matches = False
+        
+        if contact_account_id:
+            # Handle array format [id, name]
+            if isinstance(contact_account_id, list) and len(contact_account_id) >= 1:
+                contact_acc_id = str(contact_account_id[0])
+                contact_acc_name = contact_account_id[1] if len(contact_account_id) > 1 else ""
+                
+                # Match by ID or by name
+                if contact_acc_id == account_id:
+                    contact_matches = True
+                elif account.get("name") and contact_acc_name and account.get("name", "").lower() in contact_acc_name.lower():
+                    contact_matches = True
+            
+            # Handle simple ID format
+            elif isinstance(contact_account_id, (int, str)):
+                if str(contact_account_id) == account_id:
+                    contact_matches = True
+        
+        if contact_matches:
             contacts.append({
-                "id": str(contact.get("id", "")),
-                "name": contact.get("name", ""),
-                "email": contact.get("email", ""),
-                "phone": contact.get("phone", contact.get("mobile", "")),
-                "job_title": contact.get("function", ""),
+                "id": str(contact.get("id", doc.get("serving_id", ""))),
+                "name": clean_val(contact.get("name"), "Unknown"),
+                "email": clean_val(contact.get("email"), ""),
+                "phone": clean_val(contact.get("phone") or contact.get("mobile"), ""),
+                "job_title": clean_val(contact.get("title") or contact.get("function"), ""),
             })
+    
+    # Also check for contacts that match by account name (for opportunities-derived accounts)
+    if len(contacts) == 0 and account.get("name"):
+        account_name_lower = account.get("name", "").lower()
+        for doc in contact_docs:
+            contact = doc.get("data", {})
+            contact_account_id = contact.get("account_id")
+            
+            if isinstance(contact_account_id, list) and len(contact_account_id) > 1:
+                contact_acc_name = str(contact_account_id[1]).lower()
+                if account_name_lower in contact_acc_name or contact_acc_name in account_name_lower:
+                    contacts.append({
+                        "id": str(contact.get("id", doc.get("serving_id", ""))),
+                        "name": clean_val(contact.get("name"), "Unknown"),
+                        "email": clean_val(contact.get("email"), ""),
+                        "phone": clean_val(contact.get("phone") or contact.get("mobile"), ""),
+                        "job_title": clean_val(contact.get("title") or contact.get("function"), ""),
+                    })
     
     # Calculate summary metrics
     total_pipeline = sum(o["value"] for o in opportunities if o["stage"] not in ["Won", "Lost", "Closed Won", "Closed Lost"])
