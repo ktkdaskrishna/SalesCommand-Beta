@@ -19,6 +19,7 @@ const MyOutlook = () => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
+  const [dateFilter, setDateFilter] = useState('week'); // today, week, month, all
   
   // Data
   const [emails, setEmails] = useState([]);
@@ -137,6 +138,43 @@ const MyOutlook = () => {
     });
   };
 
+  const formatFullDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit' 
+    });
+  };
+
+  // Filter calendar events by date range
+  const getFilteredCalendar = () => {
+    if (!calendar.length) return [];
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return calendar.filter(event => {
+      const eventDate = new Date(event.start_time);
+      
+      switch(dateFilter) {
+        case 'today':
+          return eventDate.toDateString() === today.toDateString();
+        case 'week':
+          const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+          return eventDate >= today && eventDate <= weekFromNow;
+        case 'month':
+          const monthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+          return eventDate >= today && eventDate <= monthFromNow;
+        case 'all':
+        default:
+          return true;
+      }
+    }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  };
+
+  const filteredCalendar = getFilteredCalendar();
+
   // Not connected to MS365
   if (connectionStatus && !connectionStatus.connected) {
     return (
@@ -196,37 +234,63 @@ const MyOutlook = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-zinc-800 pb-2">
-        <button
-          onClick={() => setActiveTab('emails')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'emails'
-              ? 'bg-blue-500/10 text-blue-400'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-          }`}
-          data-testid="emails-tab"
-        >
-          <Mail className="w-4 h-4" />
-          Emails
-          {emailMeta.total > 0 && (
-            <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded">{emailMeta.total}</span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'calendar'
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-          }`}
-          data-testid="calendar-tab"
-        >
-          <Calendar className="w-4 h-4" />
-          Calendar
-          {calendarMeta.total > 0 && (
-            <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded">{calendarMeta.total}</span>
-          )}
-        </button>
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('emails')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'emails'
+                ? 'bg-blue-500/10 text-blue-400'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
+            data-testid="emails-tab"
+          >
+            <Mail className="w-4 h-4" />
+            Emails
+            {emailMeta.total > 0 && (
+              <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded">{emailMeta.total}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'calendar'
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
+            data-testid="calendar-tab"
+          >
+            <Calendar className="w-4 h-4" />
+            Calendar
+            {calendarMeta.total > 0 && (
+              <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded">{calendarMeta.total}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Date Filter for Calendar */}
+        {activeTab === 'calendar' && (
+          <div className="flex gap-1">
+            {[
+              { value: 'today', label: 'Today' },
+              { value: 'week', label: 'This Week' },
+              { value: 'month', label: 'This Month' },
+              { value: 'all', label: 'All' }
+            ].map(filter => (
+              <button
+                key={filter.value}
+                onClick={() => setDateFilter(filter.value)}
+                className={`px-3 py-1 text-sm rounded transition-colors ${
+                  dateFilter === filter.value
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Error */}
@@ -305,15 +369,23 @@ const MyOutlook = () => {
 
       {/* Calendar Tab */}
       {!loading && activeTab === 'calendar' && (
-        <div className="space-y-2">
-          {calendar.length === 0 ? (
+        <div className="space-y-4">
+          {filteredCalendar.length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
               <Calendar className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-              <p className="text-zinc-400">No calendar events found</p>
-              <p className="text-zinc-600 text-sm mt-1">Click Sync to fetch your calendar</p>
+              <p className="text-zinc-400">
+                {calendar.length === 0 ? 'No calendar events found' : `No events for ${dateFilter === 'today' ? 'today' : dateFilter === 'week' ? 'this week' : dateFilter === 'month' ? 'this month' : 'selected period'}`}
+              </p>
+              <p className="text-zinc-600 text-sm mt-1">
+                {calendar.length === 0 ? 'Click Sync to fetch your calendar' : 'Try selecting a different date range'}
+              </p>
             </div>
           ) : (
-            calendar.map((event, idx) => (
+            <>
+              <p className="text-sm text-zinc-500">
+                Showing {filteredCalendar.length} of {calendar.length} events
+              </p>
+              {filteredCalendar.map((event, idx) => (
               <div
                 key={event.ms_event_id || idx}
                 className={`bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors ${
@@ -334,12 +406,14 @@ const MyOutlook = () => {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-zinc-400 mt-2">
+                    <div className="flex items-center gap-4 text-sm text-zinc-400 mt-2 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {formatDate(event.start_time)}
-                        {event.end_time && ` - ${formatDate(event.end_time)}`}
+                        {formatFullDate(event.start_time)}
                       </span>
+                      {event.end_time && !event.is_all_day && (
+                        <span className="text-zinc-600">→ {formatDate(event.end_time)}</span>
+                      )}
                       
                       {event.location && (
                         <span className="flex items-center gap-1">
