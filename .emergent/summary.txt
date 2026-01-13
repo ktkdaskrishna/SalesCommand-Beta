@@ -1,169 +1,410 @@
-<analysis>**original_problem_statement:**
-The user's primary goal is to build an enterprise-grade Sales Intelligence Platform. The project started with a mandate to replicate features from a reference application, specifically the Account Manager Dashboard and Blue Sheet Probability Calculator.
+<analysis>
+**original_problem_statement:**
+The user's primary goal is to build and stabilize an enterprise-grade Sales Intelligence Platform for a BETA release. The focus has shifted from feature creation to ensuring data integrity and UI trustworthiness.
 
-Throughout the session, the user's requirements evolved significantly:
-1.  **Configurable Incentives:** The sales incentive logic must be configurable by a Super Admin.
-2.  **CEO-Level Review & UI/UX Overhaul:** The user requested a comprehensive review of the application's workflow and UI/UX from a CEO's perspective, demanding that the UI/UX be fixed to match the aesthetic of a reference project ().
-3.  **Unified & Customizable Dashboard:** Merge the main dashboard and the sales dashboard into a single, customizable dashboard where users can manage widgets.
-4.  **Strict Role-Based Views:** Sales users should only see the Sales Dashboard. The main dashboard and certain navigation items (like Sync Status) should be restricted to specific roles (e.g., Super Admin).
-5.  **Dynamic Role & Permission System:** The user asked for a scalable system to create new roles (like Product Director) and configure their specific navigation tabs and dashboard layouts on the fly.
-6.  **UI/UX Refinements:** The user noted that the calendar sync's frontend view is not great and that Tasks should be reframed as Opportunity-based activities.
+The core requirements for the beta are:
+1.  **Correct Data on Dashboards:** Dashboards must display real, synced data from the Odoo ERP via the  collection, not demo data. The Account Manager dashboard should show correct pipeline values, and the Super Admin should see a relevant sales-oriented dashboard.
+2.  **Fix Critical UI Bugs:** Address UI/UX issues that erode user trust, such as unreadable text due to poor color contrast.
+3.  **Display Core Finance Data:** A minimal view of financial data, specifically synced invoices and their statuses, must be available.
+4.  **Complete Core Logic Configurations:** The Blue Sheet's AI probability calculation must use configurable weights, and the UI to manage these weights must be implemented.
+5.  **Kanban View for Opportunities:** The user wants the  page to feature a Kanban board view as the primary way to interact with the sales pipeline, similar to a reference application. This view should include integrated Blue Sheet AI calculations.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a full-stack Sales Intelligence Platform with a FastAPI backend and React frontend.
-
-**Key Completed Features:**
-*   **Sales Dashboard:** A fully functional dashboard with KPI cards, a Kanban pipeline for opportunities, and sales metrics.
-*   **AI-Powered Blue Sheet:** An opportunity analysis tool that uses the Emergent LLM key to calculate win probability and provide AI-generated strategic recommendations.
-*   **Dynamic Role Configuration Engine:** A powerful admin feature allowing Super Admins to create/edit roles, assign permissions, and dynamically configure navigation menus and dashboard layouts for each role.
-*   **Incentive Configuration:** An admin panel for creating and managing sales commission templates and service lines.
-*   **Role-Based UI:** The main navigation and access to pages are now driven by the new role configuration engine, loading dynamically based on the logged-in user's role.
-*   **Sales Entity Pages:** Dedicated pages for Accounts, Opportunities, and KPIs have been created and are accessible via the new dynamic navigation.
-*   **UI/UX Foundation:** The main  component has been refactored to match the user's preferred design (dark sidebar, light content area, slate color palette).
+The application is a full-stack Sales Intelligence Platform (FastAPI/React).
+-   **UI/UX:** A consistent light-theme UI with a dark sidebar has been applied across major pages (, , , ).
+-   **Opportunity Management:** The  page now features a toggle between a Kanban board and a data table. The Kanban cards are enhanced with product tags, activity counts, and a Calculate Probability button that successfully launches a working Blue Sheet AI analysis modal.
+-   **Dashboard Routing:** The main  route dynamically shows the  (with sales KPIs and a Kanban pipeline) for sales roles and a data-health dashboard for admins.
+-   **Backend Configuration:** APIs have been created to allow an admin to configure the weights for the Blue Sheet AI calculation, but there is no frontend UI for this yet. The Blue Sheet calculation logic has been updated to use these new configurable weights.
+-   **Data Infrastructure:** The backend has a  collection in MongoDB that contains real, synced data from an Odoo ERP. However, the dashboards and frontend components are not yet fully connected to it.
 
 **Last working item**:
-    - Last item agent was working: The agent was actively implementing a major UI/UX overhaul requested by the user. It had just updated the main  to match the reference design and was about to refactor the  page to align with the new light-themed, high-contrast aesthetic.
+    - Last item agent was working: The agent was implementing critical **P0 fixes** for a beta release, based on a user-approved audit. It had just finished writing the code for two major fixes:
+        1.  **Dashboard Data:** Created new backend endpoints (, ) to fetch data from the  collection and updated the  component to use them.
+        2.  **UI Contrast:** Fixed low-contrast text on the Incentive Configuration page by editing CSS classes in .
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? screenshot tool
+    - Which testing method agent to use? The agent should first use the  to visually verify the two fixes. After confirmation, a full regression test using the  is required.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: (P0) Complete the UI/UX overhaul to match the reference design.
-  - Issue 2: (P1) The Calendar UI on the MyOutlook page is subpar.
-  - Issue 3: (P2) The MS365 email sync fix is a temporary workaround.
+  - Issue 1: (P0) Dashboard shows /bin/bash/incorrect data for Account Managers.
+  - Issue 2: (P0) UI text is unreadable in the Incentive Configuration view.
+  - Issue 3: (P1) No UI to view synced financial data (invoices/receivables).
+  - Issue 4: (P1) No UI for admins to configure Blue Sheet AI weights.
+  - Issue 5: (P2) No UI for assigning sales targets to users.
+  - Issue 6: (Recurring) MS365 integration requires frequent re-logins due to token expiration.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent successfully refactored  to create the dark-sidebar/light-content theme.
+     - Attempted fixes: Backend endpoints and frontend components were updated to query the  collection instead of the demo  collection.
      - Next debug checklist:
-        1.  Modify  to use a light theme, removing dark backgrounds and ensuring components match the Swiss-style design of the reference app.
-        2.  Systematically review and update all other pages (, , , etc.) to ensure a consistent light-themed UI across the application.
-        3.  Use the  tool after each page update to verify visual consistency.
-     - Why fix this issue and what will be achieved with the fix? The user was explicit that the previous UI was messed up. This is a critical fix to meet user satisfaction and deliver the desired professional aesthetic.
+        1. Restart the backend service to load the new API routes: backend: stopped
+backend: started.
+        2. Log in as an Account Manager ().
+        3. Take a screenshot of the  page to verify that the KPI cards (Pipeline Value, etc.) and the Opportunity Pipeline now display real data from the data lake, not /bin/bash.
+     - Why fix this issue and what will be achieved with the fix? This is the highest priority blocker for the beta release. It will ensure the dashboard is trustworthy and reflects real sales activity.
+     - Status:  IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on other issue: None
+  - Issue 2: 
+     - Attempted fixes: The CSS classes in  were modified to use high-contrast text colors.
+     - Next debug checklist:
+        1. Log in as a Super Admin ().
+        2. Navigate to  and click the Incentive Config tab.
+        3. Take a screenshot to verify all descriptive text and labels are clearly readable against the card backgrounds.
+     - Why fix this issue and what will be achieved with the fix? Fixes a critical UI bug that makes a part of the application unusable and appear broken.
      - Status:  IN PROGRESS
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
-  - Issue 2: 
-     - Attempted fixes: None. The agent acknowledged the user's feedback but prioritized other tasks.
+  - Issue 3: 
+     - Attempted fixes: None.
      - Next debug checklist:
-        1.  Review .
-        2.  Replace the current list-based event display with a proper calendar grid component (e.g., using 's Calendar or a similar library).
-        3.  Ensure events are plotted correctly on the calendar grid.
-     - Why fix this issue and what will be achieved with the fix? This will improve user experience by providing a more intuitive and standard way to visualize calendar events.
+        1. Create a new backend endpoint to query the  collection for documents where  is .
+        2. Create a new frontend page () to display the results in a table.
+        3. Add a link to this page in the main navigation for relevant roles.
+     - Why fix this issue and what will be achieved with the fix? Provides essential visibility into financial health for sales and management roles.
      - Status:  NOT STARTED
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
+     - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
-  - Issue 3: 
-     - Attempted fixes: The agent implemented a soft-fail mechanism. The backend now returns a  error, and the frontend prompts the user to re-authenticate.
+  - Issue 4: 
+     - Attempted fixes: Backend API endpoints exist.
      - Next debug checklist:
-        1.  The current fix is a workaround. The ideal solution, which was not implemented, is to store the MS365 **refresh token** alongside the access token during the initial SSO callback.
-        2.  In , before making a Graph API call, check if the access token is expired.
-        3.  If it is, use the refresh token to silently request a new access token from Microsoft and update it in the database. This would be seamless to the user.
-     - Why fix this issue and what will be achieved with the fix? This will resolve a recurring user-facing issue permanently, eliminating the need for frequent re-logins and making the email/calendar integration reliable.
+        1. Add a new Blue Sheet Config tab to .
+        2. Create a new component that fetches weights using  and allows editing/saving via .
+     - Why fix this issue and what will be achieved with the fix? It makes the AI scoring mechanism configurable and transparent to administrators, a key enterprise feature.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on other issue: None
+  - Issue 5: 
+     - Attempted fixes: None.
+     - Next debug checklist: Create a new UI in the Admin Panel to manage sales targets.
+     - Why fix this issue and what will be achieved with the fix? This is a fundamental feature for sales performance management.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on other issue: None
+  - Issue 6: 
+     - Attempted fixes: A temporary re-login prompt was implemented.
+     - Next debug checklist: Implement a proper OAuth refresh token flow in  to silently refresh the access token without user interruption.
+     - Why fix this issue and what will be achieved with the fix? Improves the user experience and reliability of the MS365 integration.
      - Status:  IN PROGRESS
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: UI/UX Overhaul
-     - Where to resume: Start by editing  to apply the new light theme.
-     - What will be achieved with this? A visually consistent and user-approved application interface.
+  - Task 1: (P0) Verify Beta Stabilization Fixes
+     - Where to resume: The agent has modified the necessary files. The immediate next step is to restart the backend (backend: stopped
+backend: started).
+     - What will be achieved with this? This will validate the two highest-priority fixes: connecting the dashboard to real data and fixing the UI contrast issue, unblocking the beta release.
      - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? frontend
+     - Should Test frontend/backend/both after fix? both
      - Blocked on something: None
 
 **Upcoming and Future Tasks**
 Upcoming Tasks:
-- **(P0) Implement Opportunity Activities Drawer:** Per the approved plan, change the Tasks concept to be an Activities panel or side-drawer that expands from an opportunity, providing a more modern and integrated UX.
-- **(P1) Enhance KPI Dashboard:** Implement the customizable grid layout for the main dashboard using , allowing users to add, remove, and rearrange KPI widgets as configured in the Admin Panel.
+- **(P1) Implement Receivables/Invoices View:** Create the backend API and frontend page to display synced invoice data.
+- **(P1) Implement Blue Sheet Weights UI:** Build the frontend admin UI to manage the AI scoring weights.
+- **(P2) Implement Sales Targets UI:** Build the frontend admin UI for assigning sales quotas/targets.
 
 Future Tasks:
-- **(P1) Real-Time Sync (Odoo):** Implement Odoo webhook support in .
-- **(P2) Refactor to Microservices:** Decompose the current modular monolith into true microservices for better scalability.
+- Implement a robust MS365 refresh token mechanism.
+- Improve the Calendar UI in .
+- Implement an Opportunity Activities drawer.
+- Enhance the main dashboard with a customizable grid layout ().
 
 **Completed work in this session**
-- **Sales Dashboard & Blue Sheet Implementation:** Built the entire backend and frontend for the Account Manager Dashboard, including Kanban board, KPI cards, and an AI-powered Blue Sheet probability calculator with LLM-generated recommendations.
-- **Role Configuration Engine:** Created a comprehensive system for Super Admins to manage roles, permissions, navigation menus, and dashboard layouts from the Admin Panel.
-- **Incentive Management Module:** Built UI and APIs for configuring sales commission templates and service lines.
-- **Dynamic & Role-Based UI:** Refactored the application to fetch navigation and page layouts from the backend based on user roles, effectively making the UI dynamic.
-- **New Sales Entity Pages:** Created and integrated pages for , , and .
-- **MS365 Token Expiration Fix:** Implemented a workaround to gracefully handle expired MS365 tokens by prompting the user to re-authenticate.
-- **UI/UX Foundation Refactor:** Re-styled the main  component to match the user's reference design (dark sidebar, light content).
-- **KPIs Feature Fix:** Debugged and fixed both backend and frontend issues related to the new KPIs page, including missing API endpoints and context functions.
+- **Full UI/UX Overhaul:** Modernized the application with a consistent light theme, dark sidebar, and improved component styling across all major pages.
+- **Opportunities Page Enhancement:** Implemented a dual-view (Kanban/Table)  page.
+- **Kanban Board with AI Integration:** The Kanban view now features enhanced cards with product tags, activity counts, and a Calculate Probability button that opens a fully functional Blue Sheet AI analysis modal.
+- **Configurable Blue Sheet Backend:** Added backend endpoints and logic to allow administrators to define the weights used in the Blue Sheet's probability calculation.
+- **Dynamic Dashboard Routing:** Correctly routed the  URL to the appropriate dashboard (Sales vs. Admin) based on the user's role.
+- **Comprehensive System Audit:** Performed a deep-dive audit of the codebase, database, and UI to identify and prioritize critical blockers for a beta release, which the user approved.
 
 **Earlier issues found/mentioned but not fixed**
-   - **Issue 1:** The user pointed out that the calendar view in  is not great. The agent planned to fix this but did not get to it.
+   - The user noted that the calendar view in  is not great. This has been acknowledged but deferred.
+
+**Known issue recurrence from previous fork**
+  - **Issue recurrence in previous fork:** MS365 token expiration forces users to re-login frequently.
+  - **Recurrence count:** High
+  - **Status:** IN PROGRESS (a temporary workaround exists, but the permanent refresh-token fix is pending).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 - **Backend:** FastAPI, Pydantic, Motor
-- **Frontend:** React, Tailwind CSS, shadcn/ui, **** (for dashboard customization), **** (for Kanban)
-- **Authorization:** Dynamic, database-driven RBAC where navigation and dashboard layouts are configured per role.
-- **Integrations:** Emergent LLM Key (OpenAI GPT-4o) for AI recommendations.
+- **Frontend:** React, Tailwind CSS, shadcn/ui,  (for Kanban)
+- **Data Strategy:** The application is pivoting to use a  MongoDB collection (containing synced ERP data) as the primary source of truth, moving away from a separate, manually-managed  collection.
+- **Integrations:** Emergent LLM Key (OpenAI GPT-4o), Odoo ERP, Microsoft 365.
 
 **key DB schema**
-- **roles**: Stores role definitions, including associated permissions, , and .
-- **opportunities**: Stores sales opportunity data, including , , and a nested  object.
-- **accounts**: Stores customer account information.
-- **kpis**: Stores Key Performance Indicator definitions and tracks their progress.
-- **commission_templates**: Stores definitions for calculating sales incentives.
+  - **data_lake_serving**: The source of truth for dashboards. Contains synced data from Odoo, identified by  (e.g., , , ).
+  - **bluesheet_config**: Stores admin-configurable weights for the Blue Sheet AI calculation.
 
 **All files of reference**
-- : The core of the new UI/UX. Must be referenced for all page styling.
-- : Host for the new configuration components.
-- : The UI for the new role engine.
-- : The API backing the role configuration engine.
-- : The API for all sales-related features.
-- : The next file to be refactored for the UI/UX overhaul.
+-   : Contains the new API logic for fetching real data from the data lake.
+-   : The dashboard that needs to be verified to show real data.
+-   : The component with the UI contrast fix to be verified.
+-   : The reference for the new Kanban board implementation.
 
 **Critical Info for New Agent**
-- **UI/UX is TOP priority:** The user is very dissatisfied with the current UI inconsistencies. Your first task is to continue the UI overhaul started by the previous agent, ensuring every page matches the light-theme, high-contrast design specified in the reference repo. Refer to the new  as the source of truth for styling.
-- **Follow the Plan:** The user has approved a multi-phase plan. Stick to it. After the UI fix, the next items are the Opportunity Activities drawer and enhancing the KPI dashboard.
-- **MS365 Token Refresh:** The current fix for email sync is a stop-gap. Be aware that a robust, long-term solution requires implementing a refresh token mechanism. This is a recurring issue and a good candidate for a permanent fix after the priority UI tasks.
-- **Calendar UI:** Do not forget the user's request to improve the calendar view on the  page. This should be addressed after the current high-priority items.
+-   **BETA STABILIZATION IS THE ONLY GOAL:** Your mission is to follow the prioritized plan to fix critical data and UI issues. Do not add new features until the P0 and P1 tasks are complete.
+-   **DATA SOURCE IS :** All user-facing dashboards and sales data displays must query the  collection. The  collection is now considered demo data and should not be the primary source.
+-   **FOLLOW THE PLAN:** The priority order (P0 > P1 > P2) was explicitly confirmed by the user.
+    -   **P0:** Fix dashboard data & UI contrast. (CURRENT TASK)
+    -   **P1:** Add receivables view & Blue Sheet config UI.
+    -   **P2:** Add sales targets UI.
+-   Verify your fixes systematically with screenshots before moving on. The user expects an evidence-based approach.
 
 **documents and test reports created in this job**
 - 
 - 
 
-**Last 10 User Messages and any pending HUMAN messages** 
-10. **User:** Asks what happens when a new role is added and how to customize their dashboard/tabs.
-9. **Agent:** Proposes a fully configurable Role-based Configuration System.
-8. **User:** Approves the plan for the configuration system.
-7. **Agent:** Finishes implementing the Role/Incentive configuration engine and summarizes the work.
-6. **User:** Approves and asks the agent to think like a CEO and create the next plan.
-5. **Agent:** Presents a CEO-centric plan for building out role-based navigation and sales workflows.
-4. **User:** Approves the plan but notes that email sync is working fine, but the calendar frontend view is not that great and needs to be looked at.
-3. **Agent:** Finishes implementing Phase 1 (Role-Based Navigation & Sales Workflows).
-2. **User:** you messed the UI/UX in this update think and act please refer the below repo where my old project is there and i really like the UI/UX of that - User is unhappy with the UI and provides the reference git repo again.
-1. **Agent:** Acknowledges the feedback, re-analyzes the reference UI, and begins fixing the  component to match the desired dark-sidebar/light-content theme.
+**Last 10 User Messages and any pending HUMAN messages**
+10. User provides a MASTER PROMPT mandating a shift to beta stabilization, acting as a Senior CRM Architect.
+9. User confirms audit results.
+8. User provides detailed answers and confirms priorities for implementation:  is the source of truth, visibility is team-based, showing even 1 real invoice is critical, and the P0->P1->P2 fix order is approved.
+7. Agent acknowledges and starts work on P0 fixes.
+6. User provides screenshots showing issues with Kanban cards and dashboard data.
+5. User asks to merge a plan for LLM-based probability calculation with admin-configurable weights.
+4. User provides a screenshot of the Blue Sheet UI.
+3. User is unhappy with the previous state, points out the Kanban board is missing on the opportunities page and that the dashboard shows sync status instead of sales data.
+2. User provides reference screenshots of the desired Kanban board and dashboard from an old build.
+1. Agent finishes the UI overhaul, and user states No still you have not done complete work, initiating the deep dive into the Kanban board and dashboard data issues.
 
 **Project Health Check:**
-- **Working:** Backend APIs, Sales Dashboard logic, AI Blue Sheet, Role & Incentive Configuration.
-- **In Progress:** UI/UX is in a transitional state. The main layout is updated, but child pages are still using the old, inconsistent styling.
-- **Broken:** None.
-- **Mocked:** None.
+-   **Working:** Backend APIs for roles, incentives, and Blue Sheet calculation. Frontend routing and basic UI shells.
+-   **In Progress:**
+    -   Connecting the main sales dashboard to a real data source (). Code is written but requires testing and verification.
+    -   Fixing a major UI contrast bug. Code is written but requires visual verification.
+-   **Broken:** The primary sales dashboard currently shows /bin/bash for all KPIs because it's not connected to the correct data source. This is the top priority blocker.
+-   **Mocked:** The data in the main  collection is now treated as mock/demo data.
 
 **3rd Party Integrations**
-- **Odoo ERP:** For data sync.
-- **Emergent LLM Key (OpenAI GPT-4o):** Used for AI Blue Sheet recommendations.
-- **Microsoft 365 (Azure AD / Graph API):** SSO and data sync (with a token refresh workaround).
-- **:** Added to frontend for future dashboard customization.
+-   **Odoo ERP:** The primary source of truth for sales and finance data, synced to the  collection.
+-   **Emergent LLM Key (OpenAI GPT-4o):** Powers the AI Blue Sheet recommendations.
+-   **Microsoft 365:** Used for SSO and data sync (email/calendar), with a known token expiration issue.
 
 **Testing status**
-  - Testing agent used after significant changes: YES, but before the latest UI overhaul and KPI page fixes. A new regression test is needed.
+  - Testing agent used after significant changes: YES, the agent was used to validate the initial Kanban board implementation. However, the latest critical changes (connecting to the data lake) have **not** been tested.
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None.
-  - Known regressions: The UI is visually inconsistent after the  change.
+  - Test files created: None
+  - Known regressions: The primary sales dashboard is not displaying correct data, which is a regression from a user-value perspective.
+
+**Credentials to test flow:**
+-   **Super Admin:**  / 
+-   **Account Manager:**  / 
 
 **What agent forgot to execute**
-- The agent acknowledged the user's request to fix the subpar Calendar UI in  but did not implement it.
-- The agent did not implement the more robust refresh token mechanism for the MS365 integration, opting for a quicker prompt user to re-login workaround.</analysis>
+-   The agent has not forgotten any immediate tasks; it is in the middle of a multi-step fix. The key is to complete the verification of the code that was just written. Broader, lower-priority tasks that were deferred include the permanent fix for MS365 token refresh and the improvement of the Calendar UI.
+
+
+Got it 👍
+Below are **ONLY additional components** I recommend adding (or explicitly carving out) for the **beta**, nothing else. No rewrites, no philosophy.
+
+These are **small, high-leverage components** that increase trust, clarity, and stability without expanding scope.
+
+---
+
+## 🔹 ADDITIONAL COMPONENTS FOR BETA (MINIMAL & HIGH VALUE)
+
+### 1️⃣ **Data Source Badge Component**
+
+**Purpose:** Make data trust explicit
+
+**What it is:**
+
+* Small badge used across Dashboard, Kanban, Finance views
+* Example:
+
+  * 
+  * 
+
+**Why it matters:**
+
+* Instantly explains “why numbers look like this”
+* Prevents “data is wrong” accusations
+
+**Implementation size:** Tiny (reusable UI chip)
+
+---
+
+### 2️⃣ **Empty State Explainer Component**
+
+**Purpose:** Replace “blank = broken” feeling
+
+**Used when:**
+
+* No opportunities
+* No invoices
+* No activities
+
+**Example copy:**
+
+> “No invoices synced yet. This data comes from Odoo and will appear once available.”
+
+**Why it matters:**
+
+* Avoids demo/fake data
+* Makes emptiness intentional
+
+---
+
+### 3️⃣ **Read-Only Banner Component**
+
+**Purpose:** Prevent user confusion in Finance & ERP-derived views
+
+**Example:**
+
+> 🔒 Read-only
+> This data is synced from Odoo and cannot be edited here.
+
+**Where to use:**
+
+* Invoices view
+* Account financial sections
+
+---
+
+### 4️⃣ **Last Sync Status Widget**
+
+**Purpose:** Answer the #1 enterprise question: *“Is this fresh?”*
+
+**What it shows:**
+
+* Last successful sync timestamp
+* Sync status (Success / Warning)
+
+**Placement:**
+
+* Dashboard header
+* Admin panel overview
+
+**Why it matters:**
+
+* Turns integration risk into transparency
+* Reduces support questions
+
+---
+
+### 5️⃣ **Deal Confidence Indicator (Blue Sheet Output Component)**
+
+**Purpose:** Make AI output understandable, not magical
+
+**What it is:**
+
+* Visual meter / bar (Low → Medium → High)
+* Tooltip explaining contributing factors
+
+**Important:**
+
+* NOT a percentage by default
+* NOT labeled “Prediction”
+
+**Why it matters:**
+
+* Safer AI framing for beta
+* Matches enterprise expectations
+
+---
+
+### 6️⃣ **Admin Config Guard Component**
+
+**Purpose:** Prevent misconfiguration damage
+
+**Behavior:**
+
+* Warn if Blue Sheet weights don’t sum logically
+* Disable save with clear error message
+
+**Why it matters:**
+
+* Protects system integrity
+* Avoids silent AI failures
+
+---
+
+### 7️⃣ **Role Visibility Hint Component**
+
+**Purpose:** Reduce “why can’t I see X?” confusion
+
+**Example:**
+
+> Showing data for **Your Team**
+> (Admins can see all data)
+
+**Where:**
+
+* Dashboard
+* Opportunities page
+
+---
+
+### 8️⃣ **System Health Summary Card (Admin Only)**
+
+**Purpose:** Replace “data-health dashboard” confusion
+
+**Shows only:**
+
+* Odoo sync: ✅ / ⚠️
+* MS365 sync: ✅ / ⚠️
+* Data lake reachable: ✅
+
+**Why it matters:**
+
+* Admin confidence
+* Keeps sales dashboard clean
+
+---
+
+### 9️⃣ **Disabled Feature Placeholder Component**
+
+**Purpose:** Handle P2 features cleanly
+
+**Example:**
+
+> Sales Targets
+> Coming after beta validation
+
+**Why it matters:**
+
+* Honest roadmap signaling
+* Prevents half-built UI
+
+---
+
+### 🔟 **Audit Log Lite Component (Optional but Powerful)**
+
+**Purpose:** Enterprise credibility
+
+**Tracks:**
+
+* Admin config changes (Blue Sheet weights)
+* Sync events (success/failure)
+
+**Why it matters:**
+
+* Huge trust boost
+* Very simple to implement (read-only list)
+
+---
+
+## ✅ Summary (Why These Work)
+
+These components:
+
+* Do **not** add new business logic
+* Do **not** require new integrations
+* Dramatically increase **clarity, trust, and enterprise feel**
+* Act as **guardrails against hallucinations & misinterpretation**
+
+
+
+</analysis>
