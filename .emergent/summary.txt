@@ -1,184 +1,169 @@
 <analysis>**original_problem_statement:**
-The user has mandated a complete architectural rebuild of the application from scratch, transforming it into an enterprise-grade Sales Intelligence Platform. The user has also provided screenshots of a reference application () and requested that its Account Manager Dashboard and Blue Sheet Probability Calculator features be replicated.
+The user's primary goal is to build an enterprise-grade Sales Intelligence Platform. The project started with a mandate to replicate features from a reference application, specifically the Account Manager Dashboard and Blue Sheet Probability Calculator.
 
-**PRODUCT REQUIREMENTS:**
-1.  **Clean Rebuild:** Start with a clean, scalable shell structure and add features incrementally.
-2.  **Core Integration:** Odoo ERP (v16 and newer).
-3.  **Architecture:** A microservices-oriented approach for scalability.
-4.  **AI-Powered Field Mapping:** Utilize AI (specifically GPT-5.2) to map fields between Odoo and a new database, with a Bring Your Own Key (BYOK) configuration. The mapping structure should be universal to support all future integrations.
-5.  **Data Sync:** Implement robust data synchronization from Odoo, including real-time updates and manual sync for Departments and Users.
-6.  **REST API:** A comprehensive REST API for all functionalities.
-7.  **Office 365 Integration:** Full integration including SSO, Email Sync, and Calendar Sync.
-8.  **Role-Based Access Control (RBAC):** A fully configurable system to manage user permissions. New users signing up via SSO must be manually approved by a Super Admin before gaining access. Sales roles should have a restricted view, hiding tabs like Data Lake, Admin Panel, and Settings.
-9.  **Data Segregation:** User data must be strictly isolated.
-10. **Sales Features (from reference app):** Implement an Account Manager Dashboard with a Kanban-style opportunity pipeline and a Blue Sheet modal for calculating opportunity win probability.
+Throughout the session, the user's requirements evolved significantly:
+1.  **Configurable Incentives:** The sales incentive logic must be configurable by a Super Admin.
+2.  **CEO-Level Review & UI/UX Overhaul:** The user requested a comprehensive review of the application's workflow and UI/UX from a CEO's perspective, demanding that the UI/UX be fixed to match the aesthetic of a reference project ().
+3.  **Unified & Customizable Dashboard:** Merge the main dashboard and the sales dashboard into a single, customizable dashboard where users can manage widgets.
+4.  **Strict Role-Based Views:** Sales users should only see the Sales Dashboard. The main dashboard and certain navigation items (like Sync Status) should be restricted to specific roles (e.g., Super Admin).
+5.  **Dynamic Role & Permission System:** The user asked for a scalable system to create new roles (like Product Director) and configure their specific navigation tabs and dashboard layouts on the fly.
+6.  **UI/UX Refinements:** The user noted that the calendar sync's frontend view is not great and that Tasks should be reframed as Opportunity-based activities.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a FastAPI backend with a React frontend. A major security overhaul has been completed, implementing a mandatory new-user approval flow. All key API endpoints are now protected by RBAC middleware that checks for an approved user status. The frontend has been updated to support this flow with a Pending Approval page and a modified Admin Panel for Super Admins to approve or reject users.
+The application is a full-stack Sales Intelligence Platform with a FastAPI backend and React frontend.
 
-Additionally, the Odoo integration was enhanced to allow manual syncing of Departments and Users. The AI-powered Field Mapping page was mistakenly replaced by the agent but was then restored and correctly extended to support both Odoo and Microsoft 365 as data sources. UI improvements were made to the My Outlook page, and role-based navigation was implemented to hide specific tabs from non-admin users.
+**Key Completed Features:**
+*   **Sales Dashboard:** A fully functional dashboard with KPI cards, a Kanban pipeline for opportunities, and sales metrics.
+*   **AI-Powered Blue Sheet:** An opportunity analysis tool that uses the Emergent LLM key to calculate win probability and provide AI-generated strategic recommendations.
+*   **Dynamic Role Configuration Engine:** A powerful admin feature allowing Super Admins to create/edit roles, assign permissions, and dynamically configure navigation menus and dashboard layouts for each role.
+*   **Incentive Configuration:** An admin panel for creating and managing sales commission templates and service lines.
+*   **Role-Based UI:** The main navigation and access to pages are now driven by the new role configuration engine, loading dynamically based on the logged-in user's role.
+*   **Sales Entity Pages:** Dedicated pages for Accounts, Opportunities, and KPIs have been created and are accessible via the new dynamic navigation.
+*   **UI/UX Foundation:** The main  component has been refactored to match the user's preferred design (dark sidebar, light content area, slate color palette).
 
 **Last working item**:
-    - Last item agent was working: The agent just received user approval to begin implementing the Account Manager Dashboard and Blue Sheet Probability Calculator features, based on a detailed plan derived from user-provided screenshots of a reference application.
-    - Status: NOT STARTED
+    - Last item agent was working: The agent was actively implementing a major UI/UX overhaul requested by the user. It had just updated the main  to match the reference design and was about to refactor the  page to align with the new light-themed, high-contrast aesthetic.
+    - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? both
+    - Which testing method agent to use? screenshot tool
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: (P0) MS365 Email sync is not working.
-  - Issue 2: (P1) Department data should be synced from Odoo ERP.
-  - Issue 3: (P2) Microsoft 365 Email/Calendar data is not displayed anywhere.
+  - Issue 1: (P0) Complete the UI/UX overhaul to match the reference design.
+  - Issue 2: (P1) The Calendar UI on the MyOutlook page is subpar.
+  - Issue 3: (P2) The MS365 email sync fix is a temporary workaround.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent added a more descriptive error message on the frontend (Failed to fetch emails. Please check your connection.). The underlying problem, likely related to expired MS365 access tokens, has not been resolved. The user has reported this multiple times.
+     - Attempted fixes: The agent successfully refactored  to create the dark-sidebar/light-content theme.
      - Next debug checklist:
-        1.  **Backend:** In , implement logic to refresh the MS365 access token if it's expired before making a Graph API call.
-        2.  **Backend:** Add robust error handling around the token refresh and data fetch process to log specific errors from the Microsoft Graph API.
-        3.  **Frontend:** In , display a more specific error to the user if the backend reports a token or permission issue (e.g., Could not sync emails. Please try re-connecting your Microsoft account.).
-     - Why fix this issue and what will be achieved with the fix? This is a critical user-facing feature. Fixing it will allow users to see their own emails within the application, a key part of the Office 365 integration.
+        1.  Modify  to use a light theme, removing dark backgrounds and ensuring components match the Swiss-style design of the reference app.
+        2.  Systematically review and update all other pages (, , , etc.) to ensure a consistent light-themed UI across the application.
+        3.  Use the  tool after each page update to verify visual consistency.
+     - Why fix this issue and what will be achieved with the fix? The user was explicit that the previous UI was messed up. This is a critical fix to meet user satisfaction and deliver the desired professional aesthetic.
+     - Status:  IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
+  - Issue 2: 
+     - Attempted fixes: None. The agent acknowledged the user's feedback but prioritized other tasks.
+     - Next debug checklist:
+        1.  Review .
+        2.  Replace the current list-based event display with a proper calendar grid component (e.g., using 's Calendar or a similar library).
+        3.  Ensure events are plotted correctly on the calendar grid.
+     - Why fix this issue and what will be achieved with the fix? This will improve user experience by providing a more intuitive and standard way to visualize calendar events.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
+  - Issue 3: 
+     - Attempted fixes: The agent implemented a soft-fail mechanism. The backend now returns a  error, and the frontend prompts the user to re-authenticate.
+     - Next debug checklist:
+        1.  The current fix is a workaround. The ideal solution, which was not implemented, is to store the MS365 **refresh token** alongside the access token during the initial SSO callback.
+        2.  In , before making a Graph API call, check if the access token is expired.
+        3.  If it is, use the refresh token to silently request a new access token from Microsoft and update it in the database. This would be seamless to the user.
+     - Why fix this issue and what will be achieved with the fix? This will resolve a recurring user-facing issue permanently, eliminating the need for frequent re-logins and making the email/calendar integration reliable.
      - Status:  IN PROGRESS
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
-  - Issue 2: 
-     - Attempted fixes: **This is now complete.** The agent added  and  methods to , created  and  endpoints, and added buttons to the Admin Panel UI.
-     - Next debug checklist: N/A
-     - Why fix this issue and what will be achieved with the fix? This fulfills the user's requirement to manage departments based on the source ERP system.
-     - Status:  RESOLVED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? N/A
-     - Blocked on other issue: None
-  - Issue 3: 
-     - Attempted fixes: The agent added date filtering and UI improvements to the Calendar view in . However, the email portion is still not working due to the sync issue (Issue #1).
-     - Next debug checklist:
-        1.  Resolve Issue #1 (Email Sync).
-        2.  Ensure the email list UI in  correctly renders the fetched emails.
-     - Why fix this issue and what will be achieved with the fix? This will complete the user-facing part of the Microsoft 365 integration.
-     - Status:  BLOCKED
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: Issue 1: MS365 Email sync is not working.
 
 **In progress Task List**:
-  - None.
+  - Task 1: UI/UX Overhaul
+     - Where to resume: Start by editing  to apply the new light theme.
+     - What will be achieved with this? A visually consistent and user-approved application interface.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on something: None
 
 **Upcoming and Future Tasks**
 Upcoming Tasks:
-- **(P0) Implement Sales Dashboard & Blue Sheet Features:** Build the Account Manager Dashboard and Blue Sheet Probability Calculator as per the approved plan. This involves creating new backend models and APIs for Opportunities and building the corresponding frontend components (Kanban board, modal calculator).
-- **(P1) Implement Real-Time Sync (Odoo):** Implement logic for Odoo webhooks in .
-- **(P2) Build Dashboard Analytics:** Populate the main dashboard with charts and KPIs using the analytics-ready data from the Serving zone.
+- **(P0) Implement Opportunity Activities Drawer:** Per the approved plan, change the Tasks concept to be an Activities panel or side-drawer that expands from an opportunity, providing a more modern and integrated UX.
+- **(P1) Enhance KPI Dashboard:** Implement the customizable grid layout for the main dashboard using , allowing users to add, remove, and rearrange KPI widgets as configured in the Admin Panel.
 
 Future Tasks:
-- **(P1) Refactor to Microservices:** Decompose the current modular monolith into true microservices.
-- **(P2) Add More Integrations:** Build out connectors for other platforms like Salesforce and HubSpot.
+- **(P1) Real-Time Sync (Odoo):** Implement Odoo webhook support in .
+- **(P2) Refactor to Microservices:** Decompose the current modular monolith into true microservices for better scalability.
 
 **Completed work in this session**
-- **Security Overhaul & User Approval Flow:**
-  - Implemented a mandatory approval flow for all new users signing up via SSO.
-  - Secured all relevant backend API endpoints (, , ) by applying the RBAC middleware to enforce an  status.
-  - Created a  page and updated  to allow Super Admins to approve/reject users.
-  - Wrote a migration script to set  for all existing users to prevent lockout.
-- **Odoo Sync Expansion:**
-  - Added backend methods and API endpoints (, ) to sync departments and users from Odoo.
-  - Added corresponding buttons to the Admin Panel UI.
-- **Field Mapping Restoration & Enhancement:**
-  - Corrected a major error by restoring the original AI-powered  page after it was mistakenly replaced.
-  - Extended the restored page to be universal, adding a selector to switch between Odoo and Microsoft 365 as data sources while preserving all AI-mapping functionality.
-- **UI/UX Improvements:**
-  - Implemented role-based navigation in  to hide admin-only tabs from sales users.
-  - Improved the calendar UI in  with date filtering and pagination.
+- **Sales Dashboard & Blue Sheet Implementation:** Built the entire backend and frontend for the Account Manager Dashboard, including Kanban board, KPI cards, and an AI-powered Blue Sheet probability calculator with LLM-generated recommendations.
+- **Role Configuration Engine:** Created a comprehensive system for Super Admins to manage roles, permissions, navigation menus, and dashboard layouts from the Admin Panel.
+- **Incentive Management Module:** Built UI and APIs for configuring sales commission templates and service lines.
+- **Dynamic & Role-Based UI:** Refactored the application to fetch navigation and page layouts from the backend based on user roles, effectively making the UI dynamic.
+- **New Sales Entity Pages:** Created and integrated pages for , , and .
+- **MS365 Token Expiration Fix:** Implemented a workaround to gracefully handle expired MS365 tokens by prompting the user to re-authenticate.
+- **UI/UX Foundation Refactor:** Re-styled the main  component to match the user's reference design (dark sidebar, light content).
+- **KPIs Feature Fix:** Debugged and fixed both backend and frontend issues related to the new KPIs page, including missing API endpoints and context functions.
 
 **Earlier issues found/mentioned but not fixed**
-   - **Issue 1:** MS365 Email Sync is still not working. The user has reported this multiple times, and despite frontend UI changes, the core backend issue (likely token refresh) remains unresolved.
-
-**Known issue recurrence from previous fork**
-  - None.
+   - **Issue 1:** The user pointed out that the calendar view in  is not great. The agent planned to fix this but did not get to it.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Pydantic, Motor (async MongoDB).
-- **Frontend:** React, Tailwind CSS, shadcn/ui.
-- **Authentication:** JWT, Microsoft SSO (OAuth via ).
-- **Authorization:** Database-driven RBAC with a mandatory new-user approval flow. Middleware is applied globally to secure API endpoints.
-- **Architecture:** Modular Monolith.
+- **Backend:** FastAPI, Pydantic, Motor
+- **Frontend:** React, Tailwind CSS, shadcn/ui, **** (for dashboard customization), **** (for Kanban)
+- **Authorization:** Dynamic, database-driven RBAC where navigation and dashboard layouts are configured per role.
+- **Integrations:** Emergent LLM Key (OpenAI GPT-4o) for AI recommendations.
 
 **key DB schema**
-- **users**: Now includes . This is a critical field for the new security model.
-- **departments**: Now populated via sync from Odoo.
-- **(Proposed) opportunities**: New collection to be created for the Sales Dashboard feature. Will include fields for , , , , and a nested  object to store probability calculation data.
-
-**changes in tech stack**
-- None.
+- **roles**: Stores role definitions, including associated permissions, , and .
+- **opportunities**: Stores sales opportunity data, including , , and a nested  object.
+- **accounts**: Stores customer account information.
+- **kpis**: Stores Key Performance Indicator definitions and tracks their progress.
+- **commission_templates**: Stores definitions for calculating sales incentives.
 
 **All files of reference**
-- : The core middleware enforcing user approval status.
-- : New page for the user approval workflow.
-- : Contains the UI for approving users and syncing Odoo data.
-- : Contains the API logic for user approval and Odoo sync.
-- : The restored and extended universal mapping page.
-- : Contains the role-based navigation logic.
-- : The file that needs to be fixed to resolve the email sync issue.
-
-**Areas that need refactoring**:
-- The agent made a critical mistake by deleting the working  and replacing it with a new , which had to be undone. This indicates a process failure. The next agent must be extremely careful to extend existing functionality rather than replacing it.
-
-**key api endpoints**
-- : Approves a pending user.
-- : Rejects a pending user.
-- : Triggers a sync of departments from Odoo.
-- : Triggers a sync of employees from Odoo and updates/creates users.
+- : The core of the new UI/UX. Must be referenced for all page styling.
+- : Host for the new configuration components.
+- : The UI for the new role engine.
+- : The API backing the role configuration engine.
+- : The API for all sales-related features.
+- : The next file to be refactored for the UI/UX overhaul.
 
 **Critical Info for New Agent**
-- **Immediate Priority:** Begin implementation of the **Account Manager Dashboard** and **Blue Sheet Probability Calculator**. The user has seen and approved a detailed plan for this. Do not deviate from it.
-- **Urgent Bug:** The **MS365 Email Sync is still broken**. This is a recurring, high-priority issue. The fix likely involves implementing token refresh logic in . This should be addressed before or alongside the new features.
-- **CRITICAL - AVOID PAST MISTAKES:** The previous agent angered the user by deleting a working AI Field Mapping feature and replacing it. **DO NOT replace working features.** Always analyze the existing code and extend it to meet new requirements.
-- **User is a Tester:** The user actively tests the application and will report bugs and regressions. Ensure features are well-tested before finishing.
+- **UI/UX is TOP priority:** The user is very dissatisfied with the current UI inconsistencies. Your first task is to continue the UI overhaul started by the previous agent, ensuring every page matches the light-theme, high-contrast design specified in the reference repo. Refer to the new  as the source of truth for styling.
+- **Follow the Plan:** The user has approved a multi-phase plan. Stick to it. After the UI fix, the next items are the Opportunity Activities drawer and enhancing the KPI dashboard.
+- **MS365 Token Refresh:** The current fix for email sync is a stop-gap. Be aware that a robust, long-term solution requires implementing a refresh token mechanism. This is a recurring issue and a good candidate for a permanent fix after the priority UI tasks.
+- **Calendar UI:** Do not forget the user's request to improve the calendar view on the  page. This should be addressed after the current high-priority items.
 
 **documents and test reports created in this job**
 - 
 - 
-- 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-10. **User:** Asks for Odoo to be the source for department data, user management to be editable, and user details to be synced from Odoo. Also requests a universal field mapping structure.
-9. **Agent:** Proposes a plan for the above and asks for confirmation.
-8. **User:** yes - approves the plan.
-7. **Agent:** Implements the Odoo sync and a *new* universal mapping page, replacing the old one. Finishes with a summary.
-6. **User:** Provides credentials for a reference app () and asks the agent to replicate its sales dashboard and blue sheet features. Also reports that **email sync is still not working**.
-5. **Agent:** Analyzes the reference app and screenshots, creates a detailed implementation plan for the new sales features, and asks for approval.
-4. **User:** Expresses anger that the agent removed the AI field mapping functionality and replaced it with a static page. Demands that the old configuration be restored and that existing code not be changed.
-3. **Agent:** Apologizes, restores the original , extends it to support MS365 (as intended), and deletes the problematic new file. Summarizes the fix.
-2. **User:** proceed with this now - Pastes the agent's plan for the Sales Dashboard and Blue Sheet features, indicating approval to start that work.
-1. **Agent:** Acknowledges the approval and prepares to start building the sales features.
+10. **User:** Asks what happens when a new role is added and how to customize their dashboard/tabs.
+9. **Agent:** Proposes a fully configurable Role-based Configuration System.
+8. **User:** Approves the plan for the configuration system.
+7. **Agent:** Finishes implementing the Role/Incentive configuration engine and summarizes the work.
+6. **User:** Approves and asks the agent to think like a CEO and create the next plan.
+5. **Agent:** Presents a CEO-centric plan for building out role-based navigation and sales workflows.
+4. **User:** Approves the plan but notes that email sync is working fine, but the calendar frontend view is not that great and needs to be looked at.
+3. **Agent:** Finishes implementing Phase 1 (Role-Based Navigation & Sales Workflows).
+2. **User:** you messed the UI/UX in this update think and act please refer the below repo where my old project is there and i really like the UI/UX of that - User is unhappy with the UI and provides the reference git repo again.
+1. **Agent:** Acknowledges the feedback, re-analyzes the reference UI, and begins fixing the  component to match the desired dark-sidebar/light-content theme.
 
 **Project Health Check:**
-- **Working:** New user approval workflow, RBAC security on endpoints, Odoo department/user sync, universal Field Mapping UI.
-- **In Progress:** None.
-- **Broken:** **Microsoft 365 Email Sync.** This is a critical, user-reported bug that prevents the My Outlook page from being functional for emails.
-- **Mocked:** The My Outlook page's email section is mocked as it cannot fetch data.
+- **Working:** Backend APIs, Sales Dashboard logic, AI Blue Sheet, Role & Incentive Configuration.
+- **In Progress:** UI/UX is in a transitional state. The main layout is updated, but child pages are still using the old, inconsistent styling.
+- **Broken:** None.
+- **Mocked:** None.
 
 **3rd Party Integrations**
-- **Odoo ERP:** Integrated for manual data sync of contacts, accounts, departments, and users.
-- **Emergent LLM Key (OpenAI):** Used for AI auto-mapping in the Field Mapping feature.
-- **Microsoft 365 (Azure AD / Graph API):** SSO is functional. Data sync for calendar works, but email sync is broken.
+- **Odoo ERP:** For data sync.
+- **Emergent LLM Key (OpenAI GPT-4o):** Used for AI Blue Sheet recommendations.
+- **Microsoft 365 (Azure AD / Graph API):** SSO and data sync (with a token refresh workaround).
+- **:** Added to frontend for future dashboard customization.
 
 **Testing status**
-  - Testing agent used after significant changes: NO
+  - Testing agent used after significant changes: YES, but before the latest UI overhaul and KPI page fixes. A new regression test is needed.
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: No new test files were created. The agent performed extensive manual testing of the backend security flow using  and custom Python scripts.
-  - Known regressions: MS365 Email sync remains broken.
-
-**Credentials to test flow:**
-- **Super Admin:**  / 
-- **Microsoft 365:** A new, previously unused Microsoft account is required to test the pending approval flow from scratch. Existing user accounts were migrated to approved. User's test account is .
-- **Reference App:**  /  for .
+  - Test files created: None.
+  - Known regressions: The UI is visually inconsistent after the  change.
 
 **What agent forgot to execute**
-- The agent failed to resolve the recurring MS365 email sync issue despite multiple user reports and attempts to fix the UI. The core backend problem was never addressed.
-- The agent made a significant process error by replacing a complex, working feature () with a simplified new one, demonstrating a lack of diligence. This required a rollback and rework, wasting time and frustrating the user.</analysis>
+- The agent acknowledged the user's request to fix the subpar Calendar UI in  but did not implement it.
+- The agent did not implement the more robust refresh token mechanism for the MS365 integration, opting for a quicker prompt user to re-login workaround.</analysis>
