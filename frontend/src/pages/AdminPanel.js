@@ -482,6 +482,16 @@ const AdminPanel = () => {
                           <td className="px-4 py-3">
                             <p className="font-medium text-slate-900">{u.name || 'No name'}</p>
                             <p className="text-slate-500 text-sm">{u.email}</p>
+                            {/* Azure AD Details */}
+                            {(u.job_title || u.ad_department || u.company_name) && (
+                              <div className="mt-1 text-xs text-slate-400">
+                                {u.job_title && <span>{u.job_title}</span>}
+                                {u.job_title && u.ad_department && <span> • </span>}
+                                {u.ad_department && <span>{u.ad_department}</span>}
+                                {(u.job_title || u.ad_department) && u.company_name && <span> @ </span>}
+                                {u.company_name && <span>{u.company_name}</span>}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             {editingUser?.id === u.id ? (
