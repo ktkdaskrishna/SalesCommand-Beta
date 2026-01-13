@@ -138,11 +138,13 @@ const KPIs = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-blue-600" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+              <BarChart3 className="w-5 h-5 text-white" />
+            </div>
             KPIs
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-500 mt-1">
             Track performance against targets
           </p>
         </div>
@@ -159,33 +161,35 @@ const KPIs = () => {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setCategoryFilter("")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            categoryFilter === ""
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-          data-testid="filter-all"
-        >
-          All
-        </button>
-        {CATEGORIES.map((cat) => (
+      <div className="card p-4">
+        <div className="flex flex-wrap gap-2">
           <button
-            key={cat.value}
-            onClick={() => setCategoryFilter(cat.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-              categoryFilter === cat.value
-                ? "bg-slate-900 text-white"
+            onClick={() => setCategoryFilter("")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              categoryFilter === ""
+                ? "bg-slate-900 text-white shadow-lg"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
-            data-testid={`filter-${cat.value}`}
+            data-testid="filter-all"
           >
-            <cat.icon className="w-4 h-4" />
-            {cat.label}
+            All
           </button>
-        ))}
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.value}
+              onClick={() => setCategoryFilter(cat.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                categoryFilter === cat.value
+                  ? "bg-slate-900 text-white shadow-lg"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+              data-testid={`filter-${cat.value}`}
+            >
+              <cat.icon className="w-4 h-4" />
+              {cat.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary Stats */}
