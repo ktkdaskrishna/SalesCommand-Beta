@@ -662,25 +662,72 @@ const AccountManagerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, kanbanRes, activitiesRes] = await Promise.all([
-        dashboardAPI.getStats(),
-        api.get("/opportunities/kanban"),
+      // Fetch REAL data from data_lake_serving (Odoo-synced)
+      const [realDataRes, activitiesRes] = await Promise.all([
+        api.get("/dashboard/real"),
         activitiesAPI.getAll({ status: "pending" }),
       ]);
 
-      setStats(statsRes.data);
-      setKanbanData(kanbanRes.data);
+      const realData = realDataRes.data;
+      
+      // Set stats from real data
+      setStats({
+        pipeline_value: realData.metrics.pipeline_value,
+        won_revenue: realData.metrics.won_revenue,
+        active_opportunities: realData.metrics.active_opportunities,
+        activity_completion_rate: 0, // Will calculate from activities
+        total_receivables: realData.metrics.total_receivables,
+        pending_invoices: realData.metrics.pending_invoices,
+      });
+
+      // Convert real opportunities to kanban format
+      const stages = ["New", "Qualification", "Proposal", "Negotiation", "Won", "Lost"];
+      const kanban = {};
+      stages.forEach(s => kanban[s] = []);
+      
+      realData.opportunities.forEach(opp => {
+        const stage = opp.stage || "New";
+        // Map Odoo stages to our stages
+        let mappedStage = stage;
+        if (stage.toLowerCase().includes("won")) mappedStage = "Won";
+        else if (stage.toLowerCase().includes("lost")) mappedStage = "Lost";
+        else if (stage.toLowerCase().includes("negot")) mappedStage = "Negotiation";
+        else if (stage.toLowerCase().includes("propos")) mappedStage = "Proposal";
+        else if (stage.toLowerCase().includes("qualif")) mappedStage = "Qualification";
+        else mappedStage = "New";
+        
+        if (!kanban[mappedStage]) kanban[mappedStage] = [];
+        kanban[mappedStage].push({
+          id: String(opp.id),
+          name: opp.name,
+          account_name: opp.account_name,
+          value: opp.value,
+          probability: opp.probability,
+          stage: mappedStage,
+          source: "odoo",
+        });
+      });
+
+      setKanbanData({ stages, kanban, source: "data_lake_serving" });
       setRecentActivities(activitiesRes.data.slice(0, 5));
 
-      // Fetch sales metrics
-      try {
-        const metricsRes = await api.get(`/sales-metrics/${user.id}`);
-        setSalesMetrics(metricsRes.data);
-      } catch (e) {
-        console.log("Sales metrics not available");
-      }
+      // Note: Data is from Odoo sync
+      console.log("Dashboard loaded from data_lake_serving:", realData.data_note);
     } catch (error) {
       console.error("Dashboard error:", error);
+      // Fallback to legacy endpoint if real data fails
+      try {
+        const [statsRes, kanbanRes, activitiesRes] = await Promise.all([
+          dashboardAPI.getStats(),
+          api.get("/opportunities/kanban"),
+          activitiesAPI.getAll({ status: "pending" }),
+        ]);
+        setStats(statsRes.data);
+        setKanbanData(kanbanRes.data);
+        setRecentActivities(activitiesRes.data.slice(0, 5));
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+      }
     } finally {
       setLoading(false);
     }
