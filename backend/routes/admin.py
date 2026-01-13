@@ -575,6 +575,231 @@ async def get_my_permissions(token_data: dict = Depends(get_current_user_from_to
     }
 
 
+# ===================== ODOO SYNC ROUTES =====================
+
+@router.post("/sync-odoo-departments")
+async def sync_odoo_departments(
+    token_data: dict = Depends(require_super_admin)
+):
+    """
+    Sync departments from Odoo HR module.
+    Creates/updates departments in our system based on Odoo data.
+    """
+    from services.odoo.connector import OdooConnector
+    import uuid
+    
+    db = Database.get_db()
+    
+    # Get Odoo integration config
+    odoo_intg = await db.integrations.find_one({"integration_type": "odoo"})
+    if not odoo_intg or not odoo_intg.get("enabled") or not odoo_intg.get("config"):
+        raise HTTPException(
+            status_code=400,
+            detail="Odoo integration not configured. Please configure Odoo first."
+        )
+    
+    config = odoo_intg["config"]
+    
+    try:
+        async with OdooConnector(
+            url=config["url"],
+            database=config["database"],
+            username=config["username"],
+            api_key=config["api_key"]
+        ) as connector:
+            # Fetch all departments from Odoo
+            odoo_departments = await connector.get_departments(limit=500)
+            
+            now = datetime.now(timezone.utc)
+            created = 0
+            updated = 0
+            skipped = 0
+            
+            # Create a mapping of Odoo dept IDs to our dept IDs for parent references
+            odoo_to_our_id = {}
+            
+            # First pass: Create/update all departments
+            for odoo_dept in odoo_departments:
+                if not odoo_dept.get("name"):
+                    skipped += 1
+                    continue
+                
+                # Generate a code from name
+                code = odoo_dept["name"].lower().replace(" ", "_").replace("-", "_")
+                
+                # Check if department exists by Odoo ID or code
+                existing = await db.departments.find_one({
+                    "$or": [
+                        {"odoo_id": odoo_dept["id"]},
+                        {"code": code}
+                    ]
+                })
+                
+                dept_data = {
+                    "name": odoo_dept["name"],
+                    "code": code,
+                    "description": odoo_dept.get("complete_name", ""),
+                    "odoo_id": odoo_dept["id"],
+                    "is_active": True,
+                    "updated_at": now
+                }
+                
+                if existing:
+                    # Update existing department
+                    await db.departments.update_one(
+                        {"id": existing["id"]},
+                        {"$set": dept_data}
+                    )
+                    odoo_to_our_id[odoo_dept["id"]] = existing["id"]
+                    updated += 1
+                else:
+                    # Create new department
+                    dept_id = str(uuid.uuid4())
+                    dept_data["id"] = dept_id
+                    dept_data["created_at"] = now
+                    dept_data["parent_id"] = None  # Will update in second pass
+                    
+                    await db.departments.insert_one(dept_data)
+                    odoo_to_our_id[odoo_dept["id"]] = dept_id
+                    created += 1
+            
+            # Second pass: Update parent relationships
+            parent_updates = 0
+            for odoo_dept in odoo_departments:
+                if odoo_dept.get("parent_id") and isinstance(odoo_dept["parent_id"], list):
+                    odoo_parent_id = odoo_dept["parent_id"][0]  # Odoo returns [id, name]
+                    
+                    if odoo_parent_id in odoo_to_our_id:
+                        our_dept_id = odoo_to_our_id[odoo_dept["id"]]
+                        our_parent_id = odoo_to_our_id[odoo_parent_id]
+                        
+                        await db.departments.update_one(
+                            {"id": our_dept_id},
+                            {"$set": {"parent_id": our_parent_id}}
+                        )
+                        parent_updates += 1
+            
+            return {
+                "message": "Odoo departments synced successfully",
+                "total_fetched": len(odoo_departments),
+                "created": created,
+                "updated": updated,
+                "skipped": skipped,
+                "parent_links": parent_updates
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to sync Odoo departments: {str(e)}"
+        )
+
+
+@router.post("/sync-odoo-users")
+async def sync_odoo_users(
+    token_data: dict = Depends(require_super_admin)
+):
+    """
+    Sync users/employees from Odoo HR module.
+    Creates/updates users in our system based on Odoo employee data.
+    Note: Roles must still be assigned manually by Super Admin for security.
+    """
+    from services.odoo.connector import OdooConnector
+    import uuid
+    
+    db = Database.get_db()
+    
+    # Get Odoo integration config
+    odoo_intg = await db.integrations.find_one({"integration_type": "odoo"})
+    if not odoo_intg or not odoo_intg.get("enabled") or not odoo_intg.get("config"):
+        raise HTTPException(
+            status_code=400,
+            detail="Odoo integration not configured. Please configure Odoo first."
+        )
+    
+    config = odoo_intg["config"]
+    
+    try:
+        async with OdooConnector(
+            url=config["url"],
+            database=config["database"],
+            username=config["username"],
+            api_key=config["api_key"]
+        ) as connector:
+            # Fetch all employees from Odoo
+            odoo_employees = await connector.get_employees(limit=500)
+            
+            now = datetime.now(timezone.utc)
+            created = 0
+            updated = 0
+            skipped = 0
+            
+            for odoo_emp in odoo_employees:
+                email = odoo_emp.get("work_email")
+                if not email:
+                    skipped += 1
+                    continue
+                
+                # Try to match department
+                dept_id = None
+                if odoo_emp.get("department_id") and isinstance(odoo_emp["department_id"], list):
+                    odoo_dept_id = odoo_emp["department_id"][0]
+                    dept = await db.departments.find_one({"odoo_id": odoo_dept_id})
+                    if dept:
+                        dept_id = dept["id"]
+                
+                # Check if user exists
+                existing_user = await db.users.find_one({"email": email})
+                
+                user_data = {
+                    "name": odoo_emp.get("name", email.split("@")[0]),
+                    "job_title": odoo_emp.get("job_title"),
+                    "department_id": dept_id,
+                    "odoo_user_id": odoo_emp.get("id"),
+                    "is_active": odoo_emp.get("active", True),
+                    "updated_at": now
+                }
+                
+                if existing_user:
+                    # Update existing user (don't overwrite role or approval status)
+                    await db.users.update_one(
+                        {"email": email},
+                        {"$set": user_data}
+                    )
+                    updated += 1
+                else:
+                    # Create new user
+                    user_id = str(uuid.uuid4())
+                    user_data.update({
+                        "id": user_id,
+                        "email": email,
+                        "password_hash": "",  # No password for synced users
+                        "role_id": None,  # Must be assigned by admin
+                        "is_super_admin": False,
+                        "approval_status": "approved",  # Auto-approve Odoo users
+                        "auth_provider": "odoo",
+                        "created_at": now
+                    })
+                    
+                    await db.users.insert_one(user_data)
+                    created += 1
+            
+            return {
+                "message": "Odoo users synced successfully",
+                "total_fetched": len(odoo_employees),
+                "created": created,
+                "updated": updated,
+                "skipped": skipped,
+                "note": "Roles must be assigned manually by Super Admin"
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to sync Odoo users: {str(e)}"
+        )
+
+
 # ===================== AZURE AD USER DIRECTORY SYNC =====================
 
 @router.post("/sync-azure-users")
