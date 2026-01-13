@@ -154,8 +154,9 @@ function AppRoutes() {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<RoleBasedDashboard />} />
         <Route path="sales-dashboard" element={<AccountManagerDashboard />} />
+        <Route path="admin-dashboard" element={<Dashboard />} />
         <Route path="accounts" element={<Accounts />} />
         <Route path="opportunities" element={<Opportunities />} />
         <Route path="kpis" element={<KPIs />} />
