@@ -150,6 +150,8 @@ function AppRoutes() {
         <Route path="admin-dashboard" element={<Dashboard />} />
         <Route path="accounts" element={<Accounts />} />
         <Route path="opportunities" element={<Opportunities />} />
+        <Route path="goals" element={<Goals />} />
+        <Route path="activity" element={<ActivityTimeline />} />
         <Route path="kpis" element={<KPIs />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="integrations" element={<Integrations />} />
