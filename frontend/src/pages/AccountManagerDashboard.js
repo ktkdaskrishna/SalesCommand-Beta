@@ -30,7 +30,81 @@ import {
   Users,
   BarChart3,
   Kanban,
+  Database,
+  RefreshCw,
+  Info,
 } from "lucide-react";
+
+// Data Source Badge Component - shows where data comes from
+const DataSourceBadge = ({ source, lastSync }) => {
+  const formatSyncTime = (timestamp) => {
+    if (!timestamp) return "Never";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
+      <Database className="w-3.5 h-3.5 text-blue-600" />
+      <span className="text-blue-700 font-medium">Source: {source || "CRM"}</span>
+      {lastSync && (
+        <>
+          <span className="text-blue-300">|</span>
+          <RefreshCw className="w-3 h-3 text-blue-500" />
+          <span className="text-blue-600">{formatSyncTime(lastSync)}</span>
+        </>
+      )}
+    </div>
+  );
+};
+
+// Empty State Explainer Component
+const EmptyStateExplainer = ({ type, userRole }) => {
+  const messages = {
+    opportunities: {
+      title: "No opportunities assigned yet",
+      description: userRole === "account_manager" 
+        ? "Opportunities will appear here once they're synced from Odoo and assigned to your account."
+        : "No opportunities found in the data lake. Data syncs automatically from connected sources.",
+      icon: Target,
+    },
+    activities: {
+      title: "No pending activities",
+      description: "You're all caught up! Activities will appear here when created or assigned to you.",
+      icon: CheckCircle2,
+    },
+    pipeline: {
+      title: "Pipeline data loading",
+      description: "Your sales pipeline will populate once opportunities are synced from Odoo.",
+      icon: Kanban,
+    },
+  };
+
+  const config = messages[type] || messages.opportunities;
+  const Icon = config.icon;
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+      <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+        <Icon className="w-7 h-7 text-slate-400" />
+      </div>
+      <h4 className="font-semibold text-slate-700 mb-2">{config.title}</h4>
+      <p className="text-sm text-slate-500 max-w-sm">{config.description}</p>
+      <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+        <Info className="w-3.5 h-3.5" />
+        <span>Data syncs automatically from Odoo ERP</span>
+      </div>
+    </div>
+  );
+};
 import {
   BarChart,
   Bar,
