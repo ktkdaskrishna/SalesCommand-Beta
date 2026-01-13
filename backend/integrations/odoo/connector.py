@@ -427,6 +427,46 @@ class OdooConnector(BaseConnector):
                     'phone': rec.get('work_phone') or rec.get('mobile_phone'),
                     'job_title': rec.get('job_title') or (rec.get('job_id')[1] if rec.get('job_id') else None),
                     'department_odoo_id': rec.get('department_id')[0] if rec.get('department_id') else None,
+
+    async def _fetch_users_fallback(self) -> List[Dict[str, Any]]:
+        """Fallback to res.users if hr.employee is not available"""
+        model = 'res.users'
+        fields = ['id', 'name', 'login', 'email', 'partner_id', 'active', 'company_id']
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        records = await loop.run_in_executor(
+            None,
+            lambda: self._models.execute_kw(
+                self.database, self._uid, self.api_key,
+                model, 'search_read',
+                [domain],
+                {'fields': fields}
+            )
+        )
+        
+        users = []
+        for rec in records:
+            users.append({
+                'odoo_employee_id': None,
+                'odoo_user_id': rec.get('id'),
+                'name': rec.get('name'),
+                'email': rec.get('email') or rec.get('login'),
+                'phone': None,
+                'job_title': None,
+                'department_odoo_id': None,
+                'department_name': None,
+                'manager_odoo_id': None,
+                'manager_name': None,
+                'active': rec.get('active', True),
+                'source': 'odoo',
+                'synced_at': datetime.now(timezone.utc).isoformat(),
+            })
+        
+        logger.info(f"Fetched {len(users)} users from Odoo (fallback)")
+        return users
+
                     'department_name': rec.get('department_id')[1] if rec.get('department_id') else None,
                     'manager_odoo_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
                     'manager_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
