@@ -541,6 +541,8 @@ const Opportunities = () => {
     const { draggableId, destination } = result;
     const newStage = destination.droppableId;
     
+    // Optimistic update
+    const previousOpportunities = [...opportunities];
     setOpportunities(prev => 
       prev.map(opp => 
         opp.id === draggableId 
@@ -550,10 +552,23 @@ const Opportunities = () => {
     );
     
     try {
-      await opportunitiesAPI.update(draggableId, { stage: newStage });
+      await opportunitiesAPI.updateStage(draggableId, newStage);
     } catch (error) {
       console.error("Error updating opportunity stage:", error);
-      fetchData();
+      
+      // Revert optimistic update
+      setOpportunities(previousOpportunities);
+      
+      // Show error toast/message
+      const errorDetail = error.response?.data?.detail;
+      if (errorDetail && typeof errorDetail === 'object') {
+        // Structured error from backend
+        alert(`Stage Transition Blocked\n\n${errorDetail.message}`);
+      } else if (typeof errorDetail === 'string') {
+        alert(`Error: ${errorDetail}`);
+      } else {
+        alert("Failed to update stage. Please try again.");
+      }
     }
   };
 
