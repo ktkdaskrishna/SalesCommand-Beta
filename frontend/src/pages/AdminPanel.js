@@ -940,58 +940,54 @@ const PermissionModal = ({ onSave, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Auto-generate code if empty
     const code = formData.code || `${formData.module}.${formData.resource}.${formData.action}`;
     onSave({ ...formData, code });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md">
-        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Create Permission</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl animate-scale-in">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900">Create Permission</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <Label className="text-zinc-300 mb-2 block">Permission Name</Label>
+            <Label className="text-slate-700 mb-2 block font-medium">Permission Name</Label>
             <Input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., View Reports"
-              className="bg-zinc-800 border-zinc-700"
               required
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label className="text-zinc-300 mb-2 block">Module</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Module</Label>
               <Input
                 value={formData.module}
                 onChange={(e) => setFormData({ ...formData, module: e.target.value.toLowerCase() })}
                 placeholder="crm"
-                className="bg-zinc-800 border-zinc-700"
                 required
               />
             </div>
             <div>
-              <Label className="text-zinc-300 mb-2 block">Resource</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Resource</Label>
               <Input
                 value={formData.resource}
                 onChange={(e) => setFormData({ ...formData, resource: e.target.value.toLowerCase() })}
                 placeholder="reports"
-                className="bg-zinc-800 border-zinc-700"
                 required
               />
             </div>
             <div>
-              <Label className="text-zinc-300 mb-2 block">Action</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Action</Label>
               <select
                 value={formData.action}
                 onChange={(e) => setFormData({ ...formData, action: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-white"
+                className="input"
               >
                 <option value="view">View</option>
                 <option value="create">Create</option>
@@ -1004,18 +1000,18 @@ const PermissionModal = ({ onSave, onClose }) => {
           </div>
 
           <div>
-            <Label className="text-zinc-300 mb-2 block">Code (auto-generated)</Label>
+            <Label className="text-slate-700 mb-2 block font-medium">Code (auto-generated)</Label>
             <Input
               value={formData.code || `${formData.module}.${formData.resource}.${formData.action}`}
               onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              className="bg-zinc-800 border-zinc-700 font-mono text-sm"
+              className="font-mono text-sm"
               placeholder="module.resource.action"
             />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500">
+            <Button type="button" variant="ghost" onClick={onClose} className="btn-secondary">Cancel</Button>
+            <Button type="submit" className="btn-primary">
               <Plus className="w-4 h-4 mr-2" /> Create
             </Button>
           </div>
@@ -1039,49 +1035,46 @@ const DepartmentModal = ({ onSave, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md">
-        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Create Department</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl animate-scale-in">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900">Create Department</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <Label className="text-zinc-300 mb-2 block">Department Name</Label>
+            <Label className="text-slate-700 mb-2 block font-medium">Department Name</Label>
             <Input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Engineering"
-              className="bg-zinc-800 border-zinc-700"
               required
             />
           </div>
 
           <div>
-            <Label className="text-zinc-300 mb-2 block">Code</Label>
+            <Label className="text-slate-700 mb-2 block font-medium">Code</Label>
             <Input
               value={formData.code}
               onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, '_') })}
               placeholder="e.g., engineering"
-              className="bg-zinc-800 border-zinc-700"
               required
             />
           </div>
 
           <div>
-            <Label className="text-zinc-300 mb-2 block">Description</Label>
+            <Label className="text-slate-700 mb-2 block font-medium">Description</Label>
             <Input
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Optional description"
-              className="bg-zinc-800 border-zinc-700"
             />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500">
+            <Button type="button" variant="ghost" onClick={onClose} className="btn-secondary">Cancel</Button>
+            <Button type="submit" className="btn-primary">
               <Plus className="w-4 h-4 mr-2" /> Create
             </Button>
           </div>
