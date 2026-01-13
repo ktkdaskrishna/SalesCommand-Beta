@@ -300,17 +300,17 @@ const AdminPanel = () => {
   };
 
   const deleteUser = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this user? This will allow them to re-register via Microsoft SSO. This action cannot be undone.')) return;
     
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}?permanent=true`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccess('User deleted successfully');
+        setSuccess('User permanently deleted');
         fetchData();
       } else {
         setError(data.detail || 'Failed to delete user');
