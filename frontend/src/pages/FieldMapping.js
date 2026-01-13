@@ -662,7 +662,7 @@ const FieldMapping = () => {
             ) : (
               <div className="space-y-2">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-500 font-medium">
+                <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-400 font-medium uppercase tracking-wide">
                   <div className="col-span-3">SOURCE FIELD ({selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'})</div>
                   <div className="col-span-1 text-center">→</div>
                   <div className="col-span-3">TARGET FIELD (Canonical)</div>
