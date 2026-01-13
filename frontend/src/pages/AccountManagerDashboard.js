@@ -772,6 +772,7 @@ const IncentiveCalculatorModal = ({ isOpen, onClose }) => {
 const AccountManagerDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [stats, setStats] = useState(null);
   const [kanbanData, setKanbanData] = useState({ stages: [], kanban: {} });
   const [recentActivities, setRecentActivities] = useState([]);
@@ -794,6 +795,25 @@ const AccountManagerDashboard = () => {
       setIntegrations(res.data.integrations || []);
     } catch (e) {
       console.log("Could not fetch sync status");
+    }
+  };
+
+  const handleSyncFromOdoo = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post("/integrations/odoo/sync-all");
+      if (res.data.success) {
+        alert(`Sync completed! Synced: ${JSON.stringify(res.data.synced_entities)}`);
+        // Refresh dashboard data
+        await fetchDashboardData();
+      } else {
+        alert(`Sync completed with errors: ${res.data.errors.join(", ")}`);
+      }
+    } catch (e) {
+      console.error("Sync failed:", e);
+      alert("Sync failed. Please check Odoo integration configuration.");
+    } finally {
+      setSyncing(false);
     }
   };
 
