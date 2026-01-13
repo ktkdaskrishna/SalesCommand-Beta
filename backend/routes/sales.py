@@ -1191,8 +1191,21 @@ async def get_kpis(
     """Get all KPIs"""
     db = Database.get_db()
     user_id = token_data["id"]
+    is_super_admin = token_data.get("is_super_admin", False)
     
-    query = {"owner_id": user_id}
+    # Build query - super admins see all KPIs, others see their own or unassigned
+    if is_super_admin:
+        query = {}
+    else:
+        query = {
+            "$or": [
+                {"owner_id": user_id},
+                {"user_id": user_id},
+                {"owner_id": {"$exists": False}},
+                {"user_id": {"$exists": False}}
+            ]
+        }
+    
     if category:
         query["category"] = category
     
