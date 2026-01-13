@@ -15,13 +15,14 @@ import DataLake from './pages/DataLake';
 import FieldMapping from './pages/FieldMapping';
 import AdminPanel from './pages/AdminPanel';
 import MyOutlook from './pages/MyOutlook';
+import PendingApproval from './pages/PendingApproval';
 
 // Components
 import Layout from './components/Layout';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isPending, isRejected, loading } = useAuth();
   
   if (loading) {
     return (
@@ -33,6 +34,40 @@ const ProtectedRoute = ({ children }) => {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to pending approval page if user is not approved
+  if (isPending) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
+  // Redirect to login if rejected
+  if (isRejected) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+// Pending Route Component (for users awaiting approval)
+const PendingRoute = ({ children }) => {
+  const { isAuthenticated, isPending, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If not pending, redirect to dashboard
+  if (!isPending) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
@@ -67,6 +102,16 @@ function AppRoutes() {
           <PublicRoute>
             <Login />
           </PublicRoute>
+        }
+      />
+
+      {/* Pending Approval Route */}
+      <Route
+        path="/pending-approval"
+        element={
+          <PendingRoute>
+            <PendingApproval />
+          </PendingRoute>
         }
       />
 
