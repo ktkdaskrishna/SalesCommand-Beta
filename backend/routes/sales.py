@@ -1068,3 +1068,204 @@ async def delete_kpi(
         raise HTTPException(status_code=404, detail="KPI not found")
     
     return {"message": "KPI deleted"}
+
+
+# ===================== DATA LAKE DASHBOARD (REAL ODOO DATA) =====================
+
+@router.get("/dashboard/real")
+async def get_real_dashboard(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get dashboard data from data_lake_serving (real Odoo-synced data).
+    This is the source of truth for beta.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    user_email = token_data.get("email", "")
+    user_role = token_data.get("role", "")
+    is_super_admin = token_data.get("is_super_admin", False)
+    
+    # Get user's team_id for team-based visibility
+    user = await db.users.find_one({"id": user_id})
+    team_id = user.get("team_id") if user else None
+    department_id = user.get("department_id") if user else None
+    
+    # ---- OPPORTUNITIES FROM DATA LAKE ----
+    opportunities_data = []
+    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        
+        # Team-based filtering for non-admin users
+        if not is_super_admin and user_role == "account_manager":
+            # Filter by salesperson_name (Odoo field maps to user email)
+            salesperson = opp.get("salesperson_name", "")
+            if salesperson and user_email not in salesperson:
+                continue
+        
+        opportunities_data.append({
+            "id": opp.get("id"),
+            "name": opp.get("name", ""),
+            "account_name": opp.get("partner_name", ""),
+            "value": float(opp.get("expected_revenue", 0) or 0),
+            "probability": float(opp.get("probability", 0) or 0),
+            "stage": opp.get("stage_name", "New"),
+            "salesperson": opp.get("salesperson_name", ""),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    # ---- ACCOUNTS FROM DATA LAKE ----
+    accounts_data = []
+    acc_docs = await db.data_lake_serving.find({"entity_type": "account"}).to_list(1000)
+    
+    for doc in acc_docs:
+        acc = doc.get("data", {})
+        accounts_data.append({
+            "id": acc.get("id"),
+            "name": acc.get("name", ""),
+            "email": acc.get("email", ""),
+            "phone": acc.get("phone", ""),
+            "city": acc.get("city", ""),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    # ---- INVOICES FROM DATA LAKE ----
+    invoices_data = []
+    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    
+    for doc in inv_docs:
+        inv = doc.get("data", {})
+        invoices_data.append({
+            "id": inv.get("id"),
+            "invoice_number": inv.get("invoice_number", inv.get("name", "")),
+            "customer_name": inv.get("customer_name", inv.get("partner_name", "")),
+            "total_amount": float(inv.get("total_amount", inv.get("amount_total", 0)) or 0),
+            "amount_due": float(inv.get("amount_due", inv.get("amount_residual", 0)) or 0),
+            "payment_status": inv.get("payment_status", inv.get("payment_state", "pending")),
+            "invoice_date": inv.get("invoice_date"),
+            "due_date": inv.get("due_date"),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    # ---- CALCULATE METRICS ----
+    total_pipeline = sum(o["value"] for o in opportunities_data if o["stage"] not in ["Won", "Lost", "Closed Won", "Closed Lost"])
+    won_revenue = sum(o["value"] for o in opportunities_data if o["stage"] in ["Won", "Closed Won"])
+    active_opps = len([o for o in opportunities_data if o["stage"] not in ["Won", "Lost", "Closed Won", "Closed Lost"]])
+    
+    # Invoice metrics
+    total_receivables = sum(i["amount_due"] for i in invoices_data)
+    pending_invoices = len([i for i in invoices_data if i["payment_status"] not in ["paid", "in_payment"]])
+    
+    return {
+        "source": "data_lake_serving",
+        "data_note": "Real Odoo-synced data. More data will sync as integration expands.",
+        "metrics": {
+            "pipeline_value": total_pipeline,
+            "won_revenue": won_revenue,
+            "active_opportunities": active_opps,
+            "total_receivables": total_receivables,
+            "pending_invoices": pending_invoices,
+        },
+        "opportunities": opportunities_data,
+        "accounts": accounts_data,
+        "invoices": invoices_data,
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+    }
+
+@router.get("/receivables")
+async def get_receivables(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get receivables/invoices from data_lake_serving.
+    Shows real Odoo-synced finance data.
+    """
+    db = Database.get_db()
+    
+    # Get invoices from data lake
+    invoices = []
+    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    
+    for doc in inv_docs:
+        inv = doc.get("data", {})
+        invoices.append({
+            "id": inv.get("id"),
+            "invoice_number": inv.get("invoice_number", inv.get("name", "")),
+            "customer_name": inv.get("customer_name", inv.get("partner_name", "")),
+            "total_amount": float(inv.get("total_amount", inv.get("amount_total", 0)) or 0),
+            "amount_due": float(inv.get("amount_due", inv.get("amount_residual", 0)) or 0),
+            "amount_paid": float(inv.get("amount_paid", 0) or 0),
+            "payment_status": inv.get("payment_status", inv.get("payment_state", "pending")),
+            "invoice_date": inv.get("invoice_date"),
+            "due_date": inv.get("due_date"),
+            "currency": inv.get("currency", "USD"),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    # Calculate summary
+    total_receivables = sum(i["amount_due"] for i in invoices)
+    total_collected = sum(i["amount_paid"] for i in invoices)
+    overdue_count = len([i for i in invoices if i["payment_status"] == "not_paid"])
+    
+    return {
+        "source": "data_lake_serving",
+        "data_note": "More invoices will sync as integration expands.",
+        "summary": {
+            "total_receivables": total_receivables,
+            "total_collected": total_collected,
+            "pending_count": len([i for i in invoices if i["payment_status"] not in ["paid", "in_payment"]]),
+            "overdue_count": overdue_count,
+        },
+        "invoices": invoices,
+    }
+
+@router.get("/opportunities/real")
+async def get_real_opportunities(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get opportunities from data_lake_serving (real Odoo data).
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    user_email = token_data.get("email", "")
+    user_role = token_data.get("role", "")
+    is_super_admin = token_data.get("is_super_admin", False)
+    
+    opportunities = []
+    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        
+        # Team-based filtering for non-admin users
+        if not is_super_admin and user_role == "account_manager":
+            salesperson = opp.get("salesperson_name", "")
+            if salesperson and user_email not in salesperson:
+                continue
+        
+        opportunities.append({
+            "id": opp.get("id"),
+            "name": opp.get("name", ""),
+            "account_name": opp.get("partner_name", ""),
+            "value": float(opp.get("expected_revenue", 0) or 0),
+            "probability": float(opp.get("probability", 0) or 0),
+            "stage": opp.get("stage_name", "New"),
+            "salesperson": opp.get("salesperson_name", ""),
+            "expected_close_date": opp.get("date_deadline"),
+            "description": opp.get("description") if opp.get("description") != False else None,
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    return {
+        "source": "data_lake_serving",
+        "opportunities": opportunities,
+        "count": len(opportunities),
+    }
