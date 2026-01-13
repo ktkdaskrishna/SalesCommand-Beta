@@ -331,7 +331,7 @@ const FieldMapping = () => {
   const handleAutoMap = async () => {
     setAutoMapping(true);
     try {
-      const response = await integrationsAPI.autoMap('odoo', selectedEntity);
+      const response = await integrationsAPI.autoMap(selectedIntegration, selectedEntity);
       const suggestedMappings = response.data.suggested_mappings || [];
       
       if (suggestedMappings.length > 0) {
@@ -424,7 +424,7 @@ const FieldMapping = () => {
   const handleSaveMappings = async () => {
     setSaving(true);
     try {
-      await integrationsAPI.saveMappings('odoo', {
+      await integrationsAPI.saveMappings(selectedIntegration, {
         entity_type: selectedEntity,
         mappings: mappings,
       });
