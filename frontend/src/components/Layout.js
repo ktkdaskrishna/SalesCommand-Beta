@@ -318,6 +318,7 @@ const Layout = () => {
             { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard', path: '/dashboard', enabled: true },
             { id: 'accounts', label: 'Accounts', icon: 'Building2', path: '/accounts', enabled: true },
             { id: 'opportunities', label: 'Opportunities', icon: 'Target', path: '/opportunities', enabled: true },
+            { id: 'receivables', label: 'Receivables', icon: 'FileText', path: '/receivables', enabled: true },
             { id: 'kpis', label: 'KPIs', icon: 'BarChart3', path: '/kpis', enabled: true },
             { id: 'email', label: 'Email & Calendar', icon: 'Mail', path: '/my-outlook', enabled: true },
           ],
