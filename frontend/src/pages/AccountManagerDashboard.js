@@ -188,14 +188,15 @@ const OpportunityCard = ({ opportunity, index, onCalculateProbability }) => {
             )}
           </div>
           
-          {/* Calculate Probability Button */}
+          {/* Get Deal Confidence Button */}
           <button
             onClick={() => onCalculateProbability(opportunity)}
             className="mt-3 w-full text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1 py-1.5 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
             data-testid={`calc-prob-${opportunity.id}`}
+            title="Get guidance based on configurable deal factors"
           >
             <Sparkles className="w-3 h-3" />
-            Calculate Probability
+            Get Deal Confidence
           </button>
         </div>
       )}
