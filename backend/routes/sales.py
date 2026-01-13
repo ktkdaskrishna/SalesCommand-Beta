@@ -1306,10 +1306,10 @@ async def get_real_accounts(
     }
 
 
-# ===================== INTEGRATION HEALTH STATUS =====================
+# ===================== SYNC HEALTH STATUS =====================
 
-@router.get("/integrations/health")
-async def get_integrations_health(
+@router.get("/sync-status")
+async def get_sync_status(
     token_data: dict = Depends(require_approved())
 ):
     """
