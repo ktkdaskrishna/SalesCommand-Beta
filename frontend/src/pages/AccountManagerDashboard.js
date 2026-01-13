@@ -829,30 +829,37 @@ const AccountManagerDashboard = () => {
   };
 
   const handleSyncFromOdoo = async () => {
-    if (!canTriggerSync) {
-      alert("Only administrators can trigger Odoo sync.");
+    // Rate limiting: 30 second cooldown
+    if (syncCooldown) {
+      alert("Please wait 30 seconds between sync requests.");
       return;
     }
     
     setSyncing(true);
+    setSyncCooldown(true);
+    
     try {
       // Use the main sync endpoint which uses the proper sync service
       const res = await api.post("/integrations/sync/odoo", { 
         entity_types: ["account", "opportunity", "contact", "order", "invoice"] 
       });
       if (res.data.job_id) {
-        alert(`Sync job started! Job ID: ${res.data.job_id}\n\nData will refresh in a few seconds...`);
+        setLastSyncTime(new Date());
         // Wait a bit for sync to complete then refresh
         setTimeout(async () => {
           await fetchDashboardData();
           setSyncing(false);
         }, 5000);
+        
+        // Reset cooldown after 30 seconds
+        setTimeout(() => setSyncCooldown(false), 30000);
         return;
       }
     } catch (e) {
       console.error("Sync failed:", e);
       const errorMessage = e.response?.data?.detail || "Sync failed. Please check Odoo integration configuration.";
       alert(errorMessage);
+      setSyncCooldown(false);
     }
     setSyncing(false);
   };
