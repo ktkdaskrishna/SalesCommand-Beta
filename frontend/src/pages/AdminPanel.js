@@ -709,6 +709,11 @@ const AdminPanel = () => {
               <IncentiveConfiguration />
             )}
 
+            {/* ===================== BLUE SHEET CONFIG TAB ===================== */}
+            {activeTab === 'bluesheet' && (
+              <BlueSheetConfiguration />
+            )}
+
             {/* ===================== PERMISSIONS TAB ===================== */}
             {activeTab === 'permissions' && (
               <div>
