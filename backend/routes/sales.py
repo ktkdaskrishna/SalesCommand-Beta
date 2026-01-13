@@ -417,9 +417,8 @@ async def calculate_blue_sheet_probability(
             ).with_model(model_provider, model_name)
             
             message = UserMessage(text=context)
-            # Run sync function in executor to not block
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, chat.send_message, message)
+            # send_message is async
+            response = await chat.send_message(message)
             recommendations = [line.strip() for line in response.split("\n") if line.strip() and len(line) > 10][:3]
             logger.info(f"LLM recommendations generated: {len(recommendations)}")
             
