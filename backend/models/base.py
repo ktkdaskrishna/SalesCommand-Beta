@@ -90,7 +90,7 @@ class APIResponse(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
     name: str
-    role: UserRole = UserRole.ACCOUNT_MANAGER
+    role: Optional[UserRole] = None  # Optional for pending SSO users
     department: Optional[str] = None
     product_line: Optional[str] = None
     is_active: bool = True
