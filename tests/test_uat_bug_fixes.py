@@ -263,18 +263,19 @@ class TestOpportunitiesData:
     def test_opportunities_exist(self, auth_token):
         """Test that opportunities exist in the system"""
         headers = {"Authorization": f"Bearer {auth_token}"}
-        response = requests.get(f"{BASE_URL}/api/opportunities/real", headers=headers)
+        response = requests.get(f"{BASE_URL}/api/opportunities", headers=headers)
         
         assert response.status_code == 200, f"API returned {response.status_code}: {response.text}"
         data = response.json()
         
-        assert "opportunities" in data, "Response missing 'opportunities' field"
-        assert data.get("count", 0) > 0, "No opportunities found"
+        # Response is a list of opportunities
+        assert isinstance(data, list), f"Expected list, got {type(data)}"
+        assert len(data) > 0, "No opportunities found"
         
-        print(f"✓ Found {data['count']} opportunities")
+        print(f"✓ Found {len(data)} opportunities")
         
         # Print opportunity details
-        for opp in data["opportunities"][:5]:  # First 5
+        for opp in data[:5]:  # First 5
             print(f"  - {opp.get('name')}: ${opp.get('value', 0):,.0f} ({opp.get('stage')})")
 
 
