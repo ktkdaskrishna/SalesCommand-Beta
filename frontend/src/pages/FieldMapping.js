@@ -184,6 +184,42 @@ const FieldMapping = () => {
     return defaults[entity] || {};
   };
 
+  const getDefaultMS365Fields = (entity) => {
+    const defaults = {
+      user: {
+        id: { string: 'User ID', type: 'string' },
+        displayName: { string: 'Display Name', type: 'string' },
+        mail: { string: 'Email', type: 'string' },
+        userPrincipalName: { string: 'User Principal Name', type: 'string' },
+        jobTitle: { string: 'Job Title', type: 'string' },
+        department: { string: 'Department', type: 'string' },
+        mobilePhone: { string: 'Mobile Phone', type: 'string' },
+        officeLocation: { string: 'Office Location', type: 'string' },
+      },
+      email: {
+        id: { string: 'Message ID', type: 'string' },
+        subject: { string: 'Subject', type: 'string' },
+        from: { string: 'From', type: 'object' },
+        toRecipients: { string: 'To Recipients', type: 'array' },
+        receivedDateTime: { string: 'Received Date', type: 'datetime' },
+        bodyPreview: { string: 'Body Preview', type: 'string' },
+        hasAttachments: { string: 'Has Attachments', type: 'boolean' },
+        importance: { string: 'Importance', type: 'string' },
+      },
+      calendar: {
+        id: { string: 'Event ID', type: 'string' },
+        subject: { string: 'Subject', type: 'string' },
+        start: { string: 'Start Time', type: 'object' },
+        end: { string: 'End Time', type: 'object' },
+        organizer: { string: 'Organizer', type: 'object' },
+        attendees: { string: 'Attendees', type: 'array' },
+        location: { string: 'Location', type: 'string' },
+        isAllDay: { string: 'All Day Event', type: 'boolean' },
+      },
+    };
+    return defaults[entity] || {};
+  };
+
   // Canonical schema now matches Odoo field names more closely
   const getDefaultCanonicalSchema = (entity) => {
     const schemas = {
