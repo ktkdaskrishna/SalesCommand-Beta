@@ -55,10 +55,12 @@ const DataSourceBadge = ({ source, lastSync }) => {
 
 // Read-only Banner
 const ReadOnlyBanner = () => (
-  <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-    <Lock className="w-4 h-4" />
-    <span className="font-medium">Read-only</span>
-    <span className="text-amber-600">— This data is synced from Odoo and cannot be edited here.</span>
+  <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+    <Lock className="w-4 h-4 flex-shrink-0" />
+    <div>
+      <span className="font-medium">Read-only view</span>
+      <span className="text-amber-600"> — Accounting is managed in Odoo. This view is for sales awareness.</span>
+    </div>
   </div>
 );
 
