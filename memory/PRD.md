@@ -67,8 +67,10 @@ The user (CTO) mandated a shift from feature development to a full architectural
 ## Prioritized Backlog
 
 ### P0 (Critical - Must Fix)
+- [x] ~~Production-ready CRM List View (sorting, filtering, column customization)~~ ✅ Completed
+- [x] ~~360° Account View~~ ✅ Completed
+- [x] ~~Expandable Kanban Pipeline Board~~ ✅ Completed
 - [ ] MS365 refresh token flow (recurring login issue)
-- [ ] Production-ready CRM List View (sorting, filtering, column customization)
 
 ### P1 (High Priority)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
