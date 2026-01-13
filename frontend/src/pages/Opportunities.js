@@ -126,64 +126,62 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
               Buying Influences
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.economic_buyer_identified}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, economic_buyer_identified: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Economic Buyer Identified</span>
+                <span className="text-sm">Economic Buyer Identified</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.economic_buyer_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, economic_buyer_favorable: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Economic Buyer Favorable</span>
+                <span className="text-sm">Economic Buyer Favorable</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.coach_identified}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, coach_identified: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Coach Identified</span>
+                <span className="text-sm">Coach Identified</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.coach_engaged}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, coach_engaged: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Coach Actively Engaged</span>
+                <span className="text-sm">Coach Actively Engaged</span>
               </label>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="text-sm text-slate-600 mb-1 block">User Buyers Favorable</label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">User Buyers Favorable:</span>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   value={analysis.user_buyers_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, user_buyers_favorable: parseInt(e.target.value) || 0 }))}
-                  className="input"
+                  className="w-16 input text-sm"
                 />
               </div>
-              <div>
-                <label className="text-sm text-slate-600 mb-1 block">Technical Buyers Favorable</label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Technical Buyers Favorable:</span>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   value={analysis.technical_buyers_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, technical_buyers_favorable: parseInt(e.target.value) || 0 }))}
-                  className="input"
+                  className="w-16 input text-sm"
                 />
               </div>
             </div>
