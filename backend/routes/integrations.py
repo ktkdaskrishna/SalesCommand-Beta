@@ -1017,7 +1017,7 @@ _user_sync_timestamps = {}
 
 @router.post("/user-sync/refresh")
 async def user_trigger_sync_refresh(
-    token_data: dict = Depends(require_approved())
+    token_data: dict = Depends(get_current_user_from_token)
 ):
     """
     User-accessible sync trigger with rate limiting.
