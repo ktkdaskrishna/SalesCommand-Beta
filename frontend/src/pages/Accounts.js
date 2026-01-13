@@ -86,14 +86,6 @@ const Accounts = () => {
     return 'critical';
   };
 
-  // Filter accounts - preserved from original
-  const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIndustry = !filterIndustry || account.industry === filterIndustry;
-    return matchesSearch && matchesIndustry;
-  });
-
   // Get unique industries - preserved from original
   const industries = [...new Set(accounts.map(a => a.industry).filter(Boolean))];
 
