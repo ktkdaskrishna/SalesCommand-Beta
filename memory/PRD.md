@@ -110,21 +110,35 @@ The user (CTO) mandated a shift from feature development to a full architectural
 
 ## Technical Architecture
 
+### Comprehensive PRD Document
+📄 **Full PRD with Architecture Diagrams:** `/app/docs/PRD_Sales_Intelligence_Platform_Jan14_2026.md`
+
 ### Backend
 - **Framework:** FastAPI
 - **Database:** MongoDB (Motor async driver)
 - **Auth:** JWT tokens with role-based access control
 - **Data Flow:** Odoo → Raw Zone → Canonical Zone → Serving Zone → UI
+- **Background Sync:** APScheduler (5-minute intervals)
 
 ### Frontend
-- **Framework:** React
-- **UI Components:** Tailwind CSS, shadcn/ui
+- **Framework:** React 18.2
+- **UI Components:** Tailwind CSS, shadcn/ui, Recharts
 - **Drag & Drop:** @hello-pangea/dnd
+
+### Performance Metrics (Measured Jan 14, 2026)
+| API Endpoint | Response Time |
+|--------------|---------------|
+| Dashboard Stats | 34ms |
+| Accounts Real | 32ms |
+| Goals | 32ms |
+| KPIs | 39ms |
+| Opportunities | 40ms |
 
 ### Key Collections
 - `data_lake_serving`: Primary source of truth (synced from Odoo)
-- `targets`: Role-based target metrics
 - `users`: User accounts with approval status and role assignments
+- `goals`: KPI targets with progress tracking
+- `kpis`: Performance indicators with achievement %
 
 ---
 
