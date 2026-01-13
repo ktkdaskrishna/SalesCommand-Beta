@@ -59,6 +59,8 @@ const Accounts = () => {
   const [filterIndustry, setFilterIndustry] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [show360Panel, setShow360Panel] = useState(false);
+  const [selected360AccountId, setSelected360AccountId] = useState(null);
   const [dataSource, setDataSource] = useState('');
   const [lastSync, setLastSync] = useState(null);
 
