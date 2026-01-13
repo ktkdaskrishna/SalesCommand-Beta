@@ -1243,24 +1243,42 @@ async def get_real_dashboard(
     """
     Get dashboard data from data_lake_serving (real Odoo-synced data).
     This is the source of truth for beta.
+    Access is controlled by Odoo salesperson/team assignment.
     """
     db = Database.get_db()
     user_id = token_data["id"]
-    user_email = token_data.get("email", "")
+    user_email = token_data.get("email", "").lower()
     user_role = token_data.get("role", "")
     
-    # Get user details including is_super_admin
-    user = token_data.get("user")
-    if user:
-        is_super_admin = getattr(user, "is_super_admin", False)
-    else:
-        user_doc = await db.users.find_one({"id": user_id})
-        is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
-    
-    # Get user's team_id for team-based visibility
+    # Get full user details including Odoo enrichment
     user_doc = await db.users.find_one({"id": user_id})
-    team_id = user_doc.get("team_id") if user_doc else None
-    department_id = user_doc.get("department_id") if user_doc else None
+    is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
+    
+    # Get Odoo identifiers for filtering
+    odoo_salesperson_name = (user_doc.get("odoo_salesperson_name") or "").lower() if user_doc else ""
+    odoo_user_id = user_doc.get("odoo_user_id") if user_doc else None
+    odoo_team_id = user_doc.get("odoo_team_id") if user_doc else None
+    
+    def user_has_access_to_record(record_data):
+        """Check if current user has access to a record based on Odoo assignment"""
+        if is_super_admin:
+            return True
+        
+        salesperson_name = (record_data.get("salesperson_name") or "").lower()
+        salesperson_id = record_data.get("salesperson_id")
+        record_team_id = record_data.get("team_id")
+        
+        # Match by email, salesperson name, user ID, or team
+        if user_email and salesperson_name and user_email in salesperson_name:
+            return True
+        if odoo_salesperson_name and salesperson_name and odoo_salesperson_name in salesperson_name:
+            return True
+        if odoo_user_id and salesperson_id and odoo_user_id == salesperson_id:
+            return True
+        if odoo_team_id and record_team_id and odoo_team_id == record_team_id:
+            return True
+        
+        return False
     
     # ---- OPPORTUNITIES FROM DATA LAKE ----
     opportunities_data = []
@@ -1269,12 +1287,9 @@ async def get_real_dashboard(
     for doc in opp_docs:
         opp = doc.get("data", {})
         
-        # Team-based filtering for non-admin users
-        if not is_super_admin and user_role == "account_manager":
-            # Filter by salesperson_name (Odoo field maps to user email)
-            salesperson = opp.get("salesperson_name", "")
-            if salesperson and user_email not in salesperson:
-                continue
+        # Odoo-based access control
+        if not user_has_access_to_record(opp):
+            continue
         
         opportunities_data.append({
             "id": opp.get("id"),
@@ -1294,6 +1309,12 @@ async def get_real_dashboard(
     
     for doc in acc_docs:
         acc = doc.get("data", {})
+        
+        # Filter accounts by salesperson assignment (if set)
+        if not is_super_admin and acc.get("salesperson_name"):
+            if not user_has_access_to_record(acc):
+                continue
+        
         accounts_data.append({
             "id": acc.get("id"),
             "name": acc.get("name", ""),
