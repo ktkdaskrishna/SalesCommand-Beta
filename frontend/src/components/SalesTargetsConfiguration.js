@@ -1,6 +1,7 @@
 /**
- * Sales Targets Configuration Component
- * Admin UI for assigning sales quotas/targets to users
+ * Role-Based Sales Targets Configuration Component
+ * Admin UI for assigning sales quotas/targets to ROLES (not individual users)
+ * Users inherit targets from their assigned role
  */
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
@@ -13,15 +14,16 @@ import {
   Edit2,
   Trash2,
   Save,
-  X,
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Calendar,
   DollarSign,
   Users,
-  TrendingUp,
   Info,
+  Shield,
+  Briefcase,
+  Phone,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 
 // Format currency
@@ -57,16 +59,20 @@ const PeriodBadge = ({ type }) => {
   );
 };
 
-// Target Form Modal
-const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
+// Role Target Form Modal
+const RoleTargetFormModal = ({ isOpen, onClose, onSave, target, roles }) => {
   const [formData, setFormData] = useState({
-    user_id: '',
+    role_id: '',
     period_type: 'monthly',
     period_start: '',
     period_end: '',
     target_revenue: 0,
     target_deals: 0,
     target_activities: 0,
+    target_demos: 0,
+    target_support_tickets: 0,
+    target_meetings: 0,
+    notes: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -74,13 +80,17 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
   useEffect(() => {
     if (target) {
       setFormData({
-        user_id: target.user_id || '',
+        role_id: target.role_id || '',
         period_type: target.period_type || 'monthly',
         period_start: target.period_start?.split('T')[0] || '',
         period_end: target.period_end?.split('T')[0] || '',
         target_revenue: target.target_revenue || 0,
         target_deals: target.target_deals || 0,
         target_activities: target.target_activities || 0,
+        target_demos: target.target_demos || 0,
+        target_support_tickets: target.target_support_tickets || 0,
+        target_meetings: target.target_meetings || 0,
+        notes: target.notes || '',
       });
     } else {
       // Default to current month
@@ -88,13 +98,17 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       setFormData({
-        user_id: '',
+        role_id: '',
         period_type: 'monthly',
         period_start: startOfMonth.toISOString().split('T')[0],
         period_end: endOfMonth.toISOString().split('T')[0],
         target_revenue: 100000,
         target_deals: 5,
         target_activities: 50,
+        target_demos: 0,
+        target_support_tickets: 0,
+        target_meetings: 0,
+        notes: '',
       });
     }
   }, [target]);
@@ -103,8 +117,8 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
     e.preventDefault();
     setError('');
     
-    if (!formData.user_id) {
-      setError('Please select a user');
+    if (!formData.role_id) {
+      setError('Please select a role');
       return;
     }
     if (!formData.period_start || !formData.period_end) {
@@ -129,17 +143,27 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
 
   if (!isOpen) return null;
 
+  // Get role-specific fields based on selected role
+  const selectedRole = roles.find(r => r.id === formData.role_id);
+  const roleName = selectedRole?.name?.toLowerCase() || '';
+  const showDemos = roleName.includes('presales') || roleName.includes('sales');
+  const showSupport = roleName.includes('support') || roleName.includes('service');
+  const showMeetings = roleName.includes('manager') || roleName.includes('director');
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full" data-testid="target-form-modal">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" data-testid="role-target-form-modal">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Target className="w-5 h-5 text-indigo-600" />
-            {target ? 'Edit Target' : 'Create Sales Target'}
+            {target ? 'Edit Role Target' : 'Create Role Target'}
           </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            All users with this role will inherit these targets
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {error && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               <AlertCircle className="w-4 h-4" />
@@ -147,43 +171,47 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
             </div>
           )}
 
-          {/* User Selection */}
+          {/* Role Selection */}
           <div>
-            <Label htmlFor="user_id">Assign To</Label>
+            <Label htmlFor="role_id" className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-slate-400" />
+              Target Role
+            </Label>
             <select
-              id="user_id"
-              value={formData.user_id}
-              onChange={(e) => setFormData({...formData, user_id: e.target.value})}
+              id="role_id"
+              value={formData.role_id}
+              onChange={(e) => setFormData({...formData, role_id: e.target.value})}
               className="input w-full mt-1"
-              data-testid="target-user-select"
+              data-testid="target-role-select"
+              disabled={!!target}
             >
-              <option value="">Select a user...</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
+              <option value="">Select a role...</option>
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-slate-400 mt-1">
+              All users assigned to this role will have these targets
+            </p>
           </div>
 
-          {/* Period Type */}
-          <div>
-            <Label htmlFor="period_type">Period Type</Label>
-            <select
-              id="period_type"
-              value={formData.period_type}
-              onChange={(e) => setFormData({...formData, period_type: e.target.value})}
-              className="input w-full mt-1"
-              data-testid="target-period-type"
-            >
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </div>
-
-          {/* Period Dates */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Period Type & Dates */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="period_type">Period Type</Label>
+              <select
+                id="period_type"
+                value={formData.period_type}
+                onChange={(e) => setFormData({...formData, period_type: e.target.value})}
+                className="input w-full mt-1"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
             <div>
               <Label htmlFor="period_start">Start Date</Label>
               <Input
@@ -192,7 +220,6 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
                 value={formData.period_start}
                 onChange={(e) => setFormData({...formData, period_start: e.target.value})}
                 className="mt-1"
-                data-testid="target-start-date"
               />
             </div>
             <div>
@@ -203,46 +230,109 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
                 value={formData.period_end}
                 onChange={(e) => setFormData({...formData, period_end: e.target.value})}
                 className="mt-1"
-                data-testid="target-end-date"
               />
             </div>
           </div>
 
-          {/* Target Values */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="target_revenue">Revenue Target ($)</Label>
-              <Input
-                id="target_revenue"
-                type="number"
-                value={formData.target_revenue}
-                onChange={(e) => setFormData({...formData, target_revenue: parseFloat(e.target.value) || 0})}
-                className="mt-1"
-                data-testid="target-revenue"
-              />
+          {/* Core Targets */}
+          <div className="border-t pt-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              Core Targets
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="target_revenue">Revenue ($)</Label>
+                <Input
+                  id="target_revenue"
+                  type="number"
+                  value={formData.target_revenue}
+                  onChange={(e) => setFormData({...formData, target_revenue: parseFloat(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="target_deals">Deals Won</Label>
+                <Input
+                  id="target_deals"
+                  type="number"
+                  value={formData.target_deals}
+                  onChange={(e) => setFormData({...formData, target_deals: parseInt(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="target_activities">Activities</Label>
+                <Input
+                  id="target_activities"
+                  type="number"
+                  value={formData.target_activities}
+                  onChange={(e) => setFormData({...formData, target_activities: parseInt(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="target_deals">Deals Target</Label>
-              <Input
-                id="target_deals"
-                type="number"
-                value={formData.target_deals}
-                onChange={(e) => setFormData({...formData, target_deals: parseInt(e.target.value) || 0})}
-                className="mt-1"
-                data-testid="target-deals"
-              />
+          </div>
+
+          {/* Role-Specific Targets */}
+          <div className="border-t pt-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-blue-600" />
+              Role-Specific Targets
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="target_demos" className="flex items-center gap-1">
+                  Demos
+                  <span className="text-xs text-slate-400">(Presales)</span>
+                </Label>
+                <Input
+                  id="target_demos"
+                  type="number"
+                  value={formData.target_demos}
+                  onChange={(e) => setFormData({...formData, target_demos: parseInt(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="target_support_tickets" className="flex items-center gap-1">
+                  Tickets
+                  <span className="text-xs text-slate-400">(Support)</span>
+                </Label>
+                <Input
+                  id="target_support_tickets"
+                  type="number"
+                  value={formData.target_support_tickets}
+                  onChange={(e) => setFormData({...formData, target_support_tickets: parseInt(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="target_meetings" className="flex items-center gap-1">
+                  Meetings
+                  <span className="text-xs text-slate-400">(Manager)</span>
+                </Label>
+                <Input
+                  id="target_meetings"
+                  type="number"
+                  value={formData.target_meetings}
+                  onChange={(e) => setFormData({...formData, target_meetings: parseInt(e.target.value) || 0})}
+                  className="mt-1"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="target_activities">Activities Target</Label>
-              <Input
-                id="target_activities"
-                type="number"
-                value={formData.target_activities}
-                onChange={(e) => setFormData({...formData, target_activities: parseInt(e.target.value) || 0})}
-                className="mt-1"
-                data-testid="target-activities"
-              />
-            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              className="input w-full mt-1 h-20"
+              placeholder="Any additional context about these targets..."
+            />
           </div>
 
           {/* Actions */}
@@ -263,7 +353,7 @@ const TargetFormModal = ({ isOpen, onClose, onSave, target, users }) => {
 
 const SalesTargetsConfiguration = () => {
   const [targets, setTargets] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -278,12 +368,12 @@ const SalesTargetsConfiguration = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [targetsRes, usersRes] = await Promise.all([
-        api.get(`/config/targets${filterPeriod ? `?period_type=${filterPeriod}` : ''}`),
-        api.get('/auth/users')
+      const [targetsRes, rolesRes] = await Promise.all([
+        api.get(`/config/role-targets${filterPeriod ? `?period_type=${filterPeriod}` : ''}`),
+        api.get('/config/roles')
       ]);
       setTargets(targetsRes.data || []);
-      setUsers(usersRes.data || []);
+      setRoles(rolesRes.data || []);
     } catch (err) {
       setError('Failed to load targets');
     } finally {
@@ -292,35 +382,30 @@ const SalesTargetsConfiguration = () => {
   };
 
   const handleCreate = async (data) => {
-    await api.post('/config/targets', data);
-    setSuccess('Target created successfully');
+    await api.post('/config/role-targets', data);
+    setSuccess('Role target created successfully');
     setTimeout(() => setSuccess(''), 3000);
     fetchData();
   };
 
   const handleUpdate = async (data) => {
-    await api.put(`/config/targets/${editingTarget.id}`, null, { params: data });
-    setSuccess('Target updated successfully');
+    await api.put(`/config/role-targets/${editingTarget.id}`, null, { params: data });
+    setSuccess('Role target updated successfully');
     setTimeout(() => setSuccess(''), 3000);
     fetchData();
   };
 
   const handleDelete = async (targetId) => {
-    if (!window.confirm('Are you sure you want to delete this target?')) return;
+    if (!window.confirm('Are you sure you want to delete this role target?')) return;
     
     try {
-      await api.delete(`/config/targets/${targetId}`);
-      setSuccess('Target deleted successfully');
+      await api.delete(`/config/role-targets/${targetId}`);
+      setSuccess('Role target deleted successfully');
       setTimeout(() => setSuccess(''), 3000);
       fetchData();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to delete target');
     }
-  };
-
-  const getUserName = (userId) => {
-    const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Unknown User';
   };
 
   if (loading) {
@@ -338,15 +423,15 @@ const SalesTargetsConfiguration = () => {
         <div>
           <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Target className="w-5 h-5 text-indigo-600" />
-            Sales Targets
+            Role-Based Targets
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            Assign revenue and activity targets to sales team members
+            Assign targets to roles. Users inherit targets from their assigned role.
           </p>
         </div>
         <Button onClick={() => { setEditingTarget(null); setShowModal(true); }} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" />
-          New Target
+          New Role Target
         </Button>
       </div>
 
@@ -368,10 +453,11 @@ const SalesTargetsConfiguration = () => {
       <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium">Target Assignment</p>
+          <p className="font-medium">Role-Based Target Assignment</p>
           <p className="text-blue-600 mt-1">
-            Set revenue goals, deal counts, and activity targets for each team member. 
-            Targets are used for quota attainment calculations and performance tracking.
+            Targets are assigned to <strong>roles</strong>, not individual users. When a user changes roles, 
+            they automatically inherit the new role's targets. This ensures consistent target management 
+            across the organization.
           </p>
         </div>
       </div>
@@ -382,14 +468,13 @@ const SalesTargetsConfiguration = () => {
           value={filterPeriod}
           onChange={(e) => setFilterPeriod(e.target.value)}
           className="input w-auto"
-          data-testid="filter-period"
         >
           <option value="">All Periods</option>
           <option value="monthly">Monthly</option>
           <option value="quarterly">Quarterly</option>
           <option value="yearly">Yearly</option>
         </select>
-        <span className="text-sm text-slate-500">{targets.length} target(s)</span>
+        <span className="text-sm text-slate-500">{targets.length} role target(s)</span>
       </div>
 
       {/* Targets Table */}
@@ -398,13 +483,13 @@ const SalesTargetsConfiguration = () => {
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <Target className="w-8 h-8 text-slate-400" />
           </div>
-          <h4 className="font-semibold text-slate-700 mb-2">No targets assigned yet</h4>
+          <h4 className="font-semibold text-slate-700 mb-2">No role targets defined yet</h4>
           <p className="text-sm text-slate-500 max-w-md">
-            Create targets to track sales team performance against revenue and activity goals.
+            Create targets for roles to automatically assign quotas to all users in that role.
           </p>
           <Button onClick={() => { setEditingTarget(null); setShowModal(true); }} className="mt-4 btn-primary">
             <Plus className="w-4 h-4 mr-2" />
-            Create First Target
+            Create First Role Target
           </Button>
         </div>
       ) : (
@@ -413,9 +498,9 @@ const SalesTargetsConfiguration = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Period</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Revenue Target</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Revenue</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Deals</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Activities</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -423,13 +508,13 @@ const SalesTargetsConfiguration = () => {
               </thead>
               <tbody>
                 {targets.map((target) => (
-                  <tr key={target.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors" data-testid={`target-row-${target.id}`}>
+                  <tr key={target.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <Users className="w-4 h-4 text-indigo-600" />
+                        <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                          <Shield className="w-4 h-4 text-indigo-600" />
                         </div>
-                        <span className="font-medium text-slate-900">{getUserName(target.user_id)}</span>
+                        <span className="font-medium text-slate-900">{target.role_name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -454,14 +539,12 @@ const SalesTargetsConfiguration = () => {
                         <button
                           onClick={() => { setEditingTarget(target); setShowModal(true); }}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                          data-testid={`edit-target-${target.id}`}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(target.id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          data-testid={`delete-target-${target.id}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -476,12 +559,12 @@ const SalesTargetsConfiguration = () => {
       )}
 
       {/* Modal */}
-      <TargetFormModal
+      <RoleTargetFormModal
         isOpen={showModal}
         onClose={() => { setShowModal(false); setEditingTarget(null); }}
         onSave={editingTarget ? handleUpdate : handleCreate}
         target={editingTarget}
-        users={users}
+        roles={roles}
       />
     </div>
   );
