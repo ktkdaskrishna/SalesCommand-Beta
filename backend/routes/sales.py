@@ -262,22 +262,106 @@ async def update_opportunity(
     updated = await db.opportunities.find_one({"id": opp_id}, {"_id": 0})
     return updated
 
+# Stage transition rules - defines allowed transitions
+# Format: { "from_stage": ["allowed_to_stage1", "allowed_to_stage2", ...] }
+STAGE_TRANSITION_RULES = {
+    "new": ["qualification", "lost"],
+    "lead": ["qualification", "lost"],
+    "qualification": ["discovery", "proposal", "lost"],
+    "discovery": ["proposal", "negotiation", "lost"],
+    "proposal": ["negotiation", "won", "lost"],
+    "negotiation": ["won", "lost", "proposal"],  # Can go back to proposal
+    "won": [],  # Closed stages cannot transition
+    "lost": [],  # Closed stages cannot transition
+    "closed_won": [],
+    "closed_lost": [],
+}
+
+# Stages that are considered "closed" - cannot transition out
+CLOSED_STAGES = ["won", "lost", "closed_won", "closed_lost"]
+
+
+def validate_stage_transition(current_stage: str, new_stage: str) -> tuple[bool, str]:
+    """
+    Validate if a stage transition is allowed.
+    Returns (is_valid, error_message)
+    """
+    current_normalized = current_stage.lower().replace(" ", "_")
+    new_normalized = new_stage.lower().replace(" ", "_")
+    
+    # Same stage - always allowed (no-op)
+    if current_normalized == new_normalized:
+        return True, ""
+    
+    # Check if current stage is closed
+    if current_normalized in CLOSED_STAGES:
+        return False, f"Cannot move opportunity from '{current_stage}' - deal is already closed"
+    
+    # Check if transition is allowed
+    allowed_transitions = STAGE_TRANSITION_RULES.get(current_normalized, [])
+    
+    # If no rules defined for this stage, allow any non-closed transition
+    if not allowed_transitions and current_normalized not in STAGE_TRANSITION_RULES:
+        if new_normalized in CLOSED_STAGES:
+            return True, ""  # Allow closing from any undefined stage
+        return True, ""  # Allow transition to any stage if not explicitly restricted
+    
+    if new_normalized not in [t.lower() for t in allowed_transitions]:
+        allowed_list = ", ".join(allowed_transitions) if allowed_transitions else "none"
+        return False, f"Cannot move from '{current_stage}' to '{new_stage}'. Allowed transitions: {allowed_list}"
+    
+    return True, ""
+
+
 @router.patch("/opportunities/{opp_id}/stage")
 async def update_opportunity_stage(
     opp_id: str,
     new_stage: str = Query(...),
     token_data: dict = Depends(require_approved())
 ):
-    """Update only the stage of an opportunity (for drag-drop)"""
+    """
+    Update only the stage of an opportunity (for drag-drop).
+    Validates stage transitions against defined rules.
+    """
     db = Database.get_db()
     
     opportunity = await db.opportunities.find_one({"id": opp_id})
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     
+    current_stage = opportunity.get("stage", "new")
+    
+    # Validate stage transition
+    is_valid, error_message = validate_stage_transition(current_stage, new_stage)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "error": "INVALID_STAGE_TRANSITION",
+                "message": error_message,
+                "current_stage": current_stage,
+                "requested_stage": new_stage,
+            }
+        )
+    
     # Get stage probability default
     stage = await db.pipeline_stages.find_one({"id": new_stage})
     new_probability = stage.get("probability_default", opportunity.get("probability", 10)) if stage else opportunity.get("probability", 10)
+    
+    # Log the transition
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "stage_transition",
+        "entity_type": "opportunity",
+        "entity_id": opp_id,
+        "user_id": token_data["id"],
+        "details": {
+            "from_stage": current_stage,
+            "to_stage": new_stage,
+            "opportunity_name": opportunity.get("name"),
+        },
+        "timestamp": datetime.now(timezone.utc),
+    })
     
     await db.opportunities.update_one(
         {"id": opp_id},
@@ -289,6 +373,18 @@ async def update_opportunity_stage(
     )
     
     return {"message": "Stage updated", "stage": new_stage, "probability": new_probability}
+
+
+@router.get("/stage-transitions")
+async def get_stage_transition_rules(
+    token_data: dict = Depends(require_approved())
+):
+    """Get the stage transition rules for frontend validation"""
+    return {
+        "rules": STAGE_TRANSITION_RULES,
+        "closed_stages": CLOSED_STAGES,
+    }
+
 
 # ===================== BLUE SHEET PROBABILITY =====================
 
