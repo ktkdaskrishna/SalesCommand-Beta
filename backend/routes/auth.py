@@ -27,51 +27,17 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    """Register a new user"""
-    db = Database.get_db()
+    """
+    Register a new user.
     
-    # Check if email exists
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    user_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
-    
-    user_dict = {
-        "id": user_id,
-        "email": user_data.email,
-        "password_hash": hash_password(user_data.password),
-        "name": user_data.name,
-        "role": user_data.role.value if isinstance(user_data.role, UserRole) else user_data.role,
-        "department": user_data.department,
-        "product_line": user_data.product_line,
-        "is_active": True,
-        "avatar_url": None,
-        "created_at": now,
-        "updated_at": now
-    }
-    
-    await db.users.insert_one(user_dict)
-    
-    token = create_access_token(user_id, user_data.email, user_dict["role"])
-    
-    return TokenResponse(
-        access_token=token,
-        user=UserResponse(
-            id=user_id,
-            email=user_data.email,
-            name=user_data.name,
-            role=user_dict["role"],
-            department=user_data.department,
-            product_line=user_data.product_line,
-            is_active=True,
-            created_at=now,
-            updated_at=now
-        )
+    NOTE: Manual registration is BLOCKED for production.
+    Users must be synced from Odoo and authenticated via SSO.
+    This endpoint is kept for backwards compatibility but returns an error.
+    """
+    # BLOCK manual registration - users must come from Odoo sync
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Manual registration is disabled. Users must be synced from Odoo and use SSO to login. Contact your administrator."
     )
 
 
