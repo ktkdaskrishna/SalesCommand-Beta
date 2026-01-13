@@ -582,66 +582,68 @@ const AdminPanel = () => {
             {activeTab === 'roles' && (
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-white">Roles & Permissions</h1>
-                  <Button onClick={() => { setEditingRole(null); setShowRoleModal(true); }} className="bg-emerald-600 hover:bg-emerald-500" data-testid="create-role-btn">
+                  <h1 className="text-2xl font-bold text-slate-900">Roles & Permissions</h1>
+                  <Button onClick={() => { setEditingRole(null); setShowRoleModal(true); }} className="btn-primary" data-testid="create-role-btn">
                     <Plus className="w-4 h-4 mr-2" /> Create Role
                   </Button>
                 </div>
 
                 <div className="space-y-3">
                   {roles.map(role => (
-                    <div key={role.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div key={role.id} className="card overflow-hidden">
                       {/* Role Header */}
                       <div
-                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50"
+                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                         onClick={() => setExpandedRole(expandedRole === role.id ? null : role.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <Shield className={`w-5 h-5 ${role.code === 'super_admin' ? 'text-purple-400' : 'text-emerald-400'}`} />
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${role.code === 'super_admin' ? 'bg-purple-100' : 'bg-indigo-100'}`}>
+                            <Shield className={`w-5 h-5 ${role.code === 'super_admin' ? 'text-purple-600' : 'text-indigo-600'}`} />
+                          </div>
                           <div>
-                            <h3 className="font-semibold text-white flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                               {role.name}
-                              {role.is_system && <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded">System</span>}
+                              {role.is_system && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">System</span>}
                             </h3>
-                            <p className="text-zinc-500 text-sm">{role.description}</p>
+                            <p className="text-slate-500 text-sm">{role.description}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            role.data_scope === 'all' ? 'bg-purple-500/20 text-purple-400' :
-                            role.data_scope === 'team' ? 'bg-blue-500/20 text-blue-400' :
-                            role.data_scope === 'department' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-zinc-700 text-zinc-400'
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                            role.data_scope === 'all' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            role.data_scope === 'team' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            role.data_scope === 'department' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-slate-100 text-slate-600 border-slate-200'
                           }`}>
                             {role.data_scope}
                           </span>
-                          <span className="text-zinc-500 text-sm">{role.permissions?.length || 0} permissions</span>
+                          <span className="text-slate-500 text-sm">{role.permissions?.length || 0} permissions</span>
                           {!role.is_system && (
                             <>
-                              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRole(role); setShowRoleModal(true); }}>
+                              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRole(role); setShowRoleModal(true); }} className="text-slate-600 hover:text-slate-900">
                                 <Edit2 className="w-4 h-4" />
                               </Button>
-                              <Button size="sm" variant="ghost" className="text-red-400" onClick={(e) => { e.stopPropagation(); deleteRole(role.id); }}>
+                              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); deleteRole(role.id); }}>
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </>
                           )}
-                          {expandedRole === role.id ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+                          {expandedRole === role.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                         </div>
                       </div>
 
                       {/* Expanded Permissions */}
                       {expandedRole === role.id && (
-                        <div className="border-t border-zinc-800 p-4 bg-zinc-800/30">
-                          <p className="text-xs text-zinc-500 mb-3">Assigned Permissions:</p>
+                        <div className="border-t border-slate-200 p-4 bg-slate-50">
+                          <p className="text-xs text-slate-500 mb-3 font-medium uppercase tracking-wider">Assigned Permissions:</p>
                           <div className="flex flex-wrap gap-2">
                             {role.permissions?.map(perm => (
-                              <span key={perm} className="px-2 py-1 bg-zinc-700 rounded text-xs text-zinc-300">
+                              <span key={perm} className="px-2.5 py-1 bg-white rounded-full text-xs text-slate-700 border border-slate-200">
                                 {perm === '*' ? '✓ All Permissions' : perm}
                               </span>
                             ))}
                             {(!role.permissions || role.permissions.length === 0) && (
-                              <span className="text-zinc-500 text-sm">No permissions assigned</span>
+                              <span className="text-slate-500 text-sm">No permissions assigned</span>
                             )}
                           </div>
                         </div>
