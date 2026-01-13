@@ -356,7 +356,14 @@ const AdminPanel = () => {
             {activeTab === 'users' && (
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-white">User Management</h1>
+                  <div>
+                    <h1 className="text-2xl font-bold text-white">User Management</h1>
+                    {pendingUsers.length > 0 && (
+                      <p className="text-sm text-yellow-400 mt-1">
+                        {pendingUsers.length} user{pendingUsers.length > 1 ? 's' : ''} pending approval
+                      </p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={syncAzureUsers}
@@ -387,13 +394,19 @@ const AdminPanel = () => {
                         <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">User</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Role</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Department</th>
+                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Approval Status</th>
                         <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Status</th>
                         <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredUsers.map(u => (
-                        <tr key={u.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      {allFilteredUsers.map(u => (
+                        <tr 
+                          key={u.id} 
+                          className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 ${
+                            u.approval_status === 'pending' ? 'bg-yellow-500/5' : ''
+                          }`}
+                        >
                           <td className="px-4 py-3">
                             <p className="text-white font-medium">{u.name || 'No name'}</p>
                             <p className="text-zinc-500 text-sm">{u.email}</p>
@@ -432,6 +445,21 @@ const AdminPanel = () => {
                             )}
                           </td>
                           <td className="px-4 py-3">
+                            {u.approval_status === 'pending' ? (
+                              <span className="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-400 font-medium">
+                                🕐 Pending Approval
+                              </span>
+                            ) : u.approval_status === 'rejected' ? (
+                              <span className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">
+                                ✕ Rejected
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">
+                                ✓ Approved
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
                             <span className={`px-2 py-1 rounded text-xs ${
                               u.is_active !== false ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                             }`}>
@@ -439,7 +467,27 @@ const AdminPanel = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {editingUser?.id === u.id ? (
+                            {u.approval_status === 'pending' ? (
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => approveUser(u.id)}
+                                  className="bg-green-600 hover:bg-green-500 text-white"
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  onClick={() => rejectUser(u.id)}
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : editingUser?.id === u.id ? (
                               <div className="flex justify-end gap-2">
                                 <Button size="sm" onClick={() => updateUser(u.id, editingUser)} className="bg-emerald-600 hover:bg-emerald-500">
                                   <Save className="w-4 h-4" />
