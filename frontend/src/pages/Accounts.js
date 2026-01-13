@@ -1,6 +1,7 @@
 /**
  * Accounts Page
- * List and manage customer accounts with table/card toggle view
+ * Modern light-themed design with glassmorphic cards
+ * Preserves all existing functionality
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
@@ -8,10 +9,10 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { accountsAPI, opportunitiesAPI } from '../services/api';
 import {
-  Building2, Plus, Search, LayoutGrid, List, Filter,
-  ChevronRight, TrendingUp, TrendingDown, Minus,
+  Building2, Plus, Search, LayoutGrid, List,
+  ChevronRight, TrendingUp, TrendingDown,
   Phone, Globe, MapPin, Users, DollarSign, X, Save,
-  MoreVertical, Edit2, Trash2, ExternalLink
+  MoreVertical, Edit2, Trash2, ExternalLink, Filter
 } from 'lucide-react';
 
 const Accounts = () => {
@@ -19,13 +20,13 @@ const Accounts = () => {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
+  const [viewMode, setViewMode] = useState('card');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterIndustry, setFilterIndustry] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
 
-  // Form state
+  // Form state - preserved from original
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
@@ -38,7 +39,7 @@ const Accounts = () => {
     employee_count: ''
   });
 
-  // Fetch data
+  // Fetch data - preserved from original
   useEffect(() => {
     fetchData();
   }, []);
@@ -60,7 +61,7 @@ const Accounts = () => {
     }
   };
 
-  // Calculate account metrics
+  // Calculate account metrics - preserved from original
   const getAccountMetrics = (accountId) => {
     const accountOpps = opportunities.filter(o => o.account_id === accountId);
     const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost'].includes(o.stage));
@@ -76,7 +77,7 @@ const Accounts = () => {
     return { activeOpps: activeOpps.length, pipelineValue, wonValue, winRate };
   };
 
-  // Get health score
+  // Get health score - preserved from original
   const getHealthScore = (accountId) => {
     const metrics = getAccountMetrics(accountId);
     if (metrics.winRate === null) return 'new';
@@ -85,7 +86,7 @@ const Accounts = () => {
     return 'critical';
   };
 
-  // Filter accounts
+  // Filter accounts - preserved from original
   const filteredAccounts = accounts.filter(account => {
     const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -93,10 +94,10 @@ const Accounts = () => {
     return matchesSearch && matchesIndustry;
   });
 
-  // Get unique industries
+  // Get unique industries - preserved from original
   const industries = [...new Set(accounts.map(a => a.industry).filter(Boolean))];
 
-  // Create account
+  // Create account - preserved from original
   const handleCreate = async () => {
     try {
       await accountsAPI.create({
@@ -112,103 +113,124 @@ const Accounts = () => {
     }
   };
 
-  // Format currency
+  // Format currency - preserved from original
   const formatCurrency = (value) => {
     if (!value) return '-';
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   };
 
-  // Health badge component
+  // Health badge component - updated styling
   const HealthBadge = ({ status }) => {
     const styles = {
-      healthy: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
-      'at-risk': 'bg-amber-500/20 text-amber-400 border-amber-500/50',
-      critical: 'bg-red-500/20 text-red-400 border-red-500/50',
-      new: 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+      healthy: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'at-risk': 'bg-amber-50 text-amber-700 border-amber-200',
+      critical: 'bg-red-50 text-red-700 border-red-200',
+      new: 'bg-blue-50 text-blue-700 border-blue-200'
     };
     const labels = { healthy: 'Healthy', 'at-risk': 'At Risk', critical: 'Critical', new: 'New' };
     
     return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>
+      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${styles[status]}`}>
         {labels[status]}
       </span>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in" data-testid="accounts-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Accounts</h1>
-          <p className="text-sm text-zinc-400 mt-1">Manage your customer accounts and relationships</p>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            Accounts
+          </h1>
+          <p className="text-slate-500 mt-1">Manage your customer accounts and relationships</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="bg-emerald-600 hover:bg-emerald-500">
+        <Button 
+          onClick={() => setShowCreateModal(true)} 
+          className="btn-primary"
+          data-testid="new-account-btn"
+        >
           <Plus className="w-4 h-4 mr-2" />
           New Account
         </Button>
       </div>
 
       {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
-        <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-            <Input
-              placeholder="Search accounts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-zinc-800 border-zinc-700 text-white"
-            />
+      <div className="card p-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search accounts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="search-accounts"
+              />
+            </div>
+            
+            <select
+              value={filterIndustry}
+              onChange={(e) => setFilterIndustry(e.target.value)}
+              className="input w-auto min-w-[140px]"
+              data-testid="industry-filter"
+            >
+              <option value="">All Industries</option>
+              {industries.map(ind => (
+                <option key={ind} value={ind}>{ind}</option>
+              ))}
+            </select>
           </div>
-          
-          <select
-            value={filterIndustry}
-            onChange={(e) => setFilterIndustry(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300"
-          >
-            <option value="">All Industries</option>
-            {industries.map(ind => (
-              <option key={ind} value={ind}>{ind}</option>
-            ))}
-          </select>
-        </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-zinc-800 p-1 rounded-lg">
-          <button
-            onClick={() => setViewMode('card')}
-            className={`p-2 rounded ${viewMode === 'card' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-2 rounded ${viewMode === 'table' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-          >
-            <List className="w-4 h-4" />
-          </button>
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`p-2 rounded-md transition-all ${viewMode === 'card' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+              data-testid="view-card-btn"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+              data-testid="view-table-btn"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-2">
+          <X className="w-4 h-4" />
           {error}
+          <button onClick={() => setError('')} className="ml-auto text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
       {/* Loading */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredAccounts.length === 0 ? (
-        <div className="text-center py-12">
-          <Building2 className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-zinc-400">No accounts found</h3>
-          <p className="text-sm text-zinc-500 mt-1">Create your first account to get started</p>
-          <Button onClick={() => setShowCreateModal(true)} className="mt-4 bg-emerald-600 hover:bg-emerald-500">
+        <div className="card p-12 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Building2 className="w-8 h-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No accounts found</h3>
+          <p className="text-slate-500 mb-6">Create your first account to get started</p>
+          <Button onClick={() => setShowCreateModal(true)} className="btn-primary">
             <Plus className="w-4 h-4 mr-2" />
             Create Account
           </Button>
@@ -223,50 +245,61 @@ const Accounts = () => {
             return (
               <div
                 key={account.id}
-                className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all cursor-pointer group"
+                className="card p-5 hover:shadow-lg hover:border-slate-300 transition-all cursor-pointer group"
                 onClick={() => setSelectedAccount(account)}
+                data-testid={`account-card-${account.id}`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-emerald-400" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center group-hover:from-indigo-50 group-hover:to-indigo-100 transition-colors">
+                      <Building2 className="w-6 h-6 text-slate-600 group-hover:text-indigo-600 transition-colors" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                      <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
                         {account.name}
                       </h3>
-                      <p className="text-xs text-zinc-500">{account.industry || 'No industry'}</p>
+                      <p className="text-xs text-slate-500">{account.industry || 'No industry'}</p>
                     </div>
                   </div>
                   <HealthBadge status={health} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-zinc-800/50 rounded-lg p-3">
-                    <p className="text-xs text-zinc-500 mb-1">Pipeline</p>
-                    <p className="text-sm font-semibold text-white">{formatCurrency(metrics.pipelineValue)}</p>
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <p className="text-xs text-slate-500 mb-1">Pipeline</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatCurrency(metrics.pipelineValue)}</p>
                   </div>
-                  <div className="bg-zinc-800/50 rounded-lg p-3">
-                    <p className="text-xs text-zinc-500 mb-1">Won Revenue</p>
-                    <p className="text-sm font-semibold text-emerald-400">{formatCurrency(metrics.wonValue)}</p>
+                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                    <p className="text-xs text-emerald-600 mb-1">Won Revenue</p>
+                    <p className="text-sm font-semibold text-emerald-700">{formatCurrency(metrics.wonValue)}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>{metrics.activeOpps} active opportunities</span>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    {metrics.activeOpps} active opportunities
+                  </span>
                   {metrics.winRate !== null && (
-                    <span className={metrics.winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}>
+                    <span className={`font-medium ${metrics.winRate >= 50 ? 'text-emerald-600' : 'text-amber-600'}`}>
                       {metrics.winRate}% win rate
                     </span>
                   )}
                 </div>
 
                 {account.website && (
-                  <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
                     <Globe className="w-3 h-3" />
-                    <a href={account.website} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400" onClick={(e) => e.stopPropagation()}>
+                    <a 
+                      href={account.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-indigo-600 transition-colors truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {account.website.replace(/^https?:\/\//, '')}
                     </a>
+                    <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 )}
               </div>
@@ -275,50 +308,60 @@ const Accounts = () => {
         </div>
       ) : (
         /* Table View */
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="card overflow-hidden">
           <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Account</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Industry</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Health</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Pipeline</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Won</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-zinc-400">Opportunities</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Actions</th>
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Account</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Industry</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Health</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pipeline</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Won</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Opps</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredAccounts.map(account => {
+              {filteredAccounts.map((account, idx) => {
                 const metrics = getAccountMetrics(account.id);
                 const health = getHealthScore(account.id);
                 
                 return (
                   <tr 
                     key={account.id} 
-                    className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer"
+                    className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
                     onClick={() => setSelectedAccount(account)}
+                    data-testid={`account-row-${idx}`}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                          <Building2 className="w-4 h-4 text-emerald-400" />
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-slate-600" />
                         </div>
                         <div>
-                          <p className="font-medium text-white">{account.name}</p>
+                          <p className="font-medium text-slate-900">{account.name}</p>
                           {account.website && (
-                            <p className="text-xs text-zinc-500">{account.website.replace(/^https?:\/\//, '')}</p>
+                            <p className="text-xs text-slate-500 truncate max-w-[200px]">
+                              {account.website.replace(/^https?:\/\//, '')}
+                            </p>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-zinc-300">{account.industry || '-'}</td>
-                    <td className="px-4 py-3"><HealthBadge status={health} /></td>
-                    <td className="px-4 py-3 text-right text-sm text-white">{formatCurrency(metrics.pipelineValue)}</td>
-                    <td className="px-4 py-3 text-right text-sm text-emerald-400">{formatCurrency(metrics.wonValue)}</td>
-                    <td className="px-4 py-3 text-center text-sm text-zinc-300">{metrics.activeOpps}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button className="p-1 text-zinc-400 hover:text-white" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-4 text-sm text-slate-600">{account.industry || '-'}</td>
+                    <td className="px-4 py-4"><HealthBadge status={health} /></td>
+                    <td className="px-4 py-4 text-right text-sm font-medium text-slate-900">{formatCurrency(metrics.pipelineValue)}</td>
+                    <td className="px-4 py-4 text-right text-sm font-medium text-emerald-600">{formatCurrency(metrics.wonValue)}</td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-sm font-medium text-slate-700">
+                        {metrics.activeOpps}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button 
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                     </td>
@@ -330,119 +373,135 @@ const Accounts = () => {
         </div>
       )}
 
-      {/* Create Modal */}
+      {/* Create Modal - Updated styling, preserved functionality */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-white">Create New Account</h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-zinc-400 hover:text-white">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Create New Account</h2>
+                <p className="text-sm text-slate-500 mt-1">Add a new customer to your CRM</p>
+              </div>
+              <button 
+                onClick={() => setShowCreateModal(false)} 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label className="text-zinc-300">Account Name *</Label>
+                <Label className="text-slate-700 font-medium">Account Name *</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Acme Corporation"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  className="mt-1.5"
+                  data-testid="account-name-input"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-zinc-300">Industry</Label>
+                  <Label className="text-slate-700 font-medium">Industry</Label>
                   <Input
                     value={formData.industry}
                     onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
                     placeholder="e.g., Technology"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label className="text-zinc-300">Website</Label>
+                  <Label className="text-slate-700 font-medium">Website</Label>
                   <Input
                     value={formData.website}
                     onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
                     placeholder="https://..."
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-zinc-300">Phone</Label>
+                  <Label className="text-slate-700 font-medium">Phone</Label>
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="+1 555 123 4567"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label className="text-zinc-300">Employee Count</Label>
+                  <Label className="text-slate-700 font-medium">Employee Count</Label>
                   <Input
                     type="number"
                     value={formData.employee_count}
                     onChange={(e) => setFormData(prev => ({ ...prev, employee_count: e.target.value }))}
                     placeholder="e.g., 500"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
               </div>
 
               <div>
-                <Label className="text-zinc-300">Annual Revenue</Label>
+                <Label className="text-slate-700 font-medium">Annual Revenue</Label>
                 <Input
                   type="number"
                   value={formData.annual_revenue}
                   onChange={(e) => setFormData(prev => ({ ...prev, annual_revenue: e.target.value }))}
                   placeholder="e.g., 10000000"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  className="mt-1.5"
                 />
               </div>
 
               <div>
-                <Label className="text-zinc-300">Address</Label>
+                <Label className="text-slate-700 font-medium">Address</Label>
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="Street address"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  className="mt-1.5"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-zinc-300">City</Label>
+                  <Label className="text-slate-700 font-medium">City</Label>
                   <Input
                     value={formData.city}
                     onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                     placeholder="City"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label className="text-zinc-300">Country</Label>
+                  <Label className="text-slate-700 font-medium">Country</Label>
                   <Input
                     value={formData.country}
                     onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
                     placeholder="Country"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-zinc-800">
-              <Button variant="outline" onClick={() => setShowCreateModal(false)} className="border-zinc-700 text-zinc-300">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCreateModal(false)}
+                className="btn-secondary"
+              >
                 Cancel
               </Button>
-              <Button onClick={handleCreate} disabled={!formData.name} className="bg-emerald-600 hover:bg-emerald-500">
+              <Button 
+                onClick={handleCreate} 
+                disabled={!formData.name}
+                className="btn-primary"
+                data-testid="save-account-btn"
+              >
                 <Save className="w-4 h-4 mr-2" />
                 Create Account
               </Button>

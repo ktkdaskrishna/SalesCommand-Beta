@@ -1,6 +1,7 @@
 /**
  * Dashboard Page
- * Main dashboard with Data Lake health and integration status
+ * Modern light-themed design with Data Lake health and integration status
+ * Preserves all existing functionality
  */
 import React, { useState, useEffect } from 'react';
 import { dataLakeAPI, integrationsAPI } from '../services/api';
@@ -16,6 +17,9 @@ import {
   XCircle,
   RefreshCw,
   Plug2,
+  TrendingUp,
+  AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,104 +52,141 @@ const Dashboard = () => {
 
   const getZoneIcon = (zone) => {
     switch (zone) {
-      case 'raw': return <Database className="w-5 h-5" />;
-      case 'canonical': return <Layers className="w-5 h-5" />;
-      case 'serving': return <Server className="w-5 h-5" />;
-      default: return <Activity className="w-5 h-5" />;
+      case 'raw': return Database;
+      case 'canonical': return Layers;
+      case 'serving': return Server;
+      default: return Activity;
     }
   };
 
-  const getZoneColor = (zone) => {
+  const getZoneGradient = (zone) => {
     switch (zone) {
-      case 'raw': return 'text-amber-500 bg-amber-500/10';
-      case 'canonical': return 'text-blue-500 bg-blue-500/10';
-      case 'serving': return 'text-emerald-500 bg-emerald-500/10';
-      default: return 'text-zinc-500 bg-zinc-500/10';
+      case 'raw': return 'from-amber-500 to-orange-600';
+      case 'canonical': return 'from-blue-500 to-indigo-600';
+      case 'serving': return 'from-emerald-500 to-teal-600';
+      default: return 'from-slate-500 to-slate-600';
     }
   };
 
-  const getIntegrationIcon = (type) => {
-    return <Plug2 className="w-5 h-5" />;
+  const getZoneBg = (zone) => {
+    switch (zone) {
+      case 'raw': return 'bg-amber-50 border-amber-200';
+      case 'canonical': return 'bg-blue-50 border-blue-200';
+      case 'serving': return 'bg-emerald-50 border-emerald-200';
+      default: return 'bg-slate-50 border-slate-200';
+    }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in" data-testid="dashboard-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-zinc-400 mt-1">Welcome back, {user?.name}</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Welcome back, {user?.name?.split(' ')[0] || 'there'}
+          </h1>
+          <p className="text-slate-500 mt-1">Here's what's happening with your data platform</p>
         </div>
         <Button
           onClick={fetchData}
-          variant="outline"
-          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+          className="btn-secondary"
           data-testid="refresh-dashboard-btn"
         >
-          <RefreshCw className="w-4 h-4 mr-2" />
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-8 h-8 text-zinc-500 animate-spin" />
+          <div className="text-center">
+            <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-3" />
+            <p className="text-slate-500">Loading dashboard...</p>
+          </div>
         </div>
       ) : (
         <>
           {/* Data Lake Health */}
           <section>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Database className="w-5 h-5 text-emerald-500" />
-              Data Lake Health
-            </h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <Database className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Data Lake Health</h2>
+                <p className="text-sm text-slate-500">Monitor your data pipeline zones</p>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {dataLakeHealth?.zones && Object.entries(dataLakeHealth.zones).map(([zone, data]) => (
-                <div
-                  key={zone}
-                  className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5"
-                  data-testid={`zone-card-${zone}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className={`p-2.5 rounded-lg ${getZoneColor(zone)}`}>
-                      {getZoneIcon(zone)}
+              {dataLakeHealth?.zones && Object.entries(dataLakeHealth.zones).map(([zone, data]) => {
+                const ZoneIcon = getZoneIcon(zone);
+                return (
+                  <div
+                    key={zone}
+                    className={`card p-6 border ${getZoneBg(zone)} hover:shadow-lg transition-all`}
+                    data-testid={`zone-card-${zone}`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getZoneGradient(zone)} flex items-center justify-center shadow-lg`}>
+                        <ZoneIcon className="w-6 h-6 text-white" />
+                      </div>
+                      {data.status === 'healthy' ? (
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Healthy
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+                          <XCircle className="w-3.5 h-3.5" />
+                          Issues
+                        </span>
+                      )}
                     </div>
-                    {data.status === 'healthy' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-500" />
-                    )}
+                    <div>
+                      <p className="text-sm font-medium text-slate-600 capitalize mb-1">{zone} Zone</p>
+                      <p className="text-3xl font-bold text-slate-900">{data.count.toLocaleString()}</p>
+                      <p className="text-sm text-slate-500 mt-1">total records</p>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-zinc-400 text-sm capitalize">{zone} Zone</p>
-                    <p className="text-2xl font-bold text-white mt-1">{data.count.toLocaleString()}</p>
-                    <p className="text-zinc-500 text-sm mt-1">records</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Quality Metrics */}
             {dataLakeHealth?.quality && (
-              <div className="mt-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
-                <h3 className="text-sm font-medium text-zinc-400 mb-3">Data Quality</h3>
-                <div className="flex items-center gap-8">
+              <div className="card p-6 mt-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
                   <div>
-                    <p className="text-3xl font-bold text-white">{dataLakeHealth.quality.quality_rate}%</p>
-                    <p className="text-zinc-500 text-sm">Quality Rate</p>
+                    <h3 className="font-semibold text-slate-900">Data Quality Score</h3>
+                    <p className="text-sm text-slate-500">Overall pipeline health</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-8">
+                  <div className="flex-shrink-0">
+                    <p className="text-4xl font-bold text-slate-900">{dataLakeHealth.quality.quality_rate}%</p>
+                    <p className="text-sm text-slate-500 mt-1">Quality Rate</p>
                   </div>
                   <div className="flex-1">
-                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          dataLakeHealth.quality.quality_rate >= 90 
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                            : dataLakeHealth.quality.quality_rate >= 70 
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                            : 'bg-gradient-to-r from-red-500 to-rose-500'
+                        }`}
                         style={{ width: `${dataLakeHealth.quality.quality_rate}%` }}
                       />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-white">{dataLakeHealth.quality.invalid_records}</p>
-                    <p className="text-zinc-500 text-sm">Invalid Records</p>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-lg font-semibold text-slate-900">{dataLakeHealth.quality.invalid_records}</p>
+                    <p className="text-sm text-slate-500">Invalid Records</p>
                   </div>
                 </div>
               </div>
@@ -155,14 +196,18 @@ const Dashboard = () => {
           {/* Integrations */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Plug2 className="w-5 h-5 text-blue-500" />
-                Integrations
-              </h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                  <Plug2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Integrations</h2>
+                  <p className="text-sm text-slate-500">Connected data sources</p>
+                </div>
+              </div>
               <Button
                 onClick={() => navigate('/integrations')}
-                variant="ghost"
-                className="text-zinc-400 hover:text-white"
+                className="btn-ghost"
                 data-testid="view-integrations-btn"
               >
                 View All
@@ -174,45 +219,63 @@ const Dashboard = () => {
               {integrations.map((integration) => (
                 <div
                   key={integration.id}
-                  className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors cursor-pointer"
+                  className="card p-5 hover:shadow-lg hover:border-slate-300 transition-all cursor-pointer group"
                   onClick={() => navigate(`/integrations/${integration.integration_type}`)}
                   data-testid={`integration-card-${integration.integration_type}`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="p-2.5 rounded-lg bg-zinc-800">
-                      {getIntegrationIcon(integration.integration_type)}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                      <Plug2 className="w-6 h-6 text-slate-600 group-hover:text-blue-600 transition-colors" />
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                       integration.enabled 
-                        ? 'bg-emerald-500/10 text-emerald-400' 
-                        : 'bg-zinc-500/10 text-zinc-400'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}>
                       {integration.enabled ? 'Connected' : 'Not Connected'}
                     </span>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-white font-medium capitalize">
+                  <div>
+                    <p className="font-semibold text-slate-900 capitalize group-hover:text-blue-600 transition-colors">
                       {integration.integration_type}
                     </p>
-                    <p className="text-zinc-500 text-sm mt-1">
+                    <p className="text-sm text-slate-500 mt-1">
                       {integration.last_sync 
                         ? `Last sync: ${new Date(integration.last_sync).toLocaleDateString()}`
                         : 'Never synced'
                       }
                     </p>
                   </div>
+                  <div className="flex items-center gap-1 mt-3 text-sm text-slate-400 group-hover:text-blue-500 transition-colors">
+                    <span>Configure</span>
+                    <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               ))}
+
+              {integrations.length === 0 && (
+                <div className="col-span-full card p-8 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <Plug2 className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">No integrations yet</h3>
+                  <p className="text-slate-500 mb-4">Connect your first data source to get started</p>
+                  <Button onClick={() => navigate('/integrations')} className="btn-primary">
+                    <Plug2 className="w-4 h-4 mr-2" />
+                    Add Integration
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
 
           {/* Quick Actions */}
           <section>
-            <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h2>
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() => navigate('/integrations')}
-                className="bg-emerald-600 hover:bg-emerald-500"
+                className="btn-primary"
                 data-testid="configure-integration-btn"
               >
                 <Plug2 className="w-4 h-4 mr-2" />
@@ -220,12 +283,18 @@ const Dashboard = () => {
               </Button>
               <Button
                 onClick={() => navigate('/data-lake')}
-                variant="outline"
-                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                className="btn-secondary"
                 data-testid="view-data-lake-btn"
               >
                 <Database className="w-4 h-4 mr-2" />
                 View Data Lake
+              </Button>
+              <Button
+                onClick={() => navigate('/accounts')}
+                className="btn-ghost"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                View Accounts
               </Button>
             </div>
           </section>
