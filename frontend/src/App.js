@@ -127,6 +127,7 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="sales-dashboard" element={<AccountManagerDashboard />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/:type" element={<Integrations />} />
         <Route path="field-mapping" element={<FieldMapping />} />
