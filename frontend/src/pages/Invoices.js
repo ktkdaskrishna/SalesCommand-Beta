@@ -1,6 +1,7 @@
 /**
- * Receivables Page
+ * Invoices Page (Read-only)
  * Displays synced invoice data from Odoo ERP via data_lake_serving
+ * For sales awareness only - accounting is managed in Odoo
  */
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
