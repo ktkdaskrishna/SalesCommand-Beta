@@ -10,6 +10,7 @@ import { Toaster } from './components/ui/sonner';
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AccountManagerDashboard from './pages/AccountManagerDashboard';
 import Integrations from './pages/Integrations';
 import DataLake from './pages/DataLake';
 import FieldMapping from './pages/FieldMapping';
