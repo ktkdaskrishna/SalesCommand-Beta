@@ -658,19 +658,18 @@ const AdminPanel = () => {
             {activeTab === 'departments' && (
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-white">Departments</h1>
+                  <h1 className="text-2xl font-bold text-slate-900">Departments</h1>
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={syncOdooDepartments}
                       disabled={loading}
-                      variant="outline"
-                      className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10"
+                      className="btn-secondary border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                       data-testid="sync-odoo-depts-btn"
                     >
                       {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
                       Sync from Odoo
                     </Button>
-                    <Button onClick={() => setShowDeptModal(true)} className="bg-emerald-600 hover:bg-emerald-500" data-testid="create-dept-btn">
+                    <Button onClick={() => setShowDeptModal(true)} className="btn-primary" data-testid="create-dept-btn">
                       <Plus className="w-4 h-4 mr-2" /> Create Department
                     </Button>
                   </div>
@@ -678,17 +677,17 @@ const AdminPanel = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   {departments.map(dept => (
-                    <div key={dept.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                    <div key={dept.id} className="card p-5 hover:shadow-lg transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-emerald-500" />
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                          <Building2 className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-white">{dept.name}</h3>
-                          <p className="text-zinc-500 text-sm">{dept.code}</p>
+                          <h3 className="font-semibold text-slate-900">{dept.name}</h3>
+                          <p className="text-slate-500 text-sm font-mono">{dept.code}</p>
                         </div>
                       </div>
-                      {dept.description && <p className="text-zinc-400 text-sm mt-3">{dept.description}</p>}
+                      {dept.description && <p className="text-slate-600 text-sm mt-3">{dept.description}</p>}
                     </div>
                   ))}
                 </div>
