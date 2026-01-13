@@ -228,10 +228,10 @@ const BlueSheetConfiguration = () => {
       <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium">How Blue Sheet Scoring Works</p>
+          <p className="font-medium">How Deal Confidence Scoring Works</p>
           <p className="text-blue-600 mt-1">
-            Positive weights increase probability when criteria are met. Negative weights (red flags) decrease it.
-            The final score is scaled to 0-100% based on the maximum possible score setting.
+            Positive weights increase confidence when criteria are met. Negative weights (red flags) decrease it.
+            The result is a guidance signal, not a prediction. Use it to prioritize deal focus.
           </p>
         </div>
       </div>
