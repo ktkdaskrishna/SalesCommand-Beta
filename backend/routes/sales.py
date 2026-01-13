@@ -849,6 +849,17 @@ async def update_activity_status(
 
 # ===================== ACCOUNTS =====================
 
+class AccountCreate(BaseModel):
+    name: str
+    industry: Optional[str] = None
+    website: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    annual_revenue: Optional[float] = None
+    employee_count: Optional[int] = None
+
 @router.get("/accounts")
 async def get_accounts(
     token_data: dict = Depends(require_approved())
@@ -864,6 +875,31 @@ async def get_accounts(
     
     accounts = await db.accounts.find(query, {"_id": 0}).to_list(1000)
     return accounts
+
+@router.post("/accounts")
+async def create_account(
+    data: AccountCreate,
+    token_data: dict = Depends(require_approved())
+):
+    """Create a new account"""
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    now = datetime.now(timezone.utc)
+    account_id = str(uuid.uuid4())
+    
+    account = {
+        "id": account_id,
+        **data.model_dump(),
+        "assigned_am_id": user_id,
+        "assigned_am_name": token_data.get("name", ""),
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    await db.accounts.insert_one(account)
+    account.pop("_id", None)
+    return account
 
 # ===================== LLM CONFIG =====================
 
