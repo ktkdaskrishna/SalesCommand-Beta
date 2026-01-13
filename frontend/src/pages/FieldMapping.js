@@ -597,7 +597,7 @@ const FieldMapping = () => {
             </div>
             <div className="text-left">
               <h3 className="text-white font-medium">Current Field Mappings</h3>
-              <p className="text-sm text-zinc-500">{mappings.length} mappings configured for {ODOO_MODELS[selectedEntity]?.label}</p>
+              <p className="text-sm text-zinc-400">{mappings.length} mappings configured for {selectedIntegration === 'odoo' ? ODOO_MODELS[selectedEntity]?.label : MS365_ENTITIES[selectedEntity]?.label}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
