@@ -320,4 +320,124 @@ class OdooConnector(BaseConnector):
                 'groups_id', 'company_id'
             ]
         
+        elif model == 'hr.department':
+            return base_fields + [
+                'complete_name', 'parent_id', 'manager_id',
+                'company_id', 'member_ids', 'note'
+            ]
+        
+        elif model == 'hr.employee':
+            return base_fields + [
+                'work_email', 'work_phone', 'mobile_phone',
+                'department_id', 'job_id', 'job_title',
+                'parent_id', 'coach_id', 'user_id',
+                'company_id', 'resource_calendar_id'
+            ]
+        
         return base_fields
+
+    async def fetch_departments(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all departments from Odoo hr.department model.
+        Departments are the source of truth from Odoo.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'hr.department'
+        fields = self._get_fields_for_model(model, 'department')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            departments = []
+            for rec in records:
+                departments.append({
+                    'odoo_id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'complete_name': rec.get('complete_name'),
+                    'parent_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'parent_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'manager_id': rec.get('manager_id')[0] if rec.get('manager_id') else None,
+                    'manager_name': rec.get('manager_id')[1] if rec.get('manager_id') else None,
+                    'active': rec.get('active', True),
+                    'source': 'odoo',
+                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                })
+            
+            logger.info(f"Fetched {len(departments)} departments from Odoo")
+            return departments
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch departments from Odoo: {e}")
+            raise
+
+    async def fetch_users(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all users from Odoo hr.employee model (preferred) or res.users.
+        Users in CRM must originate from Odoo.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        # Try hr.employee first (richer data), fallback to res.users
+        model = 'hr.employee'
+        fields = self._get_fields_for_model(model, 'employee')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            users = []
+            for rec in records:
+                users.append({
+                    'odoo_employee_id': rec.get('id'),
+                    'odoo_user_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'name': rec.get('name'),
+                    'email': rec.get('work_email'),
+                    'phone': rec.get('work_phone') or rec.get('mobile_phone'),
+                    'job_title': rec.get('job_title') or (rec.get('job_id')[1] if rec.get('job_id') else None),
+                    'department_odoo_id': rec.get('department_id')[0] if rec.get('department_id') else None,
+                    'department_name': rec.get('department_id')[1] if rec.get('department_id') else None,
+                    'manager_odoo_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'manager_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'active': rec.get('active', True),
+                    'source': 'odoo',
+                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                })
+            
+            logger.info(f"Fetched {len(users)} employees from Odoo")
+            return users
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch employees from Odoo: {e}")
+            # Fallback to res.users if hr.employee fails
+            logger.info("Falling back to res.users model")
+            return await self._fetch_users_fallback()
