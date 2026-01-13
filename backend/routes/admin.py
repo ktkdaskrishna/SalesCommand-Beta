@@ -420,6 +420,67 @@ async def update_user(
     return {"message": "User updated" if result.modified_count else "No changes made"}
 
 
+@router.post("/users/{user_id}/approve")
+async def approve_user(
+    user_id: str,
+    token_data: dict = Depends(require_super_admin)
+):
+    """Approve a pending user"""
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") != "pending":
+        raise HTTPException(status_code=400, detail="User is not in pending state")
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "approval_status": "approved",
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {
+        "message": "User approved",
+        "user_email": user.get("email")
+    }
+
+
+@router.post("/users/{user_id}/reject")
+async def reject_user(
+    user_id: str,
+    reason: Optional[str] = None,
+    token_data: dict = Depends(require_super_admin)
+):
+    """Reject a pending user"""
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") != "pending":
+        raise HTTPException(status_code=400, detail="User is not in pending state")
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "approval_status": "rejected",
+            "rejection_reason": reason,
+            "is_active": False,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {
+        "message": "User rejected",
+        "user_email": user.get("email")
+    }
+
+
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, token_data: dict = Depends(require_super_admin)):
     """Deactivate a user (soft delete)"""
