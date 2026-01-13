@@ -539,7 +539,7 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            Calculate Probability
+            Get Confidence Signal
           </button>
         </div>
       </div>
