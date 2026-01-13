@@ -1325,7 +1325,7 @@ async def get_real_dashboard(
     
     # ---- ACCOUNTS FROM DATA LAKE ----
     accounts_data = []
-    acc_docs = await db.data_lake_serving.find({"entity_type": "account"}).to_list(1000)
+    acc_docs = await db.data_lake_serving.find(active_entity_filter("account")).to_list(1000)
     
     for doc in acc_docs:
         acc = doc.get("data", {})
@@ -1493,7 +1493,7 @@ async def get_real_accounts(
     db = Database.get_db()
     
     accounts = []
-    acc_docs = await db.data_lake_serving.find({"entity_type": "account"}).to_list(1000)
+    acc_docs = await db.data_lake_serving.find(active_entity_filter("account")).to_list(1000)
     
     for doc in acc_docs:
         acc = doc.get("data", {})
