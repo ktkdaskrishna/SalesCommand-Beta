@@ -985,18 +985,6 @@ async def create_target(
     return target
 
 
-# Keep TargetCreate for legacy support
-class TargetCreate(BaseModel):
-    user_id: Optional[str] = None
-    role_id: Optional[str] = None
-    period_type: str = "monthly"
-    period_start: datetime
-    period_end: datetime
-    target_revenue: float = 0
-    target_deals: int = 0
-    target_activities: int = 0
-    product_line_targets: Dict[str, float] = {}
-
 @router.put("/targets/{target_id}")
 async def update_target(
     target_id: str,
