@@ -282,8 +282,10 @@ class TestAdminPanelBlueSheetTab:
         response = requests.get(f"{BASE_URL}/api/admin/roles", headers=headers)
         assert response.status_code == 200, f"Admin roles failed: {response.text}"
         data = response.json()
-        assert isinstance(data, list)
-        print(f"✓ Admin roles: {len(data)} roles found")
+        # API returns {count: N, roles: [...]}
+        assert "roles" in data or isinstance(data, list)
+        roles = data.get("roles", data) if isinstance(data, dict) else data
+        print(f"✓ Admin roles: {len(roles)} roles found")
     
     def test_admin_users_endpoint(self, admin_token):
         """Test admin users endpoint (used by Admin Panel)"""
@@ -291,8 +293,10 @@ class TestAdminPanelBlueSheetTab:
         response = requests.get(f"{BASE_URL}/api/admin/users", headers=headers)
         assert response.status_code == 200, f"Admin users failed: {response.text}"
         data = response.json()
-        assert isinstance(data, list)
-        print(f"✓ Admin users: {len(data)} users found")
+        # API returns {count: N, users: [...]}
+        assert "users" in data or isinstance(data, list)
+        users = data.get("users", data) if isinstance(data, dict) else data
+        print(f"✓ Admin users: {len(users)} users found")
 
 
 class TestIncentiveConfiguration:
