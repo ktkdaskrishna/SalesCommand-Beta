@@ -177,6 +177,16 @@ export const configAPI = {
   getPipelineStages: () => api.get('/config/pipeline-stages'),
   updatePipelineStage: (id, params) => api.put(`/config/pipeline-stages/${id}`, null, { params }),
   createPipelineStage: (params) => api.post('/config/pipeline-stages', null, { params }),
+  
+  // Blue Sheet Weights
+  getBlueSheetWeights: () => api.get('/config/bluesheet-weights'),
+  updateBlueSheetWeights: (data) => api.put('/config/bluesheet-weights', data),
+  
+  // Targets
+  getTargets: (params) => api.get('/config/targets', { params }),
+  createTarget: (data) => api.post('/config/targets', data),
+  updateTarget: (id, params) => api.put(`/config/targets/${id}`, null, { params }),
+  deleteTarget: (id) => api.delete(`/config/targets/${id}`),
 };
 
 // ===================== KPIs API =====================
