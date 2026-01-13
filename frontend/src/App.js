@@ -157,6 +157,7 @@ function AppRoutes() {
         <Route path="my-outlook" element={<MyOutlook />} />
         <Route path="admin" element={<AdminPanel />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="admin-dashboard" element={<Dashboard />} />
       </Route>
 
       {/* Fallback */}
