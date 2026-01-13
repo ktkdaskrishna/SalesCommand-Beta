@@ -767,7 +767,7 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-white"
               >
                 <option value="own">Own - Only assigned records</option>
-                <option value="team">Team - Team members' records</option>
+                <option value="team">Team - Team members&apos; records</option>
                 <option value="department">Department - Department records</option>
                 <option value="all">All - Full access to all records</option>
               </select>
