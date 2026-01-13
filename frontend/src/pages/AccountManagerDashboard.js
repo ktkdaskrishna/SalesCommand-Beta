@@ -827,6 +827,11 @@ const AccountManagerDashboard = () => {
   };
 
   const handleSyncFromOdoo = async () => {
+    if (!canTriggerSync) {
+      alert("Only administrators can trigger Odoo sync.");
+      return;
+    }
+    
     setSyncing(true);
     try {
       // Use the main sync endpoint which uses the proper sync service
@@ -844,7 +849,8 @@ const AccountManagerDashboard = () => {
       }
     } catch (e) {
       console.error("Sync failed:", e);
-      alert("Sync failed. Please check Odoo integration configuration.");
+      const errorMessage = e.response?.data?.detail || "Sync failed. Please check Odoo integration configuration.";
+      alert(errorMessage);
     }
     setSyncing(false);
   };
