@@ -685,22 +685,30 @@ const Opportunities = () => {
     ? filteredOpportunities.reduce((sum, o) => sum + (o.value || 0), 0) / filteredOpportunities.length
     : 0;
 
+  // Table columns configuration with sorting enabled
   const columns = [
     {
       key: "name",
       label: "Opportunity",
+      sortable: true,
       render: (val, row) => (
-        <div>
-          <p className="font-medium text-slate-900">{val}</p>
-          <p className="text-sm text-slate-500">{row?.account_name || "-"}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+            <Target className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900 truncate max-w-[200px]">{val}</p>
+            <p className="text-xs text-slate-500 truncate max-w-[200px]">{row.account_name || "—"}</p>
+          </div>
         </div>
       ),
     },
     {
       key: "value",
       label: "Value",
+      sortable: true,
       render: (val) => (
-        <span className="font-medium text-slate-900">
+        <span className="font-semibold text-slate-900">
           {formatCurrency(val)}
         </span>
       ),
@@ -708,14 +716,16 @@ const Opportunities = () => {
     {
       key: "stage",
       label: "Stage",
+      sortable: true,
       render: (val) => <StageBadge stage={val} />,
     },
     {
       key: "probability",
       label: "Probability",
+      sortable: true,
       render: (val) => (
         <span className={cn(
-          "px-2 py-0.5 rounded-full text-sm font-medium",
+          "px-2.5 py-1 rounded-full text-sm font-medium",
           val >= 70 ? "bg-emerald-100 text-emerald-700" :
           val >= 40 ? "bg-amber-100 text-amber-700" :
           "bg-slate-100 text-slate-600"
@@ -727,32 +737,58 @@ const Opportunities = () => {
     {
       key: "product_lines",
       label: "Products",
-      render: (val) => val?.length > 0 ? val.join(", ") : "—",
+      sortable: false,
+      render: (val) => val?.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {val.slice(0, 2).map((p, i) => (
+            <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">{p}</span>
+          ))}
+          {val.length > 2 && (
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">+{val.length - 2}</span>
+          )}
+        </div>
+      ) : "—",
     },
     {
       key: "expected_close_date",
       label: "Expected Close",
+      sortable: true,
       render: (val) => val ? formatDate(val) : "—",
     },
     {
       key: "owner_email",
       label: "Owner",
+      sortable: true,
       render: (val) => val || "—",
     },
     {
       key: "actions",
       label: "",
+      sortable: false,
+      filterable: false,
       render: (val, row) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedOpp(row);
-          }}
-          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-          title="View Details"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setBlueSheetOpp(row);
+            }}
+            className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Deal Confidence"
+          >
+            <Calculator className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedOpp(row);
+            }}
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            title="View Details"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
