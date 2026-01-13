@@ -822,6 +822,7 @@ const Opportunities = () => {
                     stage={stage}
                     opportunities={kanbanData[stage.value] || []}
                     onOpenBlueSheet={setBlueSheetOpp}
+                    onViewDetails={setSelectedOpp}
                   />
                 ))}
               </div>
@@ -837,9 +838,18 @@ const Opportunities = () => {
             columns={columns}
             data={filteredOpportunities}
             emptyMessage="No opportunities found"
+            onRowClick={(row) => setSelectedOpp(row)}
           />
         </div>
       )}
+
+      {/* Opportunity Detail Panel */}
+      <OpportunityDetailPanel
+        opportunity={selectedOpp}
+        isOpen={!!selectedOpp}
+        onClose={() => setSelectedOpp(null)}
+        onBlueSheet={setBlueSheetOpp}
+      />
 
       {/* Blue Sheet Modal */}
       {blueSheetOpp && (
