@@ -100,6 +100,15 @@ export const opportunitiesAPI = {
   calculateProbability: (id, data) => api.post(`/opportunities/${id}/calculate-probability`, data),
 };
 
+// ===================== SALES API (Blue Sheet & Dashboard) =====================
+
+export const salesAPI = {
+  getDashboard: () => api.get('/sales/dashboard'),
+  getKanban: () => api.get('/opportunities/kanban'),
+  calculateProbability: (oppId, data) => api.post(`/opportunities/${oppId}/calculate-probability`, data),
+  getActivitiesByOpportunity: (oppId) => api.get(`/activities?opportunity_id=${oppId}`),
+};
+
 // ===================== ACCOUNTS API =====================
 
 export const accountsAPI = {
