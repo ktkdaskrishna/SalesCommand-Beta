@@ -67,6 +67,14 @@ const MyOutlook = () => {
       const data = await res.json();
       
       if (res.ok) {
+        // Check for token expiration error in response
+        if (data.error_type === 'token_expired') {
+          setError(data.message || 'Your Microsoft session has expired. Please sign in with Microsoft again.');
+          setConnectionStatus({ connected: false });
+          setEmails([]);
+          return;
+        }
+        
         setEmails(data.emails || []);
         setEmailMeta({ count: data.count, total: data.total, source: data.source });
         
@@ -76,7 +84,10 @@ const MyOutlook = () => {
         }
       } else {
         // Better error messages
-        if (res.status === 403) {
+        if (res.status === 401) {
+          setError('Your Microsoft session has expired. Please sign out and sign in with Microsoft again.');
+          setConnectionStatus({ connected: false });
+        } else if (res.status === 403) {
           setError('Access denied. Your account may need approval or role assignment.');
         } else if (res.status === 400) {
           setError(data.detail || 'Not connected to Microsoft 365. Please sign in again.');
