@@ -689,6 +689,19 @@ const AdminPanel = () => {
               </div>
             )}
 
+            {/* ===================== ROLE CONFIGURATION TAB ===================== */}
+            {activeTab === 'role-config' && (
+              <RoleConfigTab 
+                roles={roles}
+                onRoleUpdated={fetchData}
+              />
+            )}
+
+            {/* ===================== INCENTIVES TAB ===================== */}
+            {activeTab === 'incentives' && (
+              <IncentiveConfiguration />
+            )}
+
             {/* ===================== PERMISSIONS TAB ===================== */}
             {activeTab === 'permissions' && (
               <div>
