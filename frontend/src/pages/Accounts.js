@@ -260,7 +260,9 @@ const Accounts = () => {
                       <p className="text-xs text-slate-500">{account.industry || 'No industry'}</p>
                     </div>
                   </div>
-                  <HealthBadge status={health} />
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getHealthBadgeStyle(health)}`}>
+                    {getHealthLabel(health)}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
