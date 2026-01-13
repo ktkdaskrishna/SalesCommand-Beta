@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { opportunitiesAPI, accountsAPI, salesAPI } from "../services/api";
 import DataTable from "../components/DataTable";
+import OpportunityDetailPanel from "../components/OpportunityDetailPanel";
 import { StageBadge } from "../components/Badge";
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import {
@@ -20,6 +21,7 @@ import {
   Zap,
   Activity,
   Tag,
+  Eye,
 } from "lucide-react";
 
 const STAGES = [
