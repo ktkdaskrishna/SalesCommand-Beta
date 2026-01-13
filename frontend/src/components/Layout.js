@@ -33,13 +33,26 @@ const Layout = () => {
     navigate('/login');
   };
 
-  const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/integrations', icon: Plug2, label: 'Integrations' },
-    { path: '/field-mapping', icon: Wand2, label: 'Field Mapping' },
-    { path: '/data-lake', icon: Database, label: 'Data Lake' },
-    { path: '/my-outlook', icon: Mail, label: 'My Outlook' },
+  // Check if user has specific permission
+  const hasPermission = (permission) => {
+    if (user?.is_super_admin) return true;
+    if (!user?.permissions) return false;
+    return user.permissions.includes('*') || user.permissions.includes(permission);
+  };
+
+  // All possible nav items with permissions
+  const allNavItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', permission: null }, // Always visible
+    { path: '/my-outlook', icon: Mail, label: 'My Outlook', permission: null }, // Always visible for authenticated
+    { path: '/integrations', icon: Plug2, label: 'Integrations', permission: 'integrations.odoo.view' },
+    { path: '/field-mapping', icon: Wand2, label: 'Field Mapping', permission: 'fieldmapping.view' },
+    { path: '/data-lake', icon: Database, label: 'Data Lake', permission: 'datalake.raw.view' },
   ];
+
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter(item => 
+    !item.permission || hasPermission(item.permission)
+  );
 
   // Admin items - only shown to super admins
   const adminItems = [
