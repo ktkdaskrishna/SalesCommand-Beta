@@ -956,3 +956,84 @@ async def update_llm_config(
     await db.llm_config.update_one({}, {"$set": config}, upsert=True)
     
     return {"message": "LLM configuration updated", "provider": provider, "model": model}
+
+# ===================== KPIs =====================
+
+class KPICreate(BaseModel):
+    name: str
+    target_value: float
+    current_value: float = 0
+    unit: str = "currency"
+    period: str = "monthly"
+    category: str = "sales"
+    product_line: Optional[str] = None
+
+@router.get("/kpis")
+async def get_kpis(
+    category: Optional[str] = None,
+    token_data: dict = Depends(require_approved())
+):
+    """Get all KPIs"""
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    query = {"owner_id": user_id}
+    if category:
+        query["category"] = category
+    
+    kpis = await db.kpis.find(query, {"_id": 0}).to_list(100)
+    return kpis
+
+@router.post("/kpis")
+async def create_kpi(
+    data: KPICreate,
+    token_data: dict = Depends(require_approved())
+):
+    """Create a new KPI"""
+    db = Database.get_db()
+    user_id = token_data["id"]
+    now = datetime.now(timezone.utc)
+    
+    kpi = {
+        "id": str(uuid.uuid4()),
+        "owner_id": user_id,
+        **data.model_dump(),
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    await db.kpis.insert_one(kpi)
+    kpi.pop("_id", None)
+    return kpi
+
+@router.put("/kpis/{kpi_id}")
+async def update_kpi(
+    kpi_id: str,
+    data: KPICreate,
+    token_data: dict = Depends(require_approved())
+):
+    """Update a KPI"""
+    db = Database.get_db()
+    
+    update_data = {**data.model_dump(), "updated_at": datetime.now(timezone.utc)}
+    result = await db.kpis.update_one({"id": kpi_id}, {"$set": update_data})
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="KPI not found")
+    
+    updated = await db.kpis.find_one({"id": kpi_id}, {"_id": 0})
+    return updated
+
+@router.delete("/kpis/{kpi_id}")
+async def delete_kpi(
+    kpi_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """Delete a KPI"""
+    db = Database.get_db()
+    
+    result = await db.kpis.delete_one({"id": kpi_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="KPI not found")
+    
+    return {"message": "KPI deleted"}
