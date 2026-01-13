@@ -812,34 +812,32 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">{role ? 'Edit Role' : 'Create Role'}</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900">{role ? 'Edit Role' : 'Create Role'}</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <Label className="text-zinc-300 mb-2 block">Role Code</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Role Code</Label>
               <Input
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, '_') })}
                 placeholder="e.g., sales_manager"
-                className="bg-zinc-800 border-zinc-700"
                 required
                 disabled={role?.is_system}
               />
             </div>
             <div>
-              <Label className="text-zinc-300 mb-2 block">Role Name</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Role Name</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Sales Manager"
-                className="bg-zinc-800 border-zinc-700"
                 required
               />
             </div>
@@ -847,20 +845,19 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <Label className="text-zinc-300 mb-2 block">Description</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Description</Label>
               <Input
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description"
-                className="bg-zinc-800 border-zinc-700"
               />
             </div>
             <div>
-              <Label className="text-zinc-300 mb-2 block">Data Scope</Label>
+              <Label className="text-slate-700 mb-2 block font-medium">Data Scope</Label>
               <select
                 value={formData.data_scope}
                 onChange={(e) => setFormData({ ...formData, data_scope: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-white"
+                className="input"
               >
                 <option value="own">Own - Only assigned records</option>
                 <option value="team">Team - Team members&apos; records</option>
@@ -872,19 +869,19 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
 
           {/* Permissions Matrix */}
           <div className="mb-4">
-            <Label className="text-zinc-300 mb-3 block text-lg">Permissions</Label>
-            <p className="text-zinc-500 text-sm mb-4">Select the permissions for this role:</p>
+            <Label className="text-slate-900 mb-3 block text-lg font-semibold">Permissions</Label>
+            <p className="text-slate-500 text-sm mb-4">Select the permissions for this role:</p>
           </div>
 
           <div className="space-y-4">
             {Object.entries(permissions).map(([module, perms]) => (
-              <div key={module} className="bg-zinc-800/50 rounded-lg p-4">
+              <div key={module} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-white capitalize">{module}</h4>
+                  <h4 className="font-semibold text-slate-900 capitalize">{module}</h4>
                   <button
                     type="button"
                     onClick={() => handleSelectAll(module, perms)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300"
+                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     {perms.every(p => formData.permissions.includes(p.code)) ? 'Deselect All' : 'Select All'}
                   </button>
@@ -893,10 +890,10 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
                   {perms.map(perm => (
                     <label
                       key={perm.code}
-                      className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${
+                      className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-all ${
                         formData.permissions.includes(perm.code)
-                          ? 'bg-emerald-500/20 border border-emerald-500/40'
-                          : 'bg-zinc-800 border border-transparent hover:border-zinc-700'
+                          ? 'bg-indigo-50 border-2 border-indigo-300'
+                          : 'bg-white border border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <input
@@ -905,12 +902,12 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
                         onChange={() => handlePermissionToggle(perm.code)}
                         className="sr-only"
                       />
-                      <div className={`w-4 h-4 rounded flex items-center justify-center ${
-                        formData.permissions.includes(perm.code) ? 'bg-emerald-500' : 'bg-zinc-700'
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${
+                        formData.permissions.includes(perm.code) ? 'bg-indigo-600' : 'bg-slate-200'
                       }`}>
                         {formData.permissions.includes(perm.code) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className="text-sm text-zinc-300">{perm.name}</span>
+                      <span className="text-sm text-slate-700">{perm.name}</span>
                     </label>
                   ))}
                 </div>
@@ -919,9 +916,9 @@ const RoleModal = ({ role, permissions, onSave, onClose }) => {
           </div>
         </form>
 
-        <div className="p-6 border-t border-zinc-800 flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} className="bg-emerald-600 hover:bg-emerald-500">
+        <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+          <Button variant="ghost" onClick={onClose} className="btn-secondary">Cancel</Button>
+          <Button onClick={handleSubmit} className="btn-primary">
             <Save className="w-4 h-4 mr-2" /> {role ? 'Update Role' : 'Create Role'}
           </Button>
         </div>
