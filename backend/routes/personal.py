@@ -182,6 +182,18 @@ async def sync_my_emails(
             }
             
     except Exception as e:
+        error_msg = str(e)
+        # Handle token expiration specifically
+        if "expired" in error_msg.lower() or "invalid" in error_msg.lower() or "401" in error_msg:
+            # Clear the expired token
+            await db.users.update_one(
+                {"id": user_id},
+                {"$unset": {"ms_access_token": ""}}
+            )
+            raise HTTPException(
+                status_code=401, 
+                detail="Your Microsoft session has expired. Please sign in with Microsoft again."
+            )
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 
