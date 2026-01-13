@@ -473,6 +473,7 @@ const Opportunities = () => {
   const [viewMode, setViewMode] = useState("kanban");
   const [showModal, setShowModal] = useState(false);
   const [blueSheetOpp, setBlueSheetOpp] = useState(null);
+  const [selectedOpp, setSelectedOpp] = useState(null);  // For detail panel
   const [formData, setFormData] = useState({
     name: "",
     account_id: "",
