@@ -435,7 +435,7 @@ async def approve_user(
     if user.get("approval_status") != "pending":
         raise HTTPException(status_code=400, detail="User is not in pending state")
     
-    result = await db.users.update_one(
+    await db.users.update_one(
         {"id": user_id},
         {"$set": {
             "approval_status": "approved",
@@ -465,7 +465,7 @@ async def reject_user(
     if user.get("approval_status") != "pending":
         raise HTTPException(status_code=400, detail="User is not in pending state")
     
-    result = await db.users.update_one(
+    await db.users.update_one(
         {"id": user_id},
         {"$set": {
             "approval_status": "rejected",
