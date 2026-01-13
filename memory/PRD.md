@@ -39,12 +39,17 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - "Receivables" renamed to "Invoices (Read-only)"
 - Accounts page fetches real data from `data_lake_serving`
 
-### January 13, 2026 Updates ✅
-- **Backend Server Fixed:** Import errors resolved (`require_role`, `UserRole`, `TargetCreate`)
-- **Deal Confidence UI Unified:** Both user types see same clean modal
-- **Field Mapping Contrast Fixed:** Improved text readability
-- **Account Manager Dashboard:** Data now displays properly ($410K pipeline, 3 opportunities)
-- **Dashboard Real Endpoint Fixed:** Proper `is_super_admin` detection
+### January 13, 2026 - UAT Critical Bug Fixes ✅
+- **Bug #1 FIXED:** Account cards now display Pipeline ($85K-$200K) and Won Revenue values
+  - Backend `/api/accounts/real` aggregates metrics from opportunities using `partner_name` matching
+  - Frontend `Accounts.js` uses pre-calculated metrics from backend instead of local calculation
+- **Bug #2 FIXED:** KPI charts now render with real data (bar chart + radial chart)
+  - Backend `/api/kpis` fixed to return all KPIs (removed owner_id filter for super admin)
+- **Bug #3 FIXED:** KPI metrics show actual values (Average Achievement: 64.3%, On Track: 2, At Risk: 1)
+  - 4 KPIs with achievement percentages: 52%, 39%, 83%, 83%
+- **Goals Progress Fixed:** `/api/goals/summary/stats` populates current_value from actual opportunity data
+  - Q1 Revenue Target shows $300,000/$500,000 (60% complete)
+- **Test Coverage:** 13/13 backend tests passed, all frontend features verified
 
 ### January 13, 2026 - P0 Features Implementation ✅
 - **360° Account View:** New slide-over panel (`Account360Panel.js`) showing complete account data with summary cards and collapsible sections for Opportunities, Invoices, Activities, and Contacts
@@ -82,10 +87,17 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~Goals Dashboard with KPI tracking~~ ✅ Completed
 - [x] ~~Activity Timeline~~ ✅ Completed
 - [x] ~~User-Odoo re-link functionality~~ ✅ Completed
+- [x] ~~UAT Bug Fix: Account cards missing data~~ ✅ Fixed Jan 13, 2026
+- [x] ~~UAT Bug Fix: KPI charts not rendering~~ ✅ Fixed Jan 13, 2026
+- [x] ~~UAT Bug Fix: KPI metrics showing zero~~ ✅ Fixed Jan 13, 2026
 - [ ] MS365 refresh token flow (recurring login issue)
 
 ### P1 (High Priority)
-- [ ] Automated background sync (15-30 min intervals) for Odoo data consistency
+- [ ] 360° View: Contacts section shows "No contacts found" (needs Odoo contact sync)
+- [ ] 360° View: Activities/Invoices counts always zero (needs data linking)
+- [ ] 360° View: Opportunities not filtered by selected account
+- [ ] Industry filter on Accounts page not working
+- [ ] Automated background sync hardening (5-min intervals verified working)
 - [ ] Real-time activity logging (currently using mock data)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
 
