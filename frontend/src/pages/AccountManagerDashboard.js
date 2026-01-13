@@ -1028,9 +1028,7 @@ const AccountManagerDashboard = () => {
             </div>
           ))}
           {recentActivities.length === 0 && (
-            <div className="p-8 text-center text-slate-500">
-              No pending activities
-            </div>
+            <EmptyStateExplainer type="activities" userRole={user?.role} />
           )}
         </div>
       </div>
