@@ -1269,3 +1269,38 @@ async def get_real_opportunities(
         "opportunities": opportunities,
         "count": len(opportunities),
     }
+
+@router.get("/accounts/real")
+async def get_real_accounts(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get accounts from data_lake_serving (real Odoo data).
+    Shows synced customer/partner data from ERP.
+    """
+    db = Database.get_db()
+    
+    accounts = []
+    acc_docs = await db.data_lake_serving.find({"entity_type": "account"}).to_list(1000)
+    
+    for doc in acc_docs:
+        acc = doc.get("data", {})
+        accounts.append({
+            "id": acc.get("id"),
+            "name": acc.get("name", ""),
+            "email": acc.get("email", ""),
+            "phone": acc.get("phone", ""),
+            "website": acc.get("website", ""),
+            "city": acc.get("city", ""),
+            "country": acc.get("country", ""),
+            "industry": acc.get("industry", acc.get("industry_id", "")),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    return {
+        "source": "data_lake_serving",
+        "data_note": "More accounts will sync as integration expands.",
+        "accounts": accounts,
+        "count": len(accounts),
+    }
