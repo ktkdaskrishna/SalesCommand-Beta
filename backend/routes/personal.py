@@ -10,6 +10,7 @@ import uuid
 
 from services.ms365.connector import MS365Connector
 from services.auth.jwt_handler import get_current_user_from_token
+from middleware.rbac import require_approved
 from core.database import Database
 
 router = APIRouter(prefix="/my", tags=["Personal Data"])
@@ -30,7 +31,7 @@ async def get_user_ms_token(user_id: str) -> Optional[str]:
 async def get_my_emails(
     limit: int = 50,
     skip: int = 0,
-    token_data: dict = Depends(get_current_user_from_token)
+    token_data: dict = Depends(require_approved())
 ):
     """
     Get current user's emails from Microsoft 365.
