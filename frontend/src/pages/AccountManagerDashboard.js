@@ -304,9 +304,13 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-blue-600" />
-            Blue Sheet Probability Analysis
+            Deal Confidence Assessment
           </h2>
           <p className="text-sm text-slate-500 mt-1">{opportunity?.name}</p>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+            <Info className="w-3 h-3" />
+            Based on configurable factors. Use as guidance, not prediction.
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
