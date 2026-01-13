@@ -800,7 +800,9 @@ const AccountManagerDashboard = () => {
   const [syncing, setSyncing] = useState(false);
   
   // Check if user can trigger sync (admin only)
-  const canTriggerSync = user?.is_super_admin || user?.role === 'admin' || user?.role === 'super_admin';
+  const canTriggerSync = true; // All authenticated users can trigger sync (was: admin only)
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [syncCooldown, setSyncCooldown] = useState(false);
   const [stats, setStats] = useState(null);
   const [kanbanData, setKanbanData] = useState({ stages: [], kanban: {} });
   const [recentActivities, setRecentActivities] = useState([]);
