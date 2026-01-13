@@ -19,6 +19,26 @@ from core.config import settings
 router = APIRouter(tags=["Sales"])
 logger = logging.getLogger(__name__)
 
+
+# ===================== HELPER FUNCTIONS =====================
+
+def active_entity_filter(entity_type: str, additional_filters: dict = None) -> dict:
+    """
+    Create a filter for active (non-deleted) records from data_lake_serving.
+    Soft-deleted records (is_active=False) are completely hidden from users.
+    """
+    base_filter = {
+        "entity_type": entity_type,
+        "$or": [
+            {"is_active": True},
+            {"is_active": {"$exists": False}}  # Legacy records without is_active field
+        ]
+    }
+    if additional_filters:
+        base_filter.update(additional_filters)
+    return base_filter
+
+
 # ===================== MODELS =====================
 
 class OpportunityCreate(BaseModel):
