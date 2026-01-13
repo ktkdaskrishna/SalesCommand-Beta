@@ -307,7 +307,7 @@ const Goals = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Goals</h1>
           <p className="text-slate-500 mt-1">
-            Track your team's quarterly objectives and key results
+            Track your team&apos;s quarterly objectives and key results
           </p>
         </div>
         {isExecutive() && (
