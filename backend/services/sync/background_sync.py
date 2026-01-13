@@ -95,12 +95,16 @@ class OdooReconciler:
                 stats["errors"] += 1
         
         # Soft-delete records no longer in Odoo
+        # Use serving_id for matching since data.id might be nested differently
         if odoo_ids:
+            # Build list of string IDs for comparison
+            odoo_id_strs = [str(oid) for oid in odoo_ids]
+            
             result = await self.db.data_lake_serving.update_many(
                 {
                     "entity_type": entity_type,
-                    "data.id": {"$nin": list(odoo_ids)},
-                    "is_active": True,
+                    "serving_id": {"$nin": odoo_id_strs},
+                    "is_active": {"$ne": False},  # Only update active records
                     "source": "odoo"
                 },
                 {"$set": {
@@ -110,6 +114,9 @@ class OdooReconciler:
                 }}
             )
             stats["soft_deleted"] = result.modified_count
+            
+            if stats["soft_deleted"] > 0:
+                logger.info(f"Soft-deleted {stats['soft_deleted']} {entity_type} records no longer in Odoo")
         
         return stats
 
