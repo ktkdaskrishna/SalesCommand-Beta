@@ -116,7 +116,20 @@ class UserResponse(UserBase, TimestampMixin):
     department_name: Optional[str] = None
     permissions: Optional[List[str]] = None
     data_scope: Optional[str] = None
-    avatar_url: Optional[str] = None
+    
+    # Odoo integration fields
+    odoo_matched: Optional[bool] = None
+    odoo_user_id: Optional[int] = None
+    odoo_employee_id: Optional[int] = None
+    odoo_department_id: Optional[int] = None
+    odoo_department_name: Optional[str] = None
+    odoo_team_id: Optional[int] = None
+    odoo_team_name: Optional[str] = None
+    odoo_salesperson_name: Optional[str] = None
+    odoo_job_title: Optional[str] = None
+    odoo_match_email: Optional[str] = None
+    odoo_match_method: Optional[str] = None
+    odoo_match_status: Optional[str] = None
     
     class Config:
         from_attributes = True
