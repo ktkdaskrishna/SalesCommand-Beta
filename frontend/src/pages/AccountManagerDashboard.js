@@ -781,10 +781,21 @@ const AccountManagerDashboard = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [integrations, setIntegrations] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchIntegrationsHealth();
   }, []);
+
+  const fetchIntegrationsHealth = async () => {
+    try {
+      const res = await api.get("/integrations/health");
+      setIntegrations(res.data.integrations || []);
+    } catch (e) {
+      console.log("Could not fetch integration health");
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
