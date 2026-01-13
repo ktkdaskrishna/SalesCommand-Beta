@@ -609,6 +609,16 @@ const Accounts = () => {
           </div>
         </div>
       )}
+
+      {/* 360° Account View Panel */}
+      <Account360Panel
+        accountId={selected360AccountId}
+        isOpen={show360Panel}
+        onClose={() => {
+          setShow360Panel(false);
+          setSelected360AccountId(null);
+        }}
+      />
     </div>
   );
 };
