@@ -325,6 +325,8 @@ const AdminPanel = () => {
   const tabs = [
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'roles', label: 'Roles & Permissions', icon: Shield },
+    { id: 'role-config', label: 'Role Configuration', icon: LayoutDashboard },
+    { id: 'incentives', label: 'Incentive Config', icon: DollarSign },
     { id: 'departments', label: 'Departments', icon: Building2 },
     { id: 'permissions', label: 'All Permissions', icon: Settings },
   ];
