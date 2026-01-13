@@ -41,7 +41,7 @@ const PRODUCT_LINES = [
   "GRC",
 ];
 
-// Blue Sheet Modal Component
+// Deal Confidence Assessment Modal Component
 const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -103,29 +103,26 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-scale-in">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="deal-confidence-modal">
         {/* Header */}
-        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Calculator className="w-6 h-6 text-blue-600" />
-                Blue Sheet Probability Analysis
-              </h2>
-              <p className="text-sm text-slate-600 mt-1">{opportunity.name}</p>
-            </div>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-blue-600" />
+            Deal Confidence Assessment
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">{opportunity.name}</p>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Based on configurable factors. Use as guidance, not prediction.
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
           {/* Buying Influences */}
-          <div className="card p-5">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-blue-600" />
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" />
               Buying Influences
             </h3>
             <div className="grid grid-cols-2 gap-4">
