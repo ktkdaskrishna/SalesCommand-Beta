@@ -204,6 +204,47 @@ const AdminPanel = () => {
     }
   };
 
+  // ===================== USER APPROVAL =====================
+  const approveUser = async (userId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`User ${data.user_email} approved`);
+        fetchData();
+      } else {
+        setError(data.detail || 'Failed to approve user');
+      }
+    } catch (err) {
+      setError('Failed to approve user');
+    }
+  };
+
+  const rejectUser = async (userId) => {
+    if (!confirm('Are you sure you want to reject this user?')) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`User ${data.user_email} rejected`);
+        fetchData();
+      } else {
+        setError(data.detail || 'Failed to reject user');
+      }
+    } catch (err) {
+      setError('Failed to reject user');
+    }
+  };
+
   // ===================== AZURE SYNC =====================
   const syncAzureUsers = async () => {
     setSyncingAzure(true);
@@ -240,6 +281,11 @@ const AdminPanel = () => {
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Separate pending users for highlight
+  const pendingUsers = filteredUsers.filter(u => u.approval_status === 'pending');
+  const approvedUsers = filteredUsers.filter(u => u.approval_status !== 'pending');
+  const allFilteredUsers = [...pendingUsers, ...approvedUsers]; // Show pending first
 
   // Clear messages after 5 seconds
   useEffect(() => {
