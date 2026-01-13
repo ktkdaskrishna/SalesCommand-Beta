@@ -1595,7 +1595,7 @@ async def get_real_accounts(
             "website": clean_value(acc.get("website"), ""),
             "city": clean_value(acc.get("address_city") or acc.get("city"), ""),
             "country": clean_value(acc.get("address_country") or acc.get("country"), ""),
-            "industry": clean_value(acc.get("industry") or acc.get("industry_id"), ""),
+            "industry": clean_value(acc.get("industry") or acc.get("industry_id"), "") or infer_industry(name),
             # Aggregated metrics
             "pipeline_value": metrics["pipeline_value"],
             "won_value": metrics["won_value"],
