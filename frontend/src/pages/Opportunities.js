@@ -405,7 +405,20 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
             data-testid={`calc-prob-${opportunity.id}`}
           >
             <Calculator className="w-4 h-4" />
-            Calculate Probability
+            Get Deal Confidence
+          </button>
+          
+          {/* View Details Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails && onViewDetails(opportunity);
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 mt-2 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-100 transition-all"
+            data-testid={`view-details-${opportunity.id}`}
+          >
+            <Eye className="w-4 h-4" />
+            View Details
           </button>
         </div>
       )}
