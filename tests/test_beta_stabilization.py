@@ -145,7 +145,7 @@ class TestReceivables:
             "password": SUPER_ADMIN_PASSWORD
         })
         if response.status_code == 200:
-            return response.json()["token"]
+            return response.json()["access_token"]
         pytest.skip("Super Admin login failed")
     
     def test_receivables_endpoint(self, admin_token):
