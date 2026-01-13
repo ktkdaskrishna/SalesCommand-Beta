@@ -1711,6 +1711,35 @@ async def get_account_360_view(
         if legacy_acc:
             account = {**legacy_acc, "source": "crm"}
     
+    # If still not found, try to create account from opportunity partner data
+    if not account and account_name:
+        # Find opportunities with this partner name to derive account info
+        opp_doc = await db.data_lake_serving.find_one({
+            "entity_type": "opportunity",
+            "data.partner_name": {"$regex": account_name, "$options": "i"}
+        })
+        
+        if opp_doc:
+            opp_data = opp_doc.get("data", {})
+            account = {
+                "id": account_id,
+                "name": opp_data.get("partner_name", account_name),
+                "email": "",
+                "phone": "",
+                "mobile": "",
+                "website": "",
+                "street": "",
+                "city": "",
+                "state": "",
+                "country": "",
+                "zip": "",
+                "industry": "",
+                "company_type": "",
+                "is_company": True,
+                "source": "opportunity_derived",
+                "last_synced": opp_doc.get("last_aggregated"),
+            }
+    
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     
