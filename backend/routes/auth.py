@@ -121,7 +121,7 @@ async def login(credentials: UserLogin):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(token_data: dict = Depends(get_current_user_from_token)):
-    """Get current authenticated user"""
+    """Get current authenticated user (including pending users)"""
     db = Database.get_db()
     
     user = await db.users.find_one({"id": token_data["id"]}, {"_id": 0, "password_hash": 0})
@@ -130,6 +130,21 @@ async def get_current_user(token_data: dict = Depends(get_current_user_from_toke
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
+    # Get role information if exists
+    if user.get("role_id"):
+        role = await db.roles.find_one({"id": user["role_id"]}, {"_id": 0})
+        if role:
+            user["role_name"] = role.get("name")
+            user["role_code"] = role.get("code")
+            user["data_scope"] = role.get("data_scope")
+            user["permissions"] = role.get("permissions", [])
+    
+    # Get department information if exists
+    if user.get("department_id"):
+        dept = await db.departments.find_one({"id": user["department_id"]}, {"_id": 0})
+        if dept:
+            user["department_name"] = dept.get("name")
     
     return UserResponse(**user)
 
