@@ -204,6 +204,55 @@ const AdminPanel = () => {
     }
   };
 
+  // ===================== ODOO SYNC =====================
+  const syncOdooDepartments = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/sync-odoo-departments`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`Odoo Departments Synced: ${data.created} created, ${data.updated} updated`);
+        fetchData();
+      } else {
+        setError(data.detail || 'Odoo department sync failed');
+      }
+    } catch (err) {
+      setError('Odoo department sync failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const syncOdooUsers = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/sync-odoo-users`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`Odoo Users Synced: ${data.created} created, ${data.updated} updated. ${data.note}`);
+        fetchData();
+      } else {
+        setError(data.detail || 'Odoo user sync failed');
+      }
+    } catch (err) {
+      setError('Odoo user sync failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ===================== USER APPROVAL =====================
   const approveUser = async (userId) => {
     try {
