@@ -103,6 +103,7 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 | Roles & Permissions | Shield | Role management |
 | Role Configuration | LayoutDashboard | Nav/dashboard config |
 | Incentive Config | DollarSign | Commission templates |
+| **Sales Targets** | Target | Quota assignment |
 | **Deal Confidence** | Brain | Weight configuration |
 | Departments | Building2 | Department management |
 | All Permissions | Settings | Permission list |
@@ -114,6 +115,7 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **DataSourceBadge** | Shows data origin + sync time | Dashboard, Accounts, Invoices |
+| **SyncStatusWidget** | Shows integration health (Odoo ✓, MS365 ⚠️) | Dashboard header |
 | **EmptyStateExplainer** | Meaningful empty states | Dashboard Activities |
 | **ReadOnlyBanner** | "Accounting is managed in Odoo" | Invoices page |
 
