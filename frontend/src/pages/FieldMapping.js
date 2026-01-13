@@ -26,6 +26,7 @@ import {
   List,
   Eye,
   EyeOff,
+  Cloud,
 } from 'lucide-react';
 import {
   Dialog,
@@ -662,7 +663,7 @@ const FieldMapping = () => {
               <div className="space-y-2">
                 {/* Table Header */}
                 <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-500 font-medium">
-                  <div className="col-span-3">SOURCE FIELD (Odoo)</div>
+                  <div className="col-span-3">SOURCE FIELD ({selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'})</div>
                   <div className="col-span-1 text-center">→</div>
                   <div className="col-span-3">TARGET FIELD (Canonical)</div>
                   <div className="col-span-2">TRANSFORM</div>
@@ -803,8 +804,13 @@ const FieldMapping = () => {
               <Database className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-white font-medium">Available Odoo Fields</h3>
-              <p className="text-xs text-zinc-500">{ODOO_MODELS[selectedEntity]?.model} - Reference</p>
+              <h3 className="text-white font-medium">Available {selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'} Fields</h3>
+              <p className="text-xs text-zinc-500">
+                {selectedIntegration === 'odoo' 
+                  ? ODOO_MODELS[selectedEntity]?.model 
+                  : MS365_ENTITIES[selectedEntity]?.model
+                } - Reference
+              </p>
             </div>
           </div>
           
