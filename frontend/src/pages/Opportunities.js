@@ -963,12 +963,16 @@ const Opportunities = () => {
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <div className="card" data-testid="opportunities-table">
+        <div className="card overflow-hidden" data-testid="opportunities-table">
           <DataTable
             columns={columns}
             data={filteredOpportunities}
             emptyMessage="No opportunities found"
             onRowClick={(row) => setSelectedOpp(row)}
+            enableInternalSort={true}
+            enableColumnFilter={true}
+            searchable={true}
+            searchPlaceholder="Search opportunities..."
           />
         </div>
       )}
