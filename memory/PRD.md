@@ -56,9 +56,10 @@ The user (CTO) mandated a shift from feature development to a full architectural
 ### January 13, 2026 - Goals, Activity & User Linking ✅
 - **Goals Dashboard:** New page with KPI tracking cards (Overall Progress, Achieved, On Track, At Risk), goal creation modal with all fields (name, description, target, current, unit type, goal type, due date), full CRUD API
 - **Activity Timeline:** New page with search, type filter, Today's Activity counter, and date-grouped timeline (currently shows fallback mock data when API returns empty)
-- **User-Odoo Re-link:** Added `/api/admin/users/{id}/relink` endpoint to re-attempt matching user with Odoo data. Profile page now has "Link to Odoo" button for admins
+- **User-Odoo Re-link:** Added `/api/auth/relink-odoo` self-service endpoint (no admin required). Users can re-link themselves from Profile page. Multi-strategy matching: email → name → opportunity salesperson
 - **Navigation Updated:** Sidebar now includes Goals and Activity menu items
-- **Employee Sync Fix:** Fixed incomplete `fetch_users` method in Odoo connector to properly return employee data
+- **Employee Sync Fix:** Fixed incomplete `fetch_users` method in Odoo connector to properly return employee data. Fixed Odoo URL configuration.
+- **Background Sync Service:** Created `BackgroundSyncService` with APScheduler for 5-minute automatic sync intervals. Implements soft-delete pattern for removed Odoo records (is_active=false)
 - **Test Coverage:** 11/11 backend tests passed for new features
 
 ---
