@@ -670,9 +670,9 @@ const AccountManagerDashboard = () => {
 
       const realData = realDataRes.data;
       
-      // Set stats from real data
+      // Set stats from real data - map to expected field names
       setStats({
-        pipeline_value: realData.metrics.pipeline_value,
+        total_pipeline_value: realData.metrics.pipeline_value,
         won_revenue: realData.metrics.won_revenue,
         active_opportunities: realData.metrics.active_opportunities,
         activity_completion_rate: 0, // Will calculate from activities
