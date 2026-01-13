@@ -545,6 +545,8 @@ const Opportunities = () => {
   const [showModal, setShowModal] = useState(false);
   const [blueSheetOpp, setBlueSheetOpp] = useState(null);
   const [selectedOpp, setSelectedOpp] = useState(null);  // For detail panel
+  const [expandedColumn, setExpandedColumn] = useState(null); // Track which column is expanded
+  const [sortConfig, setSortConfig] = useState({ key: 'value', direction: 'desc' }); // Table sorting
   const [formData, setFormData] = useState({
     name: "",
     account_id: "",
