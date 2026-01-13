@@ -922,12 +922,12 @@ async def get_llm_config(
         config = {
             "provider": "openai",
             "model": "gpt-4o",
-            "api_key_set": bool(os.environ.get('EMERGENT_LLM_KEY')),
+            "api_key_set": bool(settings.EMERGENT_LLM_KEY),
             "use_emergent_key": True
         }
     else:
         # Don't expose API key
-        config["api_key_set"] = bool(config.get("api_key") or os.environ.get('EMERGENT_LLM_KEY'))
+        config["api_key_set"] = bool(config.get("api_key") or settings.EMERGENT_LLM_KEY)
         config.pop("api_key", None)
     
     return config
