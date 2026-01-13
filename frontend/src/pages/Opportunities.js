@@ -78,7 +78,9 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
   const calculateProbability = async () => {
     setLoading(true);
     try {
+      console.log("Calling calculateProbability API for opportunity:", opportunity.id);
       const res = await salesAPI.calculateProbability(opportunity.id, analysis);
+      console.log("API Response:", res.data);
       // Map API response to expected format
       const mappedResult = {
         probability: res.data.calculated_probability,
@@ -88,6 +90,7 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
         score_breakdown: res.data.score_breakdown,
         analysis: analysis
       };
+      console.log("Mapped Result:", mappedResult);
       setResult(mappedResult);
       if (onSave) onSave(mappedResult);
     } catch (err) {
