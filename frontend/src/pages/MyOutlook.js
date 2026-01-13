@@ -144,7 +144,13 @@ const MyOutlook = () => {
         if (activeTab === 'emails') fetchEmails();
         else fetchCalendar();
       } else {
-        setError(data.detail || 'Sync failed');
+        // Handle token expiration
+        if (res.status === 401) {
+          setError('Your Microsoft session has expired. Please sign out and sign in with Microsoft again to refresh your connection.');
+          setConnectionStatus({ connected: false });
+        } else {
+          setError(data.detail || 'Sync failed');
+        }
       }
     } catch (err) {
       setError('Sync failed');
