@@ -44,6 +44,7 @@ const Layout = () => {
   // All possible nav items with permissions
   const allNavItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', permission: null }, // Always visible
+    { path: '/sales-dashboard', icon: Target, label: 'Sales Dashboard', permission: null }, // Always visible for sales
     { path: '/my-outlook', icon: Mail, label: 'My Outlook', permission: null }, // Always visible for authenticated
     { path: '/integrations', icon: Plug2, label: 'Integrations', permission: 'integrations.odoo.view' },
     { path: '/field-mapping', icon: Wand2, label: 'Field Mapping', permission: 'fieldmapping.view' },
