@@ -257,7 +257,7 @@ async def get_my_calendar(
 
 @router.post("/calendar/sync")
 async def sync_my_calendar(
-    token_data: dict = Depends(get_current_user_from_token)
+    token_data: dict = Depends(require_approved())
 ):
     """Force sync calendar events from Microsoft 365"""
     user_id = token_data["id"]
@@ -311,7 +311,7 @@ async def sync_my_calendar(
 
 @router.get("/connection-status")
 async def get_ms365_connection_status(
-    token_data: dict = Depends(get_current_user_from_token)
+    token_data: dict = Depends(require_approved())
 ):
     """Check if user is connected to Microsoft 365"""
     user_id = token_data["id"]
