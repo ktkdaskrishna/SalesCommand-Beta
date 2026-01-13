@@ -457,7 +457,8 @@ const MyOutlook = () => {
                   </div>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}
