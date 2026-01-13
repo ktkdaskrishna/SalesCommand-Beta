@@ -1,148 +1,123 @@
 # Sales Intelligence Platform - Product Requirements Document
 
 ## Overview
-Enterprise-grade Sales CRM with ERP Integration, designed with a microservices architecture and three-zone Data Lake.
+Enterprise-grade Sales CRM with ERP Integration, designed for Securado's cybersecurity business.
 
 ## Version
-**v2.3.0** - Account Manager Dashboard & Blue Sheet (Jan 13, 2026)
+**v2.5.0** - Role Configuration Engine & Incentive Management (Jan 13, 2026)
 
 ---
 
 ## Original Problem Statement
-The user has mandated a complete architectural rebuild of the application, transforming it into an enterprise-grade "Sales Intelligence Platform" with:
-
-1. **Core Integrations:** Odoo ERP (v16+), with Microsoft 365 / Azure AD for SSO
-2. **Data Lake Architecture:** Three-zone MongoDB Data Lake (Raw, Canonical, Serving)
-3. **Modular Sync Engine:** Connector -> Mapper -> Validator -> Normalizer -> Loader -> Logger
-4. **AI-Powered Features:** GPT-4o for intelligent field mapping and Blue Sheet recommendations (Emergent LLM Key)
-5. **Sales Features:** Account Manager Dashboard with Kanban pipeline, Blue Sheet Probability Calculator, Incentive Calculator
-6. **Microservices Architecture:** Each integration as a separate service for scalability
-7. **Role-Based Access Control:** Configurable roles, permissions, and data scoping
+Build a scalable Sales Intelligence Platform with:
+1. Role-based customizable dashboards and navigation
+2. Configurable incentive/commission management
+3. Opportunity-centric workflow (activities expand from opportunities)
+4. Service line specific commission weights for cybersecurity SI
 
 ---
 
 ## Completed Work
 
-### Phase 2.4: Account Manager Dashboard & Blue Sheet ✅ (Jan 13, 2026)
+### Phase 0: Role Configuration Engine ✅ (Jan 13, 2026)
 
-#### Account Manager Dashboard
-- [x] **KPI Cards** - Pipeline Value, Won Revenue, Active Opportunities, Activity Completion Rate
-- [x] **Sales Metrics Section** - Orders Won, Booked, Invoiced, Collected, Commission Earned by period
-- [x] **Kanban Pipeline Board** - Drag-drop opportunities between 7 stages with @hello-pangea/dnd
-- [x] **Opportunity Cards** - Name, Account, Value, Probability, Product Line, Activity Count
-- [x] **Expandable Container** - Fullscreen mode for Kanban board
+#### Backend APIs Created (`/app/backend/routes/config.py`)
+- `GET /api/config/widgets` - Widget registry (17 widgets available)
+- `GET /api/config/navigation-items` - Available navigation items
+- `GET /api/config/user/navigation` - User's role-based navigation
+- `GET/POST /api/config/roles` - Role CRUD with navigation & dashboard config
+- `PUT /api/config/roles/{id}` - Update role configuration
+- `GET/PUT/DELETE /api/config/user/dashboard` - User dashboard layout persistence
+- `GET/POST/PUT /api/config/service-lines` - Service line management
+- `GET/POST/PUT /api/config/pipeline-stages` - Pipeline stage management
 
-#### Blue Sheet Probability Calculator
-- [x] **Miller Heiman Methodology** - Buying Influences, Red Flags, Win Results, Action Plan scoring
-- [x] **Buying Influences Section** - Economic Buyer, User Buyers, Technical Buyers, Coach
-- [x] **Red Flags Section** - No Access to Economic Buyer, Budget Not Confirmed, Competition Preferred, Reorganization, Timeline Unclear
-- [x] **Win Results Section** - Clear Business Results, Quantifiable Value
-- [x] **Action Plan Section** - Next Steps Defined, Mutual Action Plan
-- [x] **AI Recommendations** - GPT-4o powered recommendations via Emergent LLM Key
-- [x] **Score Breakdown** - Visual breakdown of score components
-- [x] **Confidence Level** - Low/Medium/High based on analysis completeness
+#### Frontend Components Created
+- `RoleConfigurationPanel.js` - Visual role configuration with:
+  - Basic info (name, description, data scope)
+  - Navigation tab builder (toggle main/admin menu items)
+  - Dashboard widget drag-drop builder (react-grid-layout)
+  - Incentive settings per role
+- `IncentiveConfiguration.js` - Commission template & service line management
+  - Commission template CRUD with tier builder
+  - Service line CRUD with weights
 
-#### Incentive Calculator (Cybersecurity SI Focus)
-- [x] **Commission Templates** - Cybersecurity Standard, MSSP Recurring Revenue, etc.
-- [x] **Tiered Commission Structure** - 5% base → 8% at quota → 12% over (configurable)
-- [x] **Product Line Weights** - MSSP (1.2x), Application Security (1.0x), Network Security (1.0x), GRC (1.1x)
-- [x] **New Logo Multiplier** - 1.5x default for new customer acquisition
-- [x] **Commission Breakdown Display** - Revenue, Attainment, Base Commission, Multipliers, Final Commission
+#### Admin Panel Enhancements
+- New "Role Configuration" tab
+- New "Incentive Config" tab with sub-tabs:
+  - Commission Templates (Flat, Tiered Attainment, Tiered Revenue, Quota-Based)
+  - Service Lines (MCD 1.3x, ACS 1.2x, GRC 1.1x, Consulting 1.0x, MSSP 1.25x, Academy 0.8x)
 
-#### Supporting Features
-- [x] **Global Search** - Search across Accounts, Opportunities, Activities
-- [x] **Activities Management** - Create, update status, filter by opportunity/account
-- [x] **Accounts Management** - Create accounts with industry, revenue, employee count
-- [x] **Pipeline Stages** - 7 default stages with colors and probability defaults
-- [x] **Role-Based Navigation** - Sales Dashboard link visible in sidebar
+#### Securado Service Lines Pre-configured
+| Code | Name | Weight | Recurring |
+|------|------|--------|-----------|
+| MCD | Managed Cyber Defense | 1.3x | Yes |
+| ACS | Adaptive Cloud Security | 1.2x | Yes |
+| GRC | IT GRC Services | 1.1x | No |
+| CONSULTING | Security Consulting | 1.0x | No |
+| MSSP | Managed Security Services | 1.25x | Yes |
+| ACADEMY | Securado Academy | 0.8x | No |
 
-### Backend APIs Added (Phase 2.4)
-- `GET /api/dashboard/stats` - KPI data for dashboard cards
-- `GET /api/opportunities/kanban` - Kanban board with stages and opportunities
-- `GET /api/opportunities` - List all opportunities
-- `POST /api/opportunities` - Create opportunity
-- `PUT /api/opportunities/{id}` - Update opportunity
-- `PATCH /api/opportunities/{id}/stage` - Update stage (drag-drop)
-- `POST /api/opportunities/{id}/calculate-probability` - Blue Sheet calculation with AI
-- `GET /api/sales-metrics/{user_id}` - User sales metrics by period
-- `POST /api/incentive-calculator` - Commission calculation
-- `GET /api/commission-templates` - Available commission templates
-- `POST /api/commission-templates` - Create template
-- `GET /api/search?q={query}` - Global search
-- `GET /api/activities` - List activities
-- `POST /api/activities` - Create activity
-- `PATCH /api/activities/{id}/status` - Update activity status
-- `GET /api/accounts` - List accounts
-- `POST /api/accounts` - Create account
-- `GET /api/config/llm` - Get LLM configuration
-- `PUT /api/config/llm` - Update LLM configuration
-
-### Earlier Completed Phases
-
-#### Phase 2.3: RBAC & Admin Panel ✅ (Jan 12, 2026)
-- [x] Database-driven roles and permissions (42 permissions)
-- [x] Admin Panel with User Management, Roles & Permissions, Departments
-- [x] Data scoping (Own, Team, Department, All)
-- [x] My Outlook page for personal email/calendar
-- [x] New user approval flow for SSO users
-
-#### Phase 2.2: Microsoft 365 SSO Integration ✅ (Jan 12, 2026)
-- [x] MSAL Library Integration for SPA OAuth
-- [x] Microsoft SSO button on login page
-- [x] User creation/update with MS365 tokens
-
-#### Phase 2.1: Multi-Entity Sync Modal ✅ (Jan 12, 2026)
-- [x] Entity selection toggles for Odoo sync
-- [x] Custom field mapping integration
-- [x] Sync service with custom mappings
-
-#### Phase 1: Foundation Shell ✅ (Jan 12, 2026)
-- [x] Clean modular backend architecture
-- [x] MongoDB Data Lake with 3 zones
-- [x] JWT authentication
-- [x] Odoo REST API connector
-- [x] AI field mapping service
+### Dashboard Widget Registry (17 Widgets)
+**KPI Cards:** pipeline_value, won_revenue, quota_gauge, active_opportunities, activity_completion, win_rate
+**Charts:** pipeline_by_stage, revenue_by_product, win_rate_trend, forecast_vs_actual, monthly_revenue
+**Lists:** upcoming_activities, recent_emails, team_leaderboard, collection_aging, recent_opportunities
+**Kanban:** pipeline_kanban
 
 ---
 
-## Known Issues
+## Role-Based Architecture
 
-### P0 - Critical
-- **MS365 Email Sync Token Expiration** - MS365 access tokens expire after ~1 hour. The app now handles token expiration gracefully by prompting users to re-authenticate. A refresh token mechanism would improve UX.
+### How New Roles Work:
+1. Super Admin → System Config → Role Configuration
+2. Create new role (e.g., "Product Director")
+3. Configure:
+   - Navigation tabs (which menu items are visible)
+   - Default dashboard layout (drag-drop widgets)
+   - Data scope (own/team/department/all)
+   - Commission template assignment
+4. Assign users to the role
+5. Users automatically get the configured navigation and dashboard
 
-### P1 - Important
-- None currently
-
-### P2 - Nice to Have
-- None currently
+### User Customization:
+- Users can customize their own dashboard layout
+- Saved to `user_preferences` collection
+- "Reset to Default" returns to role's default layout
 
 ---
 
-## Upcoming Tasks
+## Pending Implementation
 
-### Phase 3: Real-Time Sync 🔜
-- [ ] Implement Odoo webhooks in `/api/webhooks/odoo/{tenant_id}`
-- [ ] Scheduled polling via `/backend/services/sync/scheduler.py`
-- [ ] UI options for sync method (Manual, Webhook, Scheduled)
+### Phase 1: Foundation Restructure 🔜
+- [ ] Role-based routing (sales users → sales dashboard by default)
+- [ ] Update Layout.js to use `/api/config/user/navigation`
+- [ ] Hide Data Lake, Integrations for non-admin roles
 
-### Phase 4: Dashboard Analytics 🔜
-- [ ] Aggregate opportunities to Serving Zone
-- [ ] Sales analytics charts (pipeline by stage, revenue by product line)
-- [ ] Team performance dashboards
+### Phase 3: Core Sales Pages 🔜
+- [ ] Accounts List Page with CRUD
+- [ ] Account Detail Page (contacts, opportunities, timeline)
+- [ ] Opportunities List/Kanban (already exists, enhance)
+- [ ] Opportunity Detail with expandable activities
+- [ ] KPIs Page (personal targets, attainment)
+- [ ] Email Page (MS365 integration enhancement)
 
-### Phase 5: Additional Integrations 🔜
-- [ ] Salesforce connector
-- [ ] HubSpot connector
-- [ ] MS365 refresh token mechanism
+### Phase 4: Customizable Dashboard 🔜
+- [ ] Implement dashboard widget renderer
+- [ ] Connect widgets to real data APIs
+- [ ] Add layout editing mode toggle
+- [ ] Layout persistence (save/load)
+
+### Phase 5: Financial Tracking 🔜
+- [ ] Invoice Management
+- [ ] Collection Tracking
+- [ ] Revenue Reports
 
 ---
 
 ## Technology Stack
 - **Backend:** FastAPI, Pydantic v2, Motor (async MongoDB)
-- **Frontend:** React 19, Tailwind CSS, Shadcn/UI, @hello-pangea/dnd, Recharts
-- **Database:** MongoDB with Data Lake architecture
-- **AI:** GPT-4o via Emergent LLM Key (BYOK supported)
-- **Auth:** JWT with bcrypt password hashing
+- **Frontend:** React 19, Tailwind CSS, Shadcn/UI, react-grid-layout, @hello-pangea/dnd, Recharts
+- **Database:** MongoDB
+- **AI:** GPT-4o via Emergent LLM Key
 
 ---
 
@@ -154,7 +129,24 @@ The user has mandated a complete architectural rebuild of the application, trans
 
 ---
 
-## Test Results (Jan 13, 2026)
-- **Backend Tests:** 19/19 passed (100%)
-- **Frontend Tests:** All UI flows working (100%)
-- **Test Report:** `/app/test_reports/iteration_14.json`
+## API Endpoints Summary
+
+### Configuration APIs
+- `GET /api/config/widgets` - Widget registry
+- `GET /api/config/navigation-items` - Available nav items
+- `GET /api/config/user/navigation` - User's nav based on role
+- `GET/POST /api/config/roles` - Role management
+- `PUT /api/config/roles/{id}` - Update role
+- `GET/PUT/DELETE /api/config/user/dashboard` - User dashboard layout
+- `GET/POST/PUT /api/config/service-lines` - Service lines
+- `GET/POST/PUT /api/config/pipeline-stages` - Pipeline stages
+
+### Sales APIs
+- `GET/POST /api/opportunities` - Opportunities CRUD
+- `GET /api/opportunities/kanban` - Kanban view
+- `PATCH /api/opportunities/{id}/stage` - Drag-drop stage update
+- `POST /api/opportunities/{id}/calculate-probability` - Blue Sheet
+- `GET /api/dashboard/stats` - Dashboard KPIs
+- `POST /api/incentive-calculator` - Commission calculation
+- `GET /api/commission-templates` - Templates list
+- `GET /api/search?q=` - Global search
