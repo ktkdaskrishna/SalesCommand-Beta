@@ -1198,12 +1198,6 @@ async def get_real_dashboard(
     opportunities_data = []
     opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
     
-    # Debug logging
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Dashboard Real: user_email={user_email}, user_role={user_role}, is_super_admin={is_super_admin}")
-    logger.info(f"Found {len(opp_docs)} opportunity documents")
-    
     for doc in opp_docs:
         opp = doc.get("data", {})
         
