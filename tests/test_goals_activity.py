@@ -11,7 +11,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sales-intel-hub-3.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://salesfresh.preview.emergentagent.com').rstrip('/')
 
 class TestGoalsAPI:
     """Test Goals CRUD operations"""
