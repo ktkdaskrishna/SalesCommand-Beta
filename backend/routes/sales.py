@@ -305,46 +305,77 @@ async def calculate_blue_sheet_probability(
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     
+    # Get configurable weights from database (or use defaults)
+    weights_config = await db.bluesheet_config.find_one({}, {"_id": 0})
+    if not weights_config:
+        weights_config = {
+            "economic_buyer_identified": 10,
+            "economic_buyer_favorable": 10,
+            "user_buyer_favorable_each": 3,
+            "technical_buyer_favorable_each": 3,
+            "coach_identified": 3,
+            "coach_engaged": 2,
+            "no_access_to_economic_buyer": -15,
+            "reorganization_pending": -10,
+            "budget_not_confirmed": -12,
+            "competition_preferred": -15,
+            "timeline_unclear": -8,
+            "clear_business_results": 12,
+            "quantifiable_value": 8,
+            "next_steps_defined": 8,
+            "mutual_action_plan": 7,
+            "max_user_buyers": 3,
+            "max_technical_buyers": 2,
+            "max_possible_score": 75
+        }
+    
     # Base scoring
     score_breakdown = {}
     total_score = 0
     
-    # Buying Influences (max 40 points)
+    # Buying Influences (configurable weights)
     buying_influence_score = 0
     if analysis.economic_buyer_identified:
-        buying_influence_score += 10
+        buying_influence_score += weights_config.get("economic_buyer_identified", 10)
     if analysis.economic_buyer_favorable:
-        buying_influence_score += 10
-    buying_influence_score += min(analysis.user_buyers_favorable, 3) * 3  # max 9
-    buying_influence_score += min(analysis.technical_buyers_favorable, 2) * 3  # max 6
+        buying_influence_score += weights_config.get("economic_buyer_favorable", 10)
+    
+    max_user = weights_config.get("max_user_buyers", 3)
+    user_weight = weights_config.get("user_buyer_favorable_each", 3)
+    buying_influence_score += min(analysis.user_buyers_favorable, max_user) * user_weight
+    
+    max_tech = weights_config.get("max_technical_buyers", 2)
+    tech_weight = weights_config.get("technical_buyer_favorable_each", 3)
+    buying_influence_score += min(analysis.technical_buyers_favorable, max_tech) * tech_weight
+    
     if analysis.coach_identified:
-        buying_influence_score += 3
+        buying_influence_score += weights_config.get("coach_identified", 3)
     if analysis.coach_engaged:
-        buying_influence_score += 2
+        buying_influence_score += weights_config.get("coach_engaged", 2)
     score_breakdown["buying_influences"] = buying_influence_score
     total_score += buying_influence_score
     
-    # Red Flags (negative points)
+    # Red Flags (negative points with configurable weights)
     red_flag_penalty = 0
     if analysis.no_access_to_economic_buyer:
-        red_flag_penalty -= 15
+        red_flag_penalty += weights_config.get("no_access_to_economic_buyer", -15)
     if analysis.reorganization_pending:
-        red_flag_penalty -= 10
+        red_flag_penalty += weights_config.get("reorganization_pending", -10)
     if analysis.budget_not_confirmed:
-        red_flag_penalty -= 12
+        red_flag_penalty += weights_config.get("budget_not_confirmed", -12)
     if analysis.competition_preferred:
-        red_flag_penalty -= 15
+        red_flag_penalty += weights_config.get("competition_preferred", -15)
     if analysis.timeline_unclear:
-        red_flag_penalty -= 8
+        red_flag_penalty += weights_config.get("timeline_unclear", -8)
     score_breakdown["red_flags"] = red_flag_penalty
     total_score += red_flag_penalty
     
-    # Win Results (max 20 points)
+    # Win Results (configurable weights)
     win_results_score = 0
     if analysis.clear_business_results:
-        win_results_score += 12
+        win_results_score += weights_config.get("clear_business_results", 12)
     if analysis.quantifiable_value:
-        win_results_score += 8
+        win_results_score += weights_config.get("quantifiable_value", 8)
     score_breakdown["win_results"] = win_results_score
     total_score += win_results_score
     
