@@ -79,8 +79,17 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
     setLoading(true);
     try {
       const res = await salesAPI.calculateProbability(opportunity.id, analysis);
-      setResult(res.data);
-      if (onSave) onSave(res.data);
+      // Map API response to expected format
+      const mappedResult = {
+        probability: res.data.calculated_probability,
+        confidence: res.data.confidence_level,
+        recommendations: res.data.recommendations,
+        analysis_summary: res.data.analysis_summary,
+        score_breakdown: res.data.score_breakdown,
+        analysis: analysis
+      };
+      setResult(mappedResult);
+      if (onSave) onSave(mappedResult);
     } catch (err) {
       console.error("Error calculating probability:", err);
     } finally {
