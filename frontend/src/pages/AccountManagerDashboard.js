@@ -790,10 +790,10 @@ const AccountManagerDashboard = () => {
 
   const fetchIntegrationsHealth = async () => {
     try {
-      const res = await api.get("/integrations/health");
+      const res = await api.get("/sync-status");
       setIntegrations(res.data.integrations || []);
     } catch (e) {
-      console.log("Could not fetch integration health");
+      console.log("Could not fetch sync status");
     }
   };
 
