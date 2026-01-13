@@ -1198,6 +1198,12 @@ async def get_real_dashboard(
     opportunities_data = []
     opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
     
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Dashboard Real: user_email={user_email}, user_role={user_role}, is_super_admin={is_super_admin}")
+    logger.info(f"Found {len(opp_docs)} opportunity documents")
+    
     for doc in opp_docs:
         opp = doc.get("data", {})
         
@@ -1205,6 +1211,7 @@ async def get_real_dashboard(
         if not is_super_admin and user_role == "account_manager":
             # Filter by salesperson_name (Odoo field maps to user email)
             salesperson = opp.get("salesperson_name", "")
+            logger.info(f"  Checking opp: {opp.get('name')}, salesperson={salesperson}, match={user_email in salesperson if salesperson else 'N/A'}")
             if salesperson and user_email not in salesperson:
                 continue
         
