@@ -21,6 +21,7 @@ import AdminPanel from './pages/AdminPanel';
 import MyOutlook from './pages/MyOutlook';
 import PendingApproval from './pages/PendingApproval';
 import Invoices from './pages/Invoices';
+import Profile from './pages/Profile';
 
 // Components
 import Layout from './components/Layout';
