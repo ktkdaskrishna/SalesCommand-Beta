@@ -805,7 +805,7 @@ const FieldMapping = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">Available {selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'} Fields</h3>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 {selectedIntegration === 'odoo' 
                   ? ODOO_MODELS[selectedEntity]?.model 
                   : MS365_ENTITIES[selectedEntity]?.model
