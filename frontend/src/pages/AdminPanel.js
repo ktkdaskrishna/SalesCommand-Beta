@@ -711,26 +711,28 @@ const AdminPanel = () => {
             {activeTab === 'permissions' && (
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-white">All Permissions</h1>
-                  <Button onClick={() => setShowPermissionModal(true)} className="bg-emerald-600 hover:bg-emerald-500" data-testid="create-perm-btn">
+                  <h1 className="text-2xl font-bold text-slate-900">All Permissions</h1>
+                  <Button onClick={() => setShowPermissionModal(true)} className="btn-primary" data-testid="create-perm-btn">
                     <Plus className="w-4 h-4 mr-2" /> Create Permission
                   </Button>
                 </div>
 
                 <div className="space-y-4">
                   {Object.entries(permissions.grouped || {}).map(([module, perms]) => (
-                    <div key={module} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                      <h3 className="text-lg font-semibold text-white mb-4 capitalize flex items-center gap-2">
-                        <Settings className="w-4 h-4 text-emerald-500" />
+                    <div key={module} className="card p-5">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4 capitalize flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                          <Settings className="w-4 h-4 text-indigo-600" />
+                        </div>
                         {module}
-                        <span className="text-zinc-500 text-sm font-normal">({perms.length})</span>
+                        <span className="text-slate-500 text-sm font-normal">({perms.length})</span>
                       </h3>
                       <div className="grid grid-cols-2 gap-2">
                         {perms.map(perm => (
-                          <div key={perm.code} className="flex items-center gap-2 p-2 bg-zinc-800/50 rounded">
-                            <Check className="w-4 h-4 text-emerald-500" />
-                            <span className="text-sm text-zinc-300">{perm.name}</span>
-                            <span className="text-xs text-zinc-600 ml-auto font-mono">{perm.code}</span>
+                          <div key={perm.code} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                            <span className="text-sm text-slate-700">{perm.name}</span>
+                            <span className="text-xs text-slate-400 ml-auto font-mono">{perm.code}</span>
                           </div>
                         ))}
                       </div>
