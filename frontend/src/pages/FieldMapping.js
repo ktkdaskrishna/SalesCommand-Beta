@@ -835,7 +835,7 @@ const FieldMapping = () => {
                       <CheckCircle2 className="w-4 h-4 text-purple-400" />
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-400">
                     {info.string || field} ({info.type})
                   </p>
                 </div>
