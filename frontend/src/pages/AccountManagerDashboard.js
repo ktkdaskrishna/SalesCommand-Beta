@@ -839,11 +839,10 @@ const AccountManagerDashboard = () => {
     setSyncCooldown(true);
     
     try {
-      // Use the main sync endpoint which uses the proper sync service
-      const res = await api.post("/integrations/sync/odoo", { 
-        entity_types: ["account", "opportunity", "contact", "order", "invoice"] 
-      });
-      if (res.data.job_id) {
+      // Use the user-accessible sync endpoint (works for all authenticated users)
+      const res = await api.post("/integrations/user-sync/refresh");
+      
+      if (res.data) {
         setLastSyncTime(new Date());
         // Wait a bit for sync to complete then refresh
         setTimeout(async () => {
@@ -857,7 +856,7 @@ const AccountManagerDashboard = () => {
       }
     } catch (e) {
       console.error("Sync failed:", e);
-      const errorMessage = e.response?.data?.detail || "Sync failed. Please check Odoo integration configuration.";
+      const errorMessage = e.response?.data?.detail || "Sync failed. Please try again later.";
       alert(errorMessage);
       setSyncCooldown(false);
     }
