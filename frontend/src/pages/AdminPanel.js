@@ -540,6 +540,17 @@ const AdminPanel = () => {
                                 Approved
                               </span>
                             )}
+                            {/* Odoo Match Status */}
+                            {u.odoo_matched && (
+                              <span className="ml-2 px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200" title={`Odoo: ${u.odoo_department_name || u.odoo_salesperson_name || 'Linked'}`}>
+                                🔗 Odoo
+                              </span>
+                            )}
+                            {u.odoo_match_status && !u.odoo_matched && u.approval_status === 'approved' && (
+                              <span className="ml-2 px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-600 border border-amber-200" title="User not found in Odoo">
+                                ⚠️ No Odoo
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
