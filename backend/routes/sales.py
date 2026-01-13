@@ -14,6 +14,7 @@ import logging
 from core.database import Database
 from services.auth.jwt_handler import get_current_user_from_token
 from middleware.rbac import require_approved
+from core.config import settings
 
 router = APIRouter(tags=["Sales"])
 logger = logging.getLogger(__name__)
