@@ -1008,3 +1008,58 @@ async def get_sync_job(
         raise HTTPException(status_code=404, detail="Sync job not found")
     
     return job
+
+
+# ===================== BACKGROUND SYNC SERVICE =====================
+
+@router.get("/background-sync/status")
+async def get_background_sync_status(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get status of the background sync service.
+    Available to all authenticated users.
+    """
+    from services.sync.background_sync import sync_service
+    return await sync_service.get_status()
+
+
+@router.post("/background-sync/trigger")
+async def trigger_background_sync(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
+):
+    """
+    Manually trigger a background sync immediately.
+    Admin-only endpoint.
+    """
+    from services.sync.background_sync import sync_service
+    result = await sync_service.trigger_sync_now()
+    return result
+
+
+@router.post("/background-sync/start")
+async def start_background_sync_service(
+    interval_minutes: int = 5,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Start the background sync service.
+    Super Admin only.
+    """
+    from services.sync.background_sync import sync_service
+    await sync_service.start(interval_minutes)
+    return {"message": f"Background sync started with {interval_minutes} minute interval"}
+
+
+@router.post("/background-sync/stop")
+async def stop_background_sync_service(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Stop the background sync service.
+    Super Admin only.
+    """
+    from services.sync.background_sync import sync_service
+    await sync_service.stop()
+    return {"message": "Background sync stopped"}
+
