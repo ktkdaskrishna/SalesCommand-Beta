@@ -24,6 +24,14 @@ import {
   Eye,
   Sparkles,
   AlertCircle,
+  Maximize2,
+  Minimize2,
+  ChevronLeft,
+  ChevronRight,
+  SortAsc,
+  SortDesc,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 
 const STAGES = [
