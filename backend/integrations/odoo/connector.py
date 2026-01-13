@@ -30,6 +30,8 @@ class OdooConnector(BaseConnector):
         "opportunity": "crm.lead",
         "activity": "mail.activity",
         "user": "res.users",
+        "employee": "hr.employee",
+        "department": "hr.department",
     }
     
     def __init__(self, config: Dict[str, Any]):
