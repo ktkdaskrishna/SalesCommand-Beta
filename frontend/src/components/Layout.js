@@ -261,21 +261,52 @@ const Header = ({ onMenuClick, user, onLogout }) => {
                 className="fixed inset-0 z-40" 
                 onClick={() => setShowDropdown(false)} 
               />
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50">
+                {/* User Info Header */}
                 <div className="px-4 py-3 border-b border-slate-100">
                   <p className="font-medium text-slate-900">{user?.name}</p>
                   <p className="text-sm text-slate-500 truncate">{user?.email}</p>
+                  {user?.role && (
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                      {user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  )}
+                  {user?.odoo_department_name && (
+                    <p className="text-xs text-slate-400 mt-1">Dept: {user.odoo_department_name}</p>
+                  )}
                 </div>
+                
+                {/* Menu Items */}
                 <div className="py-1">
                   <Link
-                    to="/admin"
+                    to="/profile"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    onClick={() => setShowDropdown(false)}
+                  >
+                    <User className="w-4 h-4" />
+                    My Profile
+                  </Link>
+                  <Link
+                    to="/system-config"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     onClick={() => setShowDropdown(false)}
                   >
                     <Settings className="w-4 h-4" />
                     Settings
                   </Link>
+                  {user?.is_super_admin && (
+                    <Link
+                      to="/admin-dashboard"
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      onClick={() => setShowDropdown(false)}
+                    >
+                      <Database className="w-4 h-4" />
+                      System Health
+                    </Link>
+                  )}
                 </div>
+                
+                {/* Sign Out */}
                 <div className="border-t border-slate-100 pt-1">
                   <button
                     onClick={() => { onLogout(); setShowDropdown(false); }}
