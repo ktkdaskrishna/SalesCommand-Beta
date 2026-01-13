@@ -1,19 +1,52 @@
 /**
  * Accounts Page
+ * Shows synced account data from Odoo ERP via data_lake_serving
  * Modern light-themed design with glassmorphic cards
- * Preserves all existing functionality
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { accountsAPI, opportunitiesAPI } from '../services/api';
+import api from '../services/api';
 import {
   Building2, Plus, Search, LayoutGrid, List,
   ChevronRight, TrendingUp, TrendingDown,
   Phone, Globe, MapPin, Users, DollarSign, X, Save,
-  MoreVertical, Edit2, Trash2, ExternalLink, Filter
+  MoreVertical, Edit2, Trash2, ExternalLink, Filter,
+  Database, RefreshCw, Info
 } from 'lucide-react';
+
+// Data Source Badge
+const DataSourceBadge = ({ source, lastSync }) => {
+  const formatSyncTime = (timestamp) => {
+    if (!timestamp) return "Recently";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
+      <Database className="w-3.5 h-3.5 text-blue-600" />
+      <span className="text-blue-700 font-medium">Source: {source || "CRM"}</span>
+      {lastSync && (
+        <>
+          <span className="text-blue-300">|</span>
+          <RefreshCw className="w-3 h-3 text-blue-500" />
+          <span className="text-blue-600">{formatSyncTime(lastSync)}</span>
+        </>
+      )}
+    </div>
+  );
+};
 
 const Accounts = () => {
   const [accounts, setAccounts] = useState([]);
@@ -25,6 +58,8 @@ const Accounts = () => {
   const [filterIndustry, setFilterIndustry] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [dataSource, setDataSource] = useState('');
+  const [lastSync, setLastSync] = useState(null);
 
   // Form state - preserved from original
   const [formData, setFormData] = useState({
