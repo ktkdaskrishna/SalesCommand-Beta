@@ -299,6 +299,27 @@ const AdminPanel = () => {
     }
   };
 
+  const deleteUser = async (userId) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess('User deleted successfully');
+        fetchData();
+      } else {
+        setError(data.detail || 'Failed to delete user');
+      }
+    } catch (err) {
+      setError('Failed to delete user');
+    }
+  };
+
   // ===================== AZURE SYNC =====================
   const syncAzureUsers = async () => {
     setSyncingAzure(true);
