@@ -230,10 +230,47 @@ async def update_goal_progress(
 async def get_goals_summary(
     token_data: dict = Depends(require_approved_user)
 ):
-    """Get summary statistics for all goals"""
+    """
+    Get summary statistics for all goals.
+    If no goals exist, auto-populate current_value from actual opportunity data.
+    """
     db = Database.get_db()
     
     goals = await db.goals.find({"is_active": {"$ne": False}}, {"_id": 0}).to_list(500)
+    
+    # If there are revenue goals with 0 current value, try to update from opportunities
+    for goal in goals:
+        if goal.get("goal_type") == "revenue" and goal.get("current_value", 0) == 0:
+            # Calculate actual won revenue from opportunities
+            opp_docs = await db.data_lake_serving.find({
+                "entity_type": "opportunity",
+                "$or": [
+                    {"is_active": True},
+                    {"is_active": {"$exists": False}}
+                ]
+            }).to_list(1000)
+            
+            won_revenue = 0
+            pipeline_value = 0
+            for doc in opp_docs:
+                opp = doc.get("data", {})
+                value = float(opp.get("expected_revenue", 0) or 0)
+                stage = (opp.get("stage_name") or "").lower()
+                
+                if "won" in stage:
+                    won_revenue += value
+                elif "lost" not in stage:
+                    pipeline_value += value
+            
+            # Update goal's current_value with actual data
+            if won_revenue > 0 or pipeline_value > 0:
+                # For revenue goals, use won revenue
+                new_value = won_revenue if won_revenue > 0 else pipeline_value * 0.3  # Estimate 30% close rate
+                await db.goals.update_one(
+                    {"id": goal["id"]},
+                    {"$set": {"current_value": new_value}}
+                )
+                goal["current_value"] = new_value
     
     total = len(goals)
     if total == 0:

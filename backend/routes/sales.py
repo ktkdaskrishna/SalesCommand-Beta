@@ -1489,30 +1489,114 @@ async def get_real_accounts(
     """
     Get accounts from data_lake_serving (real Odoo data).
     Shows synced customer/partner data from ERP.
+    Aggregates pipeline and won revenue from related opportunities.
     """
     db = Database.get_db()
     
+    # Helper to handle Odoo's False values
+    def clean_value(val, default=""):
+        if val is False or val is None:
+            return default
+        return val
+    
+    # First, get all opportunities to calculate account-level metrics
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
+    
+    # Build a map of partner_name -> metrics
+    account_metrics = {}
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        partner_name = clean_value(opp.get("partner_name"), "").strip().lower()
+        if not partner_name:
+            continue
+        
+        if partner_name not in account_metrics:
+            account_metrics[partner_name] = {
+                "pipeline_value": 0,
+                "won_value": 0,
+                "active_count": 0,
+                "total_count": 0
+            }
+        
+        value = float(opp.get("expected_revenue", 0) or 0)
+        stage = clean_value(opp.get("stage_name"), "").lower()
+        
+        account_metrics[partner_name]["total_count"] += 1
+        
+        if "won" in stage:
+            account_metrics[partner_name]["won_value"] += value
+        elif "lost" not in stage:
+            account_metrics[partner_name]["pipeline_value"] += value
+            account_metrics[partner_name]["active_count"] += 1
+    
+    # Get accounts
     accounts = []
     acc_docs = await db.data_lake_serving.find(active_entity_filter("account")).to_list(1000)
     
     for doc in acc_docs:
         acc = doc.get("data", {})
+        name = clean_value(acc.get("name"), "")
+        
+        # Skip accounts with empty names (invalid data)
+        if not name.strip():
+            continue
+        
+        # Get metrics for this account
+        name_key = name.strip().lower()
+        metrics = account_metrics.get(name_key, {
+            "pipeline_value": 0,
+            "won_value": 0,
+            "active_count": 0,
+            "total_count": 0
+        })
+        
         accounts.append({
-            "id": acc.get("id"),
-            "name": acc.get("name", ""),
-            "email": acc.get("email", ""),
-            "phone": acc.get("phone", ""),
-            "website": acc.get("website", ""),
-            "city": acc.get("city", ""),
-            "country": acc.get("country", ""),
-            "industry": acc.get("industry", acc.get("industry_id", "")),
+            "id": str(acc.get("id", doc.get("serving_id", ""))),
+            "name": name,
+            "email": clean_value(acc.get("email"), ""),
+            "phone": clean_value(acc.get("phone"), ""),
+            "website": clean_value(acc.get("website"), ""),
+            "city": clean_value(acc.get("address_city") or acc.get("city"), ""),
+            "country": clean_value(acc.get("address_country") or acc.get("country"), ""),
+            "industry": clean_value(acc.get("industry") or acc.get("industry_id"), ""),
+            # Aggregated metrics
+            "pipeline_value": metrics["pipeline_value"],
+            "won_value": metrics["won_value"],
+            "active_opportunities": metrics["active_count"],
+            "total_opportunities": metrics["total_count"],
+            # Source info
             "source": "odoo",
             "last_synced": doc.get("last_aggregated"),
         })
     
+    # Also get unique account names from opportunities that don't have account records
+    existing_names = {a["name"].strip().lower() for a in accounts}
+    
+    for partner_name, metrics in account_metrics.items():
+        if partner_name not in existing_names and partner_name:
+            # Create a synthetic account from opportunity data
+            accounts.append({
+                "id": f"opp_{partner_name[:20].replace(' ', '_')}",
+                "name": partner_name.title(),  # Title case the name
+                "email": "",
+                "phone": "",
+                "website": "",
+                "city": "",
+                "country": "",
+                "industry": "",
+                # Aggregated metrics
+                "pipeline_value": metrics["pipeline_value"],
+                "won_value": metrics["won_value"],
+                "active_opportunities": metrics["active_count"],
+                "total_opportunities": metrics["total_count"],
+                # Source info
+                "source": "odoo_opportunity",
+                "last_synced": None,
+            })
+    
     return {
         "source": "data_lake_serving",
-        "data_note": "More accounts will sync as integration expands.",
+        "data_note": "Accounts with aggregated pipeline and revenue metrics.",
         "accounts": accounts,
         "count": len(accounts),
     }
