@@ -116,12 +116,32 @@ const Accounts = () => {
     }
   };
 
-  // Calculate account metrics - preserved from original
-  const getAccountMetrics = (accountId) => {
-    const accountOpps = opportunities.filter(o => o.account_id === accountId);
-    const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost'].includes(o.stage));
-    const wonOpps = accountOpps.filter(o => o.stage === 'closed_won');
-    const lostOpps = accountOpps.filter(o => o.stage === 'closed_lost');
+  // Calculate account metrics - use backend data when available, fallback to local calculation
+  const getAccountMetrics = (account) => {
+    // If account has pre-calculated metrics from backend (Odoo data), use them
+    if (account.pipeline_value !== undefined) {
+      return {
+        activeOpps: account.active_opportunities || 0,
+        pipelineValue: account.pipeline_value || 0,
+        wonValue: account.won_value || 0,
+        winRate: null  // Win rate requires more data
+      };
+    }
+    
+    // Fallback: calculate from local opportunities (for legacy CRM data)
+    const accountId = account.id;
+    const accountName = (account.name || "").toLowerCase();
+    
+    // Match by ID or name
+    const accountOpps = opportunities.filter(o => {
+      if (o.account_id === accountId) return true;
+      const oppAccountName = (o.account_name || "").toLowerCase();
+      return accountName && oppAccountName && oppAccountName.includes(accountName);
+    });
+    
+    const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost', 'won', 'lost'].includes((o.stage || '').toLowerCase()));
+    const wonOpps = accountOpps.filter(o => ['closed_won', 'won'].includes((o.stage || '').toLowerCase()));
+    const lostOpps = accountOpps.filter(o => ['closed_lost', 'lost'].includes((o.stage || '').toLowerCase()));
     
     const pipelineValue = activeOpps.reduce((sum, o) => sum + (o.value || 0), 0);
     const wonValue = wonOpps.reduce((sum, o) => sum + (o.value || 0), 0);
@@ -132,12 +152,12 @@ const Accounts = () => {
     return { activeOpps: activeOpps.length, pipelineValue, wonValue, winRate };
   };
 
-  // Get health score - preserved from original
-  const getHealthScore = (accountId) => {
-    const metrics = getAccountMetrics(accountId);
-    if (metrics.winRate === null) return 'new';
-    if (metrics.winRate >= 60) return 'healthy';
-    if (metrics.winRate >= 30) return 'at-risk';
+  // Get health score - use account object for pre-calculated metrics
+  const getHealthScore = (account) => {
+    const metrics = getAccountMetrics(account);
+    if (metrics.winRate === null && metrics.pipelineValue === 0 && metrics.wonValue === 0) return 'new';
+    if (metrics.wonValue > 0 || (metrics.winRate !== null && metrics.winRate >= 60)) return 'healthy';
+    if (metrics.pipelineValue > 0 || (metrics.winRate !== null && metrics.winRate >= 30)) return 'at-risk';
     return 'critical';
   };
 
