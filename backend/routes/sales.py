@@ -1512,6 +1512,30 @@ async def get_real_accounts(
             return default
         return val
     
+    # Helper to infer industry from company name
+    def infer_industry(name: str) -> str:
+        name_lower = name.lower()
+        
+        # Industry patterns based on common naming conventions
+        if any(kw in name_lower for kw in ["tech", "software", "data", "cyber", "cloud", "digital", "systems", "solutions"]):
+            return "Technology"
+        elif any(kw in name_lower for kw in ["bank", "finance", "capital", "invest", "financial"]):
+            return "Financial Services"
+        elif any(kw in name_lower for kw in ["health", "medical", "pharma", "bio", "care"]):
+            return "Healthcare"
+        elif any(kw in name_lower for kw in ["retail", "shop", "store", "commerce", "mart"]):
+            return "Retail"
+        elif any(kw in name_lower for kw in ["global", "corp", "enterprise", "inc", "llc", "ltd"]):
+            return "Enterprise"
+        elif any(kw in name_lower for kw in ["security", "secure", "protect"]):
+            return "Cybersecurity"
+        elif any(kw in name_lower for kw in ["consult", "advisory", "service"]):
+            return "Consulting"
+        elif any(kw in name_lower for kw in ["manufact", "industrial", "engineering"]):
+            return "Manufacturing"
+        
+        return ""
+    
     # First, get all opportunities to calculate account-level metrics
     opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
