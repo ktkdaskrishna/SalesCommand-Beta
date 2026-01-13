@@ -754,10 +754,17 @@ const AccountManagerDashboard = () => {
         pending_invoices: realData.metrics.pending_invoices,
       });
 
-      // Convert real opportunities to kanban format
-      const stages = ["New", "Qualification", "Proposal", "Negotiation", "Won", "Lost"];
+      // Convert real opportunities to kanban format with proper stage objects
+      const stageConfigs = [
+        { id: "New", name: "New", color: "#6366F1" },
+        { id: "Qualification", name: "Qualification", color: "#8B5CF6" },
+        { id: "Proposal", name: "Proposal", color: "#F59E0B" },
+        { id: "Negotiation", name: "Negotiation", color: "#F97316" },
+        { id: "Won", name: "Won", color: "#10B981" },
+        { id: "Lost", name: "Lost", color: "#EF4444" },
+      ];
       const kanban = {};
-      stages.forEach(s => kanban[s] = []);
+      stageConfigs.forEach(s => kanban[s.id] = { stage: s, opportunities: [], total_value: 0, count: 0 });
       
       realData.opportunities.forEach(opp => {
         const stage = opp.stage || "New";
@@ -770,8 +777,10 @@ const AccountManagerDashboard = () => {
         else if (stage.toLowerCase().includes("qualif")) mappedStage = "Qualification";
         else mappedStage = "New";
         
-        if (!kanban[mappedStage]) kanban[mappedStage] = [];
-        kanban[mappedStage].push({
+        if (!kanban[mappedStage]) {
+          kanban[mappedStage] = { stage: { id: mappedStage, name: mappedStage, color: "#6B7280" }, opportunities: [], total_value: 0, count: 0 };
+        }
+        kanban[mappedStage].opportunities.push({
           id: String(opp.id),
           name: opp.name,
           account_name: opp.account_name,
@@ -780,9 +789,11 @@ const AccountManagerDashboard = () => {
           stage: mappedStage,
           source: "odoo",
         });
+        kanban[mappedStage].total_value += opp.value || 0;
+        kanban[mappedStage].count += 1;
       });
 
-      setKanbanData({ stages, kanban, source: "data_lake_serving" });
+      setKanbanData({ stages: stageConfigs, kanban, source: "data_lake_serving" });
       setRecentActivities(activitiesRes.data.slice(0, 5));
 
       // Note: Data is from Odoo sync
