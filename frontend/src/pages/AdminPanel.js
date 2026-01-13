@@ -353,11 +353,13 @@ const AdminPanel = () => {
   }, [success, error]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex">
+    <div className="min-h-screen bg-slate-50 flex animate-in" data-testid="admin-panel">
       {/* Sidebar */}
-      <div className="w-64 bg-zinc-900 border-r border-zinc-800 p-4">
-        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-emerald-500" />
+      <div className="w-64 bg-white border-r border-slate-200 p-4 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <Settings className="w-4 h-4 text-white" />
+          </div>
           System Config
         </h2>
 
@@ -367,16 +369,16 @@ const AdminPanel = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               data-testid={`admin-tab-${tab.id}`}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-emerald-500/10 text-emerald-400'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-indigo-600' : ''}`} />
               {tab.label}
               <ChevronRight className={`w-4 h-4 ml-auto transition-transform ${
-                activeTab === tab.id ? 'rotate-90' : ''
+                activeTab === tab.id ? 'rotate-90 text-indigo-600' : 'text-slate-400'
               }`} />
             </button>
           ))}
@@ -387,22 +389,25 @@ const AdminPanel = () => {
       <div className="flex-1 p-8 overflow-auto">
         {/* Messages */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-            <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4" /></button>
+          <div className="mb-4 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError('')} className="p-1 hover:bg-red-100 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
           </div>
         )}
         {success && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
-            <Check className="w-4 h-4" />
-            {success}
+          <div className="mb-4 flex items-center gap-2 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            <span>{success}</span>
           </div>
         )}
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-3" />
+              <p className="text-slate-500">Loading configuration...</p>
+            </div>
           </div>
         ) : (
           <>
