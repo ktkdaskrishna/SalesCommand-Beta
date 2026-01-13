@@ -1510,51 +1510,95 @@ async def get_sync_status(
     """
     db = Database.get_db()
     
-    # Check Odoo sync status
+    # Check Odoo integration status from integrations collection
+    odoo_integration = await db.integrations.find_one({"integration_type": "odoo"})
     odoo_status = {
         "name": "Odoo ERP",
-        "status": "unknown",
+        "status": "not_configured",
         "last_sync": None,
         "records_synced": 0,
+        "note": None,
     }
     
-    # Get most recent sync from data lake
-    latest_odoo = await db.data_lake_serving.find_one(
-        {},
-        sort=[("last_aggregated", -1)],
-        projection={"last_aggregated": 1, "_id": 0}
-    )
-    if latest_odoo:
-        odoo_status["status"] = "connected"
-        odoo_status["last_sync"] = latest_odoo.get("last_aggregated")
-        odoo_status["records_synced"] = await db.data_lake_serving.count_documents({})
+    if odoo_integration:
+        # Check if enabled and configured
+        if odoo_integration.get("enabled") and odoo_integration.get("config", {}).get("url"):
+            # Check actual sync status
+            sync_status = odoo_integration.get("sync_status", "unknown")
+            error_message = odoo_integration.get("error_message")
+            
+            if sync_status == "success":
+                odoo_status["status"] = "connected"
+            elif sync_status == "failed":
+                odoo_status["status"] = "error"
+                odoo_status["note"] = error_message or "Sync failed"
+            elif sync_status == "partial":
+                odoo_status["status"] = "warning"
+                odoo_status["note"] = "Some entities failed to sync"
+            elif sync_status == "in_progress":
+                odoo_status["status"] = "syncing"
+                odoo_status["note"] = "Sync in progress..."
+            else:
+                # Fallback: check if we have any synced data
+                latest_odoo = await db.data_lake_serving.find_one(
+                    {"source": "odoo"},
+                    sort=[("last_aggregated", -1)],
+                    projection={"last_aggregated": 1, "_id": 0}
+                )
+                if latest_odoo:
+                    odoo_status["status"] = "connected"
+                else:
+                    odoo_status["status"] = "no_data"
+                    odoo_status["note"] = "No data synced yet"
+            
+            odoo_status["last_sync"] = odoo_integration.get("last_sync")
+            odoo_status["records_synced"] = await db.data_lake_serving.count_documents({"source": "odoo"})
+        else:
+            odoo_status["status"] = "not_configured"
+            odoo_status["note"] = "Odoo integration not configured"
     
     # Check MS365 status
+    ms365_integration = await db.integrations.find_one({"integration_type": "ms365"})
     ms365_status = {
         "name": "Microsoft 365",
-        "status": "unknown",
+        "status": "not_connected",
         "last_sync": None,
         "note": None,
     }
     
-    # Check if user has MS365 tokens
+    # Check if user has MS365 tokens (user-specific)
     user = await db.users.find_one({"id": token_data["id"]})
     if user:
+        ms_access_token = user.get("ms_access_token")
         ms365_tokens = user.get("ms365_tokens")
-        if ms365_tokens:
+        
+        if ms_access_token or ms365_tokens:
             ms365_status["status"] = "connected"
-            ms365_status["last_sync"] = ms365_tokens.get("expires_at") if ms365_tokens else None
+            
             # Check if token needs refresh
-            if ms365_tokens.get("expires_at"):
-                from datetime import datetime, timezone
-                expires = datetime.fromisoformat(ms365_tokens["expires_at"].replace("Z", "+00:00"))
-                if expires < datetime.now(timezone.utc):
-                    ms365_status["status"] = "needs_refresh"
-                    ms365_status["note"] = "Session needs refresh"
+            if ms365_tokens and ms365_tokens.get("expires_at"):
+                try:
+                    expires = datetime.fromisoformat(ms365_tokens["expires_at"].replace("Z", "+00:00"))
+                    if expires < datetime.now(timezone.utc):
+                        ms365_status["status"] = "needs_refresh"
+                        ms365_status["note"] = "Session expired - please re-login"
+                except:
+                    pass
         else:
-            ms365_status["status"] = "not_connected"
+            ms365_status["note"] = "Sign in with Microsoft to connect"
+    
+    # Determine overall health
+    statuses = [odoo_status["status"], ms365_status["status"]]
+    if "error" in statuses:
+        overall_health = "error"
+    elif "needs_refresh" in statuses or "warning" in statuses or "no_data" in statuses:
+        overall_health = "warning"
+    elif all(s == "connected" for s in statuses):
+        overall_health = "healthy"
+    else:
+        overall_health = "partial"
     
     return {
         "integrations": [odoo_status, ms365_status],
-        "overall_health": "healthy" if odoo_status["status"] == "connected" else "warning",
+        "overall_health": overall_health,
     }
