@@ -175,9 +175,18 @@ const Profile = () => {
                   <div className={`mb-3 p-3 rounded-lg text-sm ${
                     relinkMessage.type === 'success' 
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                      : relinkMessage.type === 'warning'
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
                       : 'bg-red-50 text-red-700 border border-red-200'
                   }`}>
-                    {relinkMessage.text}
+                    <p className="font-medium">{relinkMessage.text}</p>
+                    {relinkMessage.suggestions && relinkMessage.suggestions.length > 0 && (
+                      <ul className="mt-2 text-xs space-y-1 list-disc list-inside opacity-80">
+                        {relinkMessage.suggestions.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
                 <button
