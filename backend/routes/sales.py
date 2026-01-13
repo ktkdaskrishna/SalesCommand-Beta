@@ -195,7 +195,7 @@ async def get_opportunities(
     
     # Fetch from data_lake_serving (real Odoo data)
     opportunities = []
-    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
     for doc in opp_docs:
         opp_data = doc.get("data", {})
@@ -1302,7 +1302,7 @@ async def get_real_dashboard(
     
     # ---- OPPORTUNITIES FROM DATA LAKE ----
     opportunities_data = []
-    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
     for doc in opp_docs:
         opp = doc.get("data", {})
@@ -1451,7 +1451,7 @@ async def get_real_opportunities(
     is_super_admin = token_data.get("is_super_admin", False)
     
     opportunities = []
-    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
     for doc in opp_docs:
         opp = doc.get("data", {})
