@@ -424,6 +424,16 @@ const AdminPanel = () => {
                       {syncingAzure ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
                       Sync Azure AD
                     </Button>
+                    <Button
+                      onClick={syncOdooUsers}
+                      disabled={loading}
+                      variant="outline"
+                      className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10"
+                      data-testid="sync-odoo-users-btn"
+                    >
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
+                      Sync Odoo Users
+                    </Button>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                       <Input
@@ -638,9 +648,21 @@ const AdminPanel = () => {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h1 className="text-2xl font-bold text-white">Departments</h1>
-                  <Button onClick={() => setShowDeptModal(true)} className="bg-emerald-600 hover:bg-emerald-500" data-testid="create-dept-btn">
-                    <Plus className="w-4 h-4 mr-2" /> Create Department
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={syncOdooDepartments}
+                      disabled={loading}
+                      variant="outline"
+                      className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10"
+                      data-testid="sync-odoo-depts-btn"
+                    >
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
+                      Sync from Odoo
+                    </Button>
+                    <Button onClick={() => setShowDeptModal(true)} className="bg-emerald-600 hover:bg-emerald-500" data-testid="create-dept-btn">
+                      <Plus className="w-4 h-4 mr-2" /> Create Department
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
