@@ -716,6 +716,11 @@ const AdminPanel = () => {
               <BlueSheetConfiguration />
             )}
 
+            {/* ===================== SALES TARGETS TAB ===================== */}
+            {activeTab === 'targets' && (
+              <SalesTargetsConfiguration />
+            )}
+
             {/* ===================== PERMISSIONS TAB ===================== */}
             {activeTab === 'permissions' && (
               <div>
