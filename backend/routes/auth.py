@@ -207,21 +207,39 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
         now = datetime.now(timezone.utc)
         
         if existing_user:
-            # Update user with Microsoft info and tokens
+            # Update user with Microsoft info and tokens (sync Azure AD data)
+            update_data = {
+                "ms_id": ms_id,
+                "ms_access_token": request.access_token,
+                "name": name,  # Sync name from AD
+                "updated_at": now,
+                "last_login": now
+            }
+            # Update optional fields if available from Azure AD
+            if job_title:
+                update_data["job_title"] = job_title
+            if department:
+                update_data["ad_department"] = department  # Store AD department separately
+            if office_location:
+                update_data["office_location"] = office_location
+            if mobile_phone:
+                update_data["mobile_phone"] = mobile_phone
+            if business_phones:
+                update_data["business_phones"] = business_phones
+            if company_name:
+                update_data["company_name"] = company_name
+                
             await db.users.update_one(
                 {"email": email},
-                {"$set": {
-                    "ms_id": ms_id,
-                    "ms_access_token": request.access_token,
-                    "updated_at": now,
-                    "last_login": now
-                }}
+                {"$set": update_data}
             )
             user = existing_user
             user_id = existing_user["id"]
             approval_status = existing_user.get("approval_status", "approved")
+            logger.info(f"Existing SSO user updated with Azure AD data: {email}")
         else:
             # Create new user for SSO - PENDING APPROVAL
+            # All Azure AD profile data is synced
             user_id = str(uuid.uuid4())
             user = {
                 "id": user_id,
@@ -232,19 +250,26 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "department_id": None,
                 "is_super_admin": False,
                 "is_active": True,
-                "approval_status": "pending",  # NEW: Requires admin approval
+                "approval_status": "pending",  # Requires admin approval
                 "avatar_url": None,
                 "ms_id": ms_id,
                 "ms_access_token": request.access_token,
                 "auth_provider": "microsoft",
-                "job_title": ms_user.get("jobTitle"),
+                # Azure AD profile fields
+                "job_title": job_title,
+                "ad_department": department,
+                "office_location": office_location,
+                "mobile_phone": mobile_phone,
+                "business_phones": business_phones,
+                "company_name": company_name,
+                # Timestamps
                 "created_at": now,
                 "updated_at": now,
                 "last_login": now
             }
             await db.users.insert_one(user)
             approval_status = "pending"
-            logger.info(f"New SSO user created (pending approval): {email}")
+            logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
         
         # Create our application JWT token
         jwt_token = create_access_token(user_id, email, user.get("role", "pending"))
