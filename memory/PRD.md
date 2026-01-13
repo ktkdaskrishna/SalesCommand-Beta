@@ -1,197 +1,109 @@
 # Sales Intelligence Platform - Product Requirements Document
 
-## Overview
-Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based experiences.
+## Original Problem Statement
+The user (CTO) mandated a shift from feature development to a full architectural audit and stabilization for the "Sales Intelligence Platform" BETA release. The goal is to build a foundation of trust and reliability.
 
-## Version
-**v3.1.0** - Trust-Focused Beta + Management Features (Jan 13, 2026)
-
----
-
-## Beta Philosophy
-
-> **"A great beta CRM feels boring, stable, and honest. Not impressive. Not clever. Not dense."**
-
-### Core Principles:
-1. **Trust Subset** - Users forgive missing features, but NOT wrong numbers
-2. **Narrative Dashboards** - 2-3 metrics max, clear data origin
-3. **Assistive AI** - "Guidance", not "Prediction"
-4. **Read-only ERP Data** - Explicit framing for finance views
+### CTO Audit Areas (7 Critical Issues):
+1. **User Authorization & Sync:** User and department data must sync from Odoo as the single source of truth
+2. **Kanban Stage Transitions:** Opportunities fail to move between stages
+3. **Opportunity Expandability:** Proper detail view needed from Kanban/list views
+4. **CRM List View:** Not production-ready, needs sorting/filtering
+5. **Target Assignment:** Must be role-based and 360°, not tied to static users
+6. **Department Sync:** Must sync exclusively from Odoo
+7. **UI Quality:** Field mapping and Data Lake UIs have poor color contrast
 
 ---
 
-## Latest Completed Work (This Session - Jan 13, 2026)
+## What's Been Implemented
 
-### New: Sales Targets UI ✅
-- **Admin Panel tab** for assigning revenue/activity targets to sales team
-- **Features:**
-  - Create/Edit/Delete targets
-  - Assign to specific users
-  - Period types: Monthly, Quarterly, Yearly
-  - Target metrics: Revenue, Deals, Activities
-  - Filter by period type
-- **Info banner:** "Set revenue goals, deal counts, and activity targets for each team member"
+### Phase 1: Data & Auth Foundation ✅
+- Backend endpoints sync departments and users from Odoo
+- Manual user registration disabled
+- Strict validation for Kanban stage transitions
+- Frontend displays errors on invalid moves
 
-### New: Sync Status Widget ✅
-- **Dashboard header component** showing integration health
-- **Indicators:**
-  - Odoo: ✓ (green checkmark when connected)
-  - Microsoft: ⚠️ (amber when needs refresh, gray when not connected)
-- **API endpoint:** `/api/sync-status`
+### Phase 2: UX Critical Fixes ✅
+- Slide-over `OpportunityDetailPanel` created
+- Integrated with both Kanban board and list view
+- Accessible without page reload
 
----
+### Phase 3: Role-Based Targets ✅
+- Backend data model redesigned for role-based targets
+- `SalesTargetsConfiguration.js` rewritten for new model
+- Decoupled targets from individual users
 
-## Trust-Focused Revisions (Earlier This Session) ✅
+### Phase 4: Trust-Focused UI ✅
+- `DataSourceBadge` added to Dashboard, Accounts, Invoices
+- Dashboard simplified to core, reliable KPIs
+- "Blue Sheet AI" reframed as "Deal Confidence"
+- "Receivables" renamed to "Invoices (Read-only)"
+- Accounts page fetches real data from `data_lake_serving`
 
-#### 1. Dashboard Scope Reduction
-- **Simplified to 2 KPI cards only:**
-  - Pipeline Value
-  - Active Opportunities
-- **Removed:** Won Revenue, Activity Completion (can show misleading data)
-- **Removed:** Sales Metrics Summary section
-- **Added:** Data Source Badge ("Source: Odoo | Just now")
-
-#### 2. Blue Sheet → Deal Confidence Reframing
-- Renamed "Calculate Probability" → "**Get Deal Confidence**"
-- Renamed "AI Probability" → "**Deal Confidence Signal**"
-- Shows **High/Medium/Low** labels instead of percentages
-- Added tooltip: "Based on configurable factors. Use as guidance, not prediction."
-- Admin tab renamed: "Deal Confidence" (not "Blue Sheet Config")
-
-#### 3. Finance View Reframing
-- Renamed "Receivables" → "**Invoices**"
-- Route changed: `/receivables` → `/invoices`
-- Read-only banner: "Accounting is managed in Odoo. This view is for sales awareness."
-- Simplified to essential fields: Invoice #, Account, Amount, Status, Dates
-
-#### 4. Accounts Real Data
-- Now fetches from `/accounts/real` (data_lake_serving)
-- Shows real Odoo accounts: TEST, VM, amc inc, MUSCAT OVERSEAS, Securado.Test
-- Data Source Badge showing sync status
-
-#### 5. Navigation Cleanup
-- Removed "Reports" (not implemented)
-- Added "Invoices" to main navigation
-- Fixed Email path to /my-outlook
+### January 13, 2026 Updates ✅
+- **Backend Server Fixed:** Import errors resolved (`require_role`, `UserRole`, `TargetCreate`)
+- **Deal Confidence UI Unified:** Both user types see same clean modal
+- **Field Mapping Contrast Fixed:** Improved text readability
+- **Account Manager Dashboard:** Data now displays properly ($410K pipeline, 3 opportunities)
+- **Dashboard Real Endpoint Fixed:** Proper `is_super_admin` detection
 
 ---
 
-## Navigation Structure
-
-### Main Menu (All Roles)
-| Item | Icon | Path |
-|------|------|------|
-| Dashboard | LayoutDashboard | /dashboard |
-| Accounts | Building2 | /accounts |
-| Opportunities | Target | /opportunities |
-| **Invoices** | FileText | /invoices |
-| KPIs | BarChart3 | /kpis |
-| Email | Mail | /my-outlook |
-
-### Administration (Super Admin Only)
-| Item | Icon | Path |
-|------|------|------|
-| System Config | Settings | /admin |
-| Integrations | Plug2 | /integrations |
-| Data Lake | Database | /data-lake |
-| Field Mapping | Wand2 | /field-mapping |
-
-### Admin Panel Tabs
-| Tab | Icon | Component |
-|-----|------|-----------|
-| User Management | Users | User CRUD |
-| Roles & Permissions | Shield | Role management |
-| Role Configuration | LayoutDashboard | Nav/dashboard config |
-| Incentive Config | DollarSign | Commission templates |
-| **Sales Targets** | Target | Quota assignment |
-| **Deal Confidence** | Brain | Weight configuration |
-| Departments | Building2 | Department management |
-| All Permissions | Settings | Permission list |
+## Domain User Authorization Flow
+1. User signs in via Microsoft SSO
+2. Account created with `approval_status: "pending"`
+3. User sees "Pending Approval" page
+4. Super Admin approves in System Config → User Management
+5. Admin assigns role → User can access platform
 
 ---
 
-## Beta Enhancement Components
+## Prioritized Backlog
 
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| **DataSourceBadge** | Shows data origin + sync time | Dashboard, Accounts, Invoices |
-| **SyncStatusWidget** | Shows integration health (Odoo ✓, MS365 ⚠️) | Dashboard header |
-| **EmptyStateExplainer** | Meaningful empty states | Dashboard Activities |
-| **ReadOnlyBanner** | "Accounting is managed in Odoo" | Invoices page |
+### P0 (Critical - Must Fix)
+- [ ] MS365 refresh token flow (recurring login issue)
+- [ ] Production-ready CRM List View (sorting, filtering, column customization)
 
----
+### P1 (High Priority)
+- [ ] Target Reporting UI (aggregate progress against role-based targets)
+- [ ] Investigate "Sync Failed" issues for domain users
 
-## Data Architecture
-
-### Primary Data Source: `data_lake_serving`
-- Contains synced data from Odoo ERP
-- Entity types: `opportunity`, `account`, `invoice`
-- Real-time sync status tracked
-
-### API Endpoints
-| Endpoint | Purpose | Data Source |
-|----------|---------|-------------|
-| `/api/dashboard/real` | Dashboard metrics | data_lake_serving |
-| `/api/accounts/real` | Synced accounts | data_lake_serving |
-| `/api/receivables` | Synced invoices | data_lake_serving |
-| `/api/config/bluesheet-weights` | Deal confidence config | bluesheet_config |
+### P2 (Medium Priority)
+- [ ] Calendar UI improvements in `MyOutlook.js`
+- [ ] Activities view within `OpportunityDetailPanel`
+- [ ] Dashboard customizable grid layout
 
 ---
 
-## Pending Tasks
+## Technical Architecture
 
-### P2 - Post-Beta Validation
-- **Sales Targets UI** - Admin panel for assigning quotas
-- **MS365 Token Refresh** - Reduce re-login frequency
-- **Calendar View** - Improve MyOutlook.js UX
+### Backend
+- **Framework:** FastAPI
+- **Database:** MongoDB (Motor async driver)
+- **Auth:** JWT tokens with role-based access control
+- **Data Flow:** Odoo → Raw Zone → Canonical Zone → Serving Zone → UI
 
-### Future Enhancements
-- Customizable dashboard grid layout (react-grid-layout)
-- Opportunity Activities drawer
-- Audit log for admin config changes
+### Frontend
+- **Framework:** React
+- **UI Components:** Tailwind CSS, shadcn/ui
+- **Drag & Drop:** @hello-pangea/dnd
+
+### Key Collections
+- `data_lake_serving`: Primary source of truth (synced from Odoo)
+- `targets`: Role-based target metrics
+- `users`: User accounts with approval status and role assignments
 
 ---
 
 ## Test Credentials
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | superadmin@salescommand.com | demo123 |
-| Account Manager | am1@salescommand.com | demo123 |
+- **Super Admin:** superadmin@salescommand.com / demo123
+- **Account Manager:** am1@salescommand.com / demo123
 
 ---
 
-## Test Reports
-- `/app/test_reports/iteration_18.json` - Trust-focused beta tests (100% pass)
-- Needed: Visual calendar grid with week/month view
-
-### Opportunity Activities
-- Current: Basic opportunity list
-- Needed: Side drawer with expandable activities per opportunity
-
-### Dashboard Widgets
-- Connect widgets to real data APIs
-- Implement drag-drop customization
-
----
-
-## API Endpoints
-
-### Configuration APIs
-- `GET /api/config/widgets` - Widget registry
-- `GET /api/config/user/navigation` - User's role-based navigation
-- `GET/POST/PUT /api/config/roles` - Role management
-- `GET/PUT/DELETE /api/config/user/dashboard` - User dashboard layout
-- `GET/POST/PUT /api/config/service-lines` - Service lines
-
-### Sales APIs
-- `GET/POST /api/accounts` - Account CRUD
-- `GET/POST /api/opportunities` - Opportunity CRUD
-- `GET /api/opportunities/kanban` - Kanban view
-- `POST /api/opportunities/{id}/calculate-probability` - Blue Sheet
-
----
-
-## Test Credentials
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | superadmin@salescommand.com | demo123 |
+## Key Files
+- `/app/backend/routes/sales.py` - Dashboard and opportunity APIs
+- `/app/backend/routes/config.py` - Role-based target configuration
+- `/app/frontend/src/pages/AccountManagerDashboard.js` - Sales dashboard
+- `/app/frontend/src/pages/Opportunities.js` - Kanban and list views
+- `/app/frontend/src/pages/FieldMapping.js` - Field mapping configuration
+- `/app/frontend/src/components/OpportunityDetailPanel.js` - Slide-over detail panel
