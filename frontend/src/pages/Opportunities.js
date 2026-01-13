@@ -431,12 +431,42 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
   );
 };
 
-// Kanban Column Component
-const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails }) => {
+// Kanban Column Component with Expand/Collapse
+const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails, isExpanded, onToggleExpand, isMinimized }) => {
   const columnValue = opportunities.reduce((sum, opp) => sum + (opp.value || 0), 0);
   
+  // Minimized column view
+  if (isMinimized) {
+    return (
+      <div 
+        className="flex-shrink-0 w-12 cursor-pointer hover:w-14 transition-all group"
+        onClick={onToggleExpand}
+        data-testid={`kanban-col-minimized-${stage.value}`}
+      >
+        <div className={cn(
+          "rounded-t-lg p-2 flex flex-col items-center justify-center h-full min-h-[400px]",
+          stage.color
+        )}>
+          <div className="writing-vertical text-white font-medium text-sm transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
+            {stage.label}
+          </div>
+          <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full mt-2">
+            {opportunities.length}
+          </span>
+          <ChevronRight className="w-4 h-4 text-white/60 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="flex-shrink-0 w-80">
+    <div 
+      className={cn(
+        "flex-shrink-0 transition-all duration-300",
+        isExpanded ? "w-full min-w-[600px] max-w-4xl" : "w-80"
+      )}
+      data-testid={`kanban-col-${stage.value}`}
+    >
       <div className={cn(
         "rounded-t-lg px-4 py-3 flex items-center justify-between",
         stage.color
@@ -447,9 +477,26 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails }) 
             {opportunities.length}
           </span>
         </div>
-        <span className="text-xs text-white/80 font-medium">
-          {formatCurrency(columnValue)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/80 font-medium">
+            {formatCurrency(columnValue)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+            title={isExpanded ? "Collapse column" : "Expand column"}
+            data-testid={`expand-btn-${stage.value}`}
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-4 h-4 text-white" />
+            ) : (
+              <Maximize2 className="w-4 h-4 text-white" />
+            )}
+          </button>
+        </div>
       </div>
       
       <Droppable droppableId={stage.value}>
@@ -459,7 +506,8 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails }) 
             {...provided.droppableProps}
             className={cn(
               "bg-slate-50 border border-t-0 border-slate-200 rounded-b-lg p-3 min-h-[400px] transition-colors",
-              snapshot.isDraggingOver && "bg-blue-50"
+              snapshot.isDraggingOver && "bg-blue-50",
+              isExpanded && "grid grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max"
             )}
           >
             {opportunities.map((opp, index) => (
@@ -473,7 +521,10 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails }) 
             ))}
             {provided.placeholder}
             {opportunities.length === 0 && (
-              <div className="text-center py-8 text-slate-400 text-sm">
+              <div className={cn(
+                "text-center py-8 text-slate-400 text-sm",
+                isExpanded && "col-span-full"
+              )}>
                 Drop opportunities here
               </div>
             )}
