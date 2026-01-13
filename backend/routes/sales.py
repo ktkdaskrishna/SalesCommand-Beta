@@ -1745,14 +1745,29 @@ async def get_account_360_view(
     
     # Get related opportunities from data_lake_serving
     opportunities = []
-    opp_docs = await db.data_lake_serving.find({
+    
+    # Build search patterns - use name if available, fallback to ID
+    account_search_name = account.get("name", "")
+    opp_query = {
         "entity_type": "opportunity",
         "$or": [
             {"data.partner_id": account_id},
-            {"data.partner_id": int(account_id) if account_id.isdigit() else None},
-            {"data.partner_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}}
         ]
-    }).to_list(100)
+    }
+    
+    # Add numeric ID search if applicable
+    if account_id.isdigit():
+        opp_query["$or"].append({"data.partner_id": int(account_id)})
+    
+    # Add name-based search
+    if account_search_name:
+        opp_query["$or"].append({"data.partner_name": {"$regex": account_search_name, "$options": "i"}})
+    
+    # Also search by account_name if we derived it from the synthetic ID
+    if account_name and account_name != account_search_name:
+        opp_query["$or"].append({"data.partner_name": {"$regex": account_name, "$options": "i"}})
+    
+    opp_docs = await db.data_lake_serving.find(opp_query).to_list(100)
     
     for doc in opp_docs:
         opp = doc.get("data", {})
