@@ -702,6 +702,38 @@ async def sync_all_from_odoo(
         except Exception as e:
             errors.append(f"Invoice sync error: {str(e)}")
         
+        # 4. Sync Users/Employees (for user matching on approval)
+        try:
+            users = await connector.fetch_users()
+            for usr in users:
+                serving_doc = {
+                    "entity_type": "user",
+                    "serving_id": f"odoo_user_{usr.get('odoo_user_id', usr.get('id'))}",
+                    "source": "odoo",
+                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
+                    "data": {
+                        "id": usr.get("odoo_user_id", usr.get("id")),
+                        "name": usr.get("name"),
+                        "email": usr.get("email", "").lower(),
+                        "login": usr.get("login", "").lower(),
+                        "work_email": usr.get("work_email", "").lower(),
+                        "job_title": usr.get("job_title"),
+                        "department_id": usr.get("department_odoo_id"),
+                        "department_name": usr.get("department_name"),
+                        "team_id": usr.get("team_id"),
+                        "team_name": usr.get("team_name"),
+                        "active": usr.get("active", True),
+                    }
+                }
+                await db.data_lake_serving.update_one(
+                    {"serving_id": serving_doc["serving_id"]},
+                    {"$set": serving_doc},
+                    upsert=True
+                )
+            synced_entities["users"] = len(users)
+        except Exception as e:
+            errors.append(f"User sync error: {str(e)}")
+        
         # Update integration status
         await db.integrations.update_one(
             {"integration_type": "odoo"},
