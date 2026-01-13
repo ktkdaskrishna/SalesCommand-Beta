@@ -44,7 +44,15 @@ const ODOO_MODELS = {
   invoice: { model: 'account.move', label: 'Invoices' },
 };
 
+// MS365 entity mappings
+const MS365_ENTITIES = {
+  user: { model: 'users', label: 'Users (Azure AD)' },
+  email: { model: 'messages', label: 'Emails' },
+  calendar: { model: 'events', label: 'Calendar Events' },
+};
+
 const FieldMapping = () => {
+  const [selectedIntegration, setSelectedIntegration] = useState('odoo'); // NEW: Support multiple integrations
   const [selectedEntity, setSelectedEntity] = useState('opportunity');
   const [sourceFields, setSourceFields] = useState({});
   const [canonicalSchema, setCanonicalSchema] = useState({});
@@ -70,30 +78,35 @@ const FieldMapping = () => {
 
   useEffect(() => {
     loadMappingData();
-  }, [selectedEntity]);
+  }, [selectedEntity, selectedIntegration]); // Add selectedIntegration dependency
 
   const loadMappingData = async () => {
     setLoading(true);
     try {
-      // Load source fields from Odoo
-      const modelInfo = ODOO_MODELS[selectedEntity];
-      if (modelInfo) {
-        try {
-          const fieldsRes = await integrationsAPI.getOdooFields(modelInfo.model);
-          setSourceFields(fieldsRes.data.fields || {});
-        } catch (e) {
-          console.log('Could not load Odoo fields, using defaults');
-          setSourceFields(getDefaultOdooFields(selectedEntity));
+      // Load source fields based on integration type
+      if (selectedIntegration === 'odoo') {
+        const modelInfo = ODOO_MODELS[selectedEntity];
+        if (modelInfo) {
+          try {
+            const fieldsRes = await integrationsAPI.getOdooFields(modelInfo.model);
+            setSourceFields(fieldsRes.data.fields || {});
+          } catch (e) {
+            console.log('Could not load Odoo fields, using defaults');
+            setSourceFields(getDefaultOdooFields(selectedEntity));
+          }
         }
+      } else if (selectedIntegration === 'ms365') {
+        // Use default MS365 fields
+        setSourceFields(getDefaultMS365Fields(selectedEntity));
       }
 
       // Load existing mappings and canonical schema
-      const mappingsRes = await integrationsAPI.getMappings('odoo', selectedEntity);
-      setCanonicalSchema(mappingsRes.data.canonical_schema || getDefaultCanonicalSchema(selectedEntity));
+      const mappingsRes = await integrationsAPI.getMappings(selectedIntegration, selectedEntity);
+      setCanonicalSchema(mappingsRes.data.canonical_schema || getDefaultCanonicalSchema(selectedEntity, selectedIntegration));
       setMappings(mappingsRes.data.mappings || []);
     } catch (error) {
       console.error('Failed to load mapping data:', error);
-      setCanonicalSchema(getDefaultCanonicalSchema(selectedEntity));
+      setCanonicalSchema(getDefaultCanonicalSchema(selectedEntity, selectedIntegration));
     } finally {
       setLoading(false);
     }
