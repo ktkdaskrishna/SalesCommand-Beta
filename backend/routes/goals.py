@@ -1,0 +1,277 @@
+"""
+Goals API Routes
+CRUD operations for goals and objectives tracking
+"""
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Optional
+from datetime import datetime, timezone
+from pydantic import BaseModel
+import uuid
+
+from core.database import Database
+from services.auth.jwt_handler import get_current_user_from_token
+
+router = APIRouter(prefix="/goals", tags=["Goals"])
+
+
+# ===================== MODELS =====================
+
+class GoalCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    target_value: float
+    current_value: float = 0
+    unit: str = "currency"  # currency, percentage, count
+    goal_type: str = "revenue"  # revenue, leads, conversion, clients, satisfaction, audit
+    due_date: str
+    assignee_type: Optional[str] = "user"  # user, role, department
+    assignee_id: Optional[str] = None
+
+
+class GoalUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    target_value: Optional[float] = None
+    current_value: Optional[float] = None
+    unit: Optional[str] = None
+    goal_type: Optional[str] = None
+    due_date: Optional[str] = None
+    assignee_type: Optional[str] = None
+    assignee_id: Optional[str] = None
+
+
+# ===================== MIDDLEWARE =====================
+
+async def require_approved_user(token_data: dict = Depends(get_current_user_from_token)):
+    """Require an approved user"""
+    db = Database.get_db()
+    user = await db.users.find_one({"id": token_data["id"]})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") == "pending":
+        raise HTTPException(status_code=403, detail="User pending approval")
+    
+    return token_data
+
+
+# ===================== ROUTES =====================
+
+@router.get("")
+async def get_goals(
+    assignee_type: Optional[str] = None,
+    goal_type: Optional[str] = None,
+    token_data: dict = Depends(require_approved_user)
+):
+    """
+    Get all goals. Optionally filter by assignee type or goal type.
+    """
+    db = Database.get_db()
+    
+    query = {"is_active": {"$ne": False}}
+    
+    if assignee_type:
+        query["assignee_type"] = assignee_type
+    if goal_type:
+        query["goal_type"] = goal_type
+    
+    goals = await db.goals.find(query, {"_id": 0}).sort("due_date", 1).to_list(100)
+    
+    # Calculate achievement percentage for each goal
+    for goal in goals:
+        if goal.get("target_value", 0) > 0:
+            goal["achievement_percentage"] = round(
+                (goal.get("current_value", 0) / goal["target_value"]) * 100, 1
+            )
+        else:
+            goal["achievement_percentage"] = 0
+    
+    return {"goals": goals, "count": len(goals)}
+
+
+@router.get("/{goal_id}")
+async def get_goal(
+    goal_id: str,
+    token_data: dict = Depends(require_approved_user)
+):
+    """Get a single goal by ID"""
+    db = Database.get_db()
+    
+    goal = await db.goals.find_one({"id": goal_id}, {"_id": 0})
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Calculate achievement percentage
+    if goal.get("target_value", 0) > 0:
+        goal["achievement_percentage"] = round(
+            (goal.get("current_value", 0) / goal["target_value"]) * 100, 1
+        )
+    else:
+        goal["achievement_percentage"] = 0
+    
+    return goal
+
+
+@router.post("")
+async def create_goal(
+    goal: GoalCreate,
+    token_data: dict = Depends(require_approved_user)
+):
+    """Create a new goal"""
+    db = Database.get_db()
+    
+    now = datetime.now(timezone.utc)
+    
+    goal_doc = {
+        "id": str(uuid.uuid4()),
+        "name": goal.name,
+        "description": goal.description,
+        "target_value": goal.target_value,
+        "current_value": goal.current_value,
+        "unit": goal.unit,
+        "goal_type": goal.goal_type,
+        "due_date": goal.due_date,
+        "assignee_type": goal.assignee_type,
+        "assignee_id": goal.assignee_id or token_data["id"],
+        "created_by": token_data["id"],
+        "created_at": now,
+        "updated_at": now,
+        "is_active": True,
+    }
+    
+    await db.goals.insert_one(goal_doc)
+    del goal_doc["_id"]
+    
+    return {"message": "Goal created successfully", "goal": goal_doc}
+
+
+@router.put("/{goal_id}")
+async def update_goal(
+    goal_id: str,
+    updates: GoalUpdate,
+    token_data: dict = Depends(require_approved_user)
+):
+    """Update an existing goal"""
+    db = Database.get_db()
+    
+    existing = await db.goals.find_one({"id": goal_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No updates provided")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.goals.update_one({"id": goal_id}, {"$set": update_data})
+    
+    return {"message": "Goal updated successfully"}
+
+
+@router.delete("/{goal_id}")
+async def delete_goal(
+    goal_id: str,
+    token_data: dict = Depends(require_approved_user)
+):
+    """Delete a goal (soft delete)"""
+    db = Database.get_db()
+    
+    existing = await db.goals.find_one({"id": goal_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    await db.goals.update_one(
+        {"id": goal_id},
+        {"$set": {"is_active": False, "deleted_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"message": "Goal deleted successfully"}
+
+
+@router.patch("/{goal_id}/progress")
+async def update_goal_progress(
+    goal_id: str,
+    current_value: float,
+    token_data: dict = Depends(require_approved_user)
+):
+    """Update just the current value (progress) of a goal"""
+    db = Database.get_db()
+    
+    existing = await db.goals.find_one({"id": goal_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    await db.goals.update_one(
+        {"id": goal_id},
+        {"$set": {
+            "current_value": current_value,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Calculate new achievement percentage
+    target = existing.get("target_value", 0)
+    achievement = round((current_value / target) * 100, 1) if target > 0 else 0
+    
+    return {
+        "message": "Goal progress updated",
+        "current_value": current_value,
+        "achievement_percentage": achievement
+    }
+
+
+# ===================== AGGREGATE ENDPOINTS =====================
+
+@router.get("/summary/stats")
+async def get_goals_summary(
+    token_data: dict = Depends(require_approved_user)
+):
+    """Get summary statistics for all goals"""
+    db = Database.get_db()
+    
+    goals = await db.goals.find({"is_active": {"$ne": False}}, {"_id": 0}).to_list(500)
+    
+    total = len(goals)
+    if total == 0:
+        return {
+            "total_goals": 0,
+            "overall_progress": 0,
+            "achieved": 0,
+            "on_track": 0,
+            "at_risk": 0,
+            "behind": 0,
+        }
+    
+    achieved = 0
+    on_track = 0
+    at_risk = 0
+    behind = 0
+    total_progress = 0
+    
+    for goal in goals:
+        target = goal.get("target_value", 0)
+        current = goal.get("current_value", 0)
+        pct = (current / target * 100) if target > 0 else 0
+        total_progress += pct
+        
+        if pct >= 100:
+            achieved += 1
+        elif pct >= 70:
+            on_track += 1
+        elif pct >= 40:
+            at_risk += 1
+        else:
+            behind += 1
+    
+    return {
+        "total_goals": total,
+        "overall_progress": round(total_progress / total, 1) if total > 0 else 0,
+        "achieved": achieved,
+        "on_track": on_track,
+        "at_risk": at_risk,
+        "behind": behind,
+    }
