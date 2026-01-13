@@ -1304,3 +1304,65 @@ async def get_real_accounts(
         "accounts": accounts,
         "count": len(accounts),
     }
+
+
+# ===================== INTEGRATION HEALTH STATUS =====================
+
+@router.get("/integrations/health")
+async def get_integrations_health(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get health status of all integrations.
+    Returns last sync times and status for dashboard widget.
+    """
+    db = Database.get_db()
+    
+    # Check Odoo sync status
+    odoo_status = {
+        "name": "Odoo ERP",
+        "status": "unknown",
+        "last_sync": None,
+        "records_synced": 0,
+    }
+    
+    # Get most recent sync from data lake
+    latest_odoo = await db.data_lake_serving.find_one(
+        {},
+        sort=[("last_aggregated", -1)],
+        projection={"last_aggregated": 1, "_id": 0}
+    )
+    if latest_odoo:
+        odoo_status["status"] = "connected"
+        odoo_status["last_sync"] = latest_odoo.get("last_aggregated")
+        odoo_status["records_synced"] = await db.data_lake_serving.count_documents({})
+    
+    # Check MS365 status
+    ms365_status = {
+        "name": "Microsoft 365",
+        "status": "unknown",
+        "last_sync": None,
+        "note": None,
+    }
+    
+    # Check if user has MS365 tokens
+    user = await db.users.find_one({"id": token_data["id"]})
+    if user:
+        ms365_tokens = user.get("ms365_tokens")
+        if ms365_tokens:
+            ms365_status["status"] = "connected"
+            ms365_status["last_sync"] = ms365_tokens.get("expires_at") if ms365_tokens else None
+            # Check if token needs refresh
+            if ms365_tokens.get("expires_at"):
+                from datetime import datetime, timezone
+                expires = datetime.fromisoformat(ms365_tokens["expires_at"].replace("Z", "+00:00"))
+                if expires < datetime.now(timezone.utc):
+                    ms365_status["status"] = "needs_refresh"
+                    ms365_status["note"] = "Session needs refresh"
+        else:
+            ms365_status["status"] = "not_connected"
+    
+    return {
+        "integrations": [odoo_status, ms365_status],
+        "overall_health": "healthy" if odoo_status["status"] == "connected" else "warning",
+    }
