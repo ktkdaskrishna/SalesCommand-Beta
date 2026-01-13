@@ -975,12 +975,17 @@ const SyncTab = ({ config, onRefresh }) => {
   const handleSyncAll = async () => {
     setSyncing({ all: true });
     try {
-      const response = await api.post("/odoo/sync-all");
-      const results = response.data.results;
-      const totalCreated = results.reduce((sum, r) => sum + r.created, 0);
-      const totalUpdated = results.reduce((sum, r) => sum + r.updated, 0);
-      toast.success(`Full sync complete: ${totalCreated} created, ${totalUpdated} updated`);
-      onRefresh();
+      // Use the correct sync endpoint
+      const response = await api.post("/integrations/sync/odoo", {
+        entity_types: ["account", "opportunity", "contact", "order", "invoice"]
+      });
+      if (response.data.job_id) {
+        toast.success(`Sync job started! Job ID: ${response.data.job_id}`);
+        // Wait for sync to complete
+        setTimeout(() => {
+          onRefresh();
+        }, 5000);
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || "Sync failed");
     } finally {
