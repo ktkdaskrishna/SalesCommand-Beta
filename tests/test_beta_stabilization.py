@@ -39,11 +39,11 @@ class TestAuthentication:
         })
         assert response.status_code == 200, f"AM login failed: {response.text}"
         data = response.json()
-        assert "token" in data
+        assert "access_token" in data
         assert "user" in data
         assert data["user"]["email"] == AM_EMAIL
         print(f"✓ Account Manager login successful: {data['user']['email']}")
-        return data["token"]
+        return data["access_token"]
     
     def test_login_super_admin(self):
         """Test Super Admin login"""
@@ -53,12 +53,12 @@ class TestAuthentication:
         })
         assert response.status_code == 200, f"Super Admin login failed: {response.text}"
         data = response.json()
-        assert "token" in data
+        assert "access_token" in data
         assert "user" in data
         assert data["user"]["email"] == SUPER_ADMIN_EMAIL
         assert data["user"].get("is_super_admin") == True
         print(f"✓ Super Admin login successful: {data['user']['email']}")
-        return data["token"]
+        return data["access_token"]
     
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials"""
