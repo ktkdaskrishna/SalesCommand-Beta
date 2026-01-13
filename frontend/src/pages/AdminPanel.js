@@ -1128,16 +1128,16 @@ const RoleConfigTab = ({ roles, onRoleUpdated }) => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Role Configuration</h1>
-          <p className="text-sm text-zinc-400 mt-1">Configure navigation, dashboard, and incentives for each role</p>
+          <h1 className="text-2xl font-bold text-slate-900">Role Configuration</h1>
+          <p className="text-sm text-slate-500 mt-1">Configure navigation, dashboard, and incentives for each role</p>
         </div>
-        <Button onClick={handleCreateRole} className="bg-emerald-600 hover:bg-emerald-500">
+        <Button onClick={handleCreateRole} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" /> New Role
         </Button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -1147,24 +1147,24 @@ const RoleConfigTab = ({ roles, onRoleUpdated }) => {
         {roles.map(role => (
           <div
             key={role.id}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors cursor-pointer"
+            className="card p-5 hover:shadow-lg hover:border-slate-300 transition-all cursor-pointer group"
             onClick={() => handleEditRole(role)}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-white">{role.name}</h3>
-                <p className="text-xs text-zinc-500 font-mono">{role.code}</p>
+                <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{role.name}</h3>
+                <p className="text-xs text-slate-500 font-mono">{role.code}</p>
               </div>
               {role.is_system && (
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">System</span>
+                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full border border-amber-200 font-medium">System</span>
               )}
             </div>
             
-            <p className="text-sm text-zinc-400 mb-3 line-clamp-2">{role.description || 'No description'}</p>
+            <p className="text-sm text-slate-600 mb-3 line-clamp-2">{role.description || 'No description'}</p>
             
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
-              <span className="px-2 py-0.5 bg-zinc-800 rounded">Scope: {role.data_scope}</span>
-              <span className="px-2 py-0.5 bg-zinc-800 rounded">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span className="px-2 py-1 bg-slate-100 rounded-full border border-slate-200">Scope: {role.data_scope}</span>
+              <span className="px-2 py-1 bg-slate-100 rounded-full border border-slate-200">
                 {role.permissions?.length === 1 && role.permissions[0] === '*' 
                   ? 'All permissions' 
                   : `${role.permissions?.length || 0} permissions`}
@@ -1173,16 +1173,16 @@ const RoleConfigTab = ({ roles, onRoleUpdated }) => {
             
             {/* Navigation preview */}
             {role.navigation?.main_menu && (
-              <div className="mt-3 pt-3 border-t border-zinc-800">
-                <span className="text-xs text-zinc-500">Navigation:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <span className="text-xs text-slate-500 font-medium">Navigation:</span>
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {role.navigation.main_menu.filter(i => i.enabled).slice(0, 4).map(item => (
-                    <span key={item.id} className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs rounded">
+                    <span key={item.id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full border border-indigo-200">
                       {item.label}
                     </span>
                   ))}
                   {role.navigation.main_menu.filter(i => i.enabled).length > 4 && (
-                    <span className="text-xs text-zinc-500">+{role.navigation.main_menu.filter(i => i.enabled).length - 4} more</span>
+                    <span className="text-xs text-slate-500">+{role.navigation.main_menu.filter(i => i.enabled).length - 4} more</span>
                   )}
                 </div>
               </div>
@@ -1193,7 +1193,7 @@ const RoleConfigTab = ({ roles, onRoleUpdated }) => {
 
       {/* Role Configuration Panel (Modal) */}
       {showConfigPanel && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-4xl">
             <RoleConfigurationPanel
               role={selectedRole}
