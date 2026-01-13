@@ -427,7 +427,7 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
 };
 
 // Kanban Column Component
-const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
+const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails }) => {
   const columnValue = opportunities.reduce((sum, opp) => sum + (opp.value || 0), 0);
   
   return (
@@ -463,6 +463,7 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
                 opportunity={opp} 
                 index={index}
                 onOpenBlueSheet={onOpenBlueSheet}
+                onViewDetails={onViewDetails}
               />
             ))}
             {provided.placeholder}
