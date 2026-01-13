@@ -272,7 +272,8 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
         
         # Create our application JWT token
-        jwt_token = create_access_token(user_id, email, user.get("role", "pending"))
+        user_role = user.get("role")
+        jwt_token = create_access_token(user_id, email, user_role if user_role else None)
         
         logger.info(f"Microsoft SSO login successful for: {email}")
         
@@ -282,7 +283,7 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 id=user_id,
                 email=email,
                 name=user.get("name", name),
-                role=user.get("role", "pending"),
+                role=user_role,  # None for pending users
                 department=user.get("department"),
                 product_line=user.get("product_line"),
                 is_active=user.get("is_active", True),
