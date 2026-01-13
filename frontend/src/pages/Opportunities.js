@@ -293,19 +293,19 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+        <div className="p-6 border-t border-slate-200 flex justify-center gap-3">
+          <button onClick={onClose} className="btn-secondary">Close</button>
           <button 
             onClick={calculateProbability} 
             disabled={loading}
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Calculator className="w-4 h-4 mr-2" />
+              <Sparkles className="w-4 h-4" />
             )}
-            Calculate Probability
+            Get Confidence Signal
           </button>
         </div>
       </div>
