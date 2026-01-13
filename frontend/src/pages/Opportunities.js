@@ -22,6 +22,8 @@ import {
   Activity,
   Tag,
   Eye,
+  Sparkles,
+  AlertCircle,
 } from "lucide-react";
 
 const STAGES = [
