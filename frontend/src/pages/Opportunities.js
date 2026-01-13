@@ -678,6 +678,22 @@ const Opportunities = () => {
       label: "Owner",
       render: (val) => val || "—",
     },
+    {
+      key: "actions",
+      label: "",
+      render: (val, row) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedOpp(row);
+          }}
+          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+          title="View Details"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      ),
+    },
   ];
 
   if (loading) {
