@@ -88,4 +88,66 @@ export const integrationsAPI = {
   getSyncJob: (jobId) => api.get(`/integrations/sync/${jobId}`),
 };
 
+// ===================== OPPORTUNITIES API =====================
+
+export const opportunitiesAPI = {
+  getAll: (params) => api.get('/opportunities', { params }),
+  getById: (id) => api.get(`/opportunities/${id}`),
+  create: (data) => api.post('/opportunities', data),
+  update: (id, data) => api.put(`/opportunities/${id}`, data),
+  getKanban: () => api.get('/opportunities/kanban'),
+  updateStage: (id, stage) => api.patch(`/opportunities/${id}/stage?new_stage=${stage}`),
+  calculateProbability: (id, data) => api.post(`/opportunities/${id}/calculate-probability`, data),
+};
+
+// ===================== ACCOUNTS API =====================
+
+export const accountsAPI = {
+  getAll: () => api.get('/accounts'),
+  getById: (id) => api.get(`/accounts/${id}`),
+  create: (data) => api.post('/accounts', data),
+  update: (id, data) => api.put(`/accounts/${id}`, data),
+};
+
+// ===================== ACTIVITIES API =====================
+
+export const activitiesAPI = {
+  getAll: (params) => api.get('/activities', { params }),
+  create: (data) => api.post('/activities', data),
+  updateStatus: (id, status) => api.patch(`/activities/${id}/status?status=${status}`),
+};
+
+// ===================== DASHBOARD API =====================
+
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+};
+
+// ===================== SALES METRICS API =====================
+
+export const salesMetricsAPI = {
+  get: (userId, period = 'quarterly') => api.get(`/sales-metrics/${userId}?period=${period}`),
+};
+
+// ===================== INCENTIVE API =====================
+
+export const incentiveAPI = {
+  calculate: (params) => api.post('/incentive-calculator', null, { params }),
+  getTemplates: () => api.get('/commission-templates'),
+  createTemplate: (data) => api.post('/commission-templates', data),
+};
+
+// ===================== SEARCH API =====================
+
+export const searchAPI = {
+  global: (query) => api.get(`/search?q=${encodeURIComponent(query)}`),
+};
+
+// ===================== CONFIG API =====================
+
+export const configAPI = {
+  getLLM: () => api.get('/config/llm'),
+  updateLLM: (params) => api.put('/config/llm', null, { params }),
+};
+
 export default api;
