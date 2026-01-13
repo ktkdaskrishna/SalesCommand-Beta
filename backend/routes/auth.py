@@ -303,3 +303,193 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             raise
         logger.error(f"Microsoft SSO error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
+
+
+# ===================== SELF-SERVICE ODOO LINKING =====================
+
+async def require_approved():
+    """Dependency to require an approved user"""
+    async def dependency(token_data: dict = Depends(get_current_user_from_token)):
+        db = Database.get_db()
+        user = await db.users.find_one({"id": token_data["id"]})
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if user.get("approval_status") == "pending":
+            raise HTTPException(status_code=403, detail="User pending approval")
+        
+        return token_data
+    return Depends(dependency)
+
+
+@router.post("/relink-odoo")
+async def self_relink_to_odoo(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Self-service endpoint for users to re-link their profile to Odoo.
+    Any approved user can attempt to re-link THEMSELVES.
+    
+    Matching strategies (in order):
+    1. Email match (work_email or login in Odoo users)
+    2. Name match (fuzzy)
+    3. Salesperson match (from opportunities)
+    """
+    db = Database.get_db()
+    
+    user_id = token_data["id"]
+    user = await db.users.find_one({"id": user_id})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") == "pending":
+        raise HTTPException(status_code=403, detail="Your account is pending approval. Please contact an administrator.")
+    
+    user_email = (user.get("email") or "").lower()
+    user_name = user.get("name", "")
+    odoo_enrichment = {}
+    match_method = None
+    match_details = []
+    
+    try:
+        # Strategy 1: Match by email
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{user_email}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            odoo_enrichment = {
+                "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id"),
+                "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "odoo_salesperson_name": odoo_data.get("name"),
+                "odoo_matched": True,
+                "odoo_match_email": user_email,
+            }
+            match_method = "email"
+            match_details.append(f"Email matched: {user_email}")
+        
+        # Strategy 2: Match by name (if email didn't match)
+        if not odoo_enrichment and user_name:
+            # Try exact name match first
+            odoo_user_by_name = await db.data_lake_serving.find_one({
+                "entity_type": "user",
+                "data.name": {"$regex": f"^{user_name}$", "$options": "i"}
+            })
+            
+            if not odoo_user_by_name:
+                # Try partial name match (first name or last name)
+                name_parts = user_name.split()
+                if name_parts:
+                    odoo_user_by_name = await db.data_lake_serving.find_one({
+                        "entity_type": "user",
+                        "$or": [
+                            {"data.name": {"$regex": name_parts[0], "$options": "i"}},
+                            {"data.name": {"$regex": name_parts[-1], "$options": "i"}} if len(name_parts) > 1 else {}
+                        ]
+                    })
+            
+            if odoo_user_by_name:
+                odoo_data = odoo_user_by_name.get("data", {})
+                odoo_enrichment = {
+                    "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                    "odoo_employee_id": odoo_data.get("odoo_employee_id"),
+                    "odoo_department_id": odoo_data.get("department_odoo_id"),
+                    "odoo_department_name": odoo_data.get("department_name"),
+                    "odoo_job_title": odoo_data.get("job_title"),
+                    "odoo_salesperson_name": odoo_data.get("name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": odoo_data.get("email") or odoo_data.get("work_email"),
+                }
+                match_method = "name"
+                match_details.append(f"Name matched: {user_name} → {odoo_data.get('name')}")
+        
+        # Strategy 3: Match by salesperson in opportunities
+        if not odoo_enrichment:
+            opp = await db.data_lake_serving.find_one({
+                "entity_type": "opportunity",
+                "$or": [
+                    {"data.salesperson_email": {"$regex": user_email, "$options": "i"}},
+                    {"data.salesperson_name": {"$regex": user_name, "$options": "i"}}
+                ]
+            })
+            
+            if opp:
+                opp_data = opp.get("data", {})
+                odoo_enrichment = {
+                    "odoo_salesperson_name": opp_data.get("salesperson_name") or user_name,
+                    "odoo_team_id": opp_data.get("team_id"),
+                    "odoo_team_name": opp_data.get("team_name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": user_email,
+                }
+                match_method = "opportunity_salesperson"
+                match_details.append(f"Matched as salesperson in opportunity: {opp_data.get('name')}")
+        
+    except Exception as e:
+        logger.error(f"Error in self-relink: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during Odoo matching: {str(e)}")
+    
+    if odoo_enrichment:
+        # Update user with Odoo data
+        update_data = {
+            "updated_at": datetime.now(timezone.utc),
+            "odoo_match_status": f"self_linked_{match_method}",
+            "odoo_match_method": match_method,
+            **odoo_enrichment
+        }
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        
+        # Log the self-link
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "action": "user_self_relinked",
+            "user_id": user_id,
+            "match_method": match_method,
+            "match_details": match_details,
+            "odoo_enrichment": odoo_enrichment,
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "success": True,
+            "message": "Successfully linked to Odoo",
+            "match_method": match_method,
+            "match_details": match_details,
+            "odoo_salesperson_name": odoo_enrichment.get("odoo_salesperson_name"),
+            "odoo_department_name": odoo_enrichment.get("odoo_department_name"),
+            "odoo_team_name": odoo_enrichment.get("odoo_team_name"),
+        }
+    else:
+        # No match found - provide helpful suggestions
+        # Check how many users exist in Odoo sync
+        odoo_user_count = await db.data_lake_serving.count_documents({"entity_type": "user"})
+        
+        suggestions = []
+        if odoo_user_count == 0:
+            suggestions.append("No Odoo users have been synced yet. Ask an administrator to run an Odoo sync first.")
+        else:
+            suggestions.append(f"Found {odoo_user_count} Odoo users in sync, but none matched your profile.")
+            suggestions.append(f"Ensure your work email in Odoo matches: {user_email}")
+            suggestions.append("Contact an administrator to manually link your account if needed.")
+        
+        return {
+            "success": False,
+            "message": "No Odoo match found",
+            "attempted_email": user_email,
+            "attempted_name": user_name,
+            "suggestions": suggestions
+        }
+
