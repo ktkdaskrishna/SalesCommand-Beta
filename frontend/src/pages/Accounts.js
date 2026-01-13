@@ -199,6 +199,10 @@ const Accounts = () => {
             Accounts
           </h1>
           <p className="text-slate-500 mt-1">Manage your customer accounts and relationships</p>
+          {/* Data Source Badge */}
+          <div className="mt-3">
+            <DataSourceBadge source={dataSource} lastSync={lastSync} />
+          </div>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)} 
