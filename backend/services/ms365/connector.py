@@ -114,6 +114,8 @@ class MS365Connector:
             return None
     
     # ===================== PERSONAL DATA (User's Own) =====================
+    
+    async def get_emails(self, top: int = 50, skip: int = 0) -> List[Dict[str, Any]]:
         """
         Fetch emails from user's mailbox.
         Returns list of email messages.
