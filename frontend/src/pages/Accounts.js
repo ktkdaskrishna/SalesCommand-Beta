@@ -82,11 +82,28 @@ const Accounts = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [accountsRes, oppsRes] = await Promise.all([
-        accountsAPI.getAll(),
-        opportunitiesAPI.getAll()
-      ]);
-      setAccounts(accountsRes.data || []);
+      // Fetch real accounts from data lake first, fallback to legacy
+      let accountsData = [];
+      try {
+        const realAccountsRes = await api.get('/accounts/real');
+        if (realAccountsRes.data?.accounts?.length > 0) {
+          accountsData = realAccountsRes.data.accounts;
+          setDataSource('Odoo');
+          setLastSync(realAccountsRes.data.accounts[0]?.last_synced);
+        }
+      } catch (e) {
+        console.log('Data lake accounts not available, using legacy');
+      }
+      
+      // Fallback to legacy accounts if data lake is empty
+      if (accountsData.length === 0) {
+        const legacyRes = await accountsAPI.getAll();
+        accountsData = legacyRes.data || [];
+        setDataSource('CRM');
+      }
+      
+      const oppsRes = await opportunitiesAPI.getAll();
+      setAccounts(accountsData);
       setOpportunities(oppsRes.data || []);
     } catch (err) {
       setError('Failed to load accounts');
