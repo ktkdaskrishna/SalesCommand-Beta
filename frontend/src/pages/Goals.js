@@ -192,72 +192,18 @@ const Goals = () => {
   const fetchGoals = async () => {
     try {
       const response = await api.get('/goals');
-      setGoals(response.data.goals || response.data || []);
+      const goalsData = response.data.goals || response.data || [];
+      
+      // Only use mock data if there are truly no goals in the database
+      if (goalsData.length === 0) {
+        console.log('No goals found in database, showing empty state');
+      }
+      
+      setGoals(goalsData);
     } catch (error) {
       console.error('Error fetching goals:', error);
-      // Use mock data if API fails
-      setGoals([
-        {
-          id: '1',
-          name: 'Q1 Revenue Target',
-          description: 'Achieve $500,000 in total revenue for Q1',
-          target_value: 500000,
-          current_value: 385000,
-          unit: 'currency',
-          goal_type: 'revenue',
-          due_date: '2026-03-31',
-        },
-        {
-          id: '2',
-          name: 'New Leads Generated',
-          description: 'Generate 200 qualified leads this quarter',
-          target_value: 200,
-          current_value: 142,
-          unit: 'count',
-          goal_type: 'leads',
-          due_date: '2026-03-31',
-        },
-        {
-          id: '3',
-          name: 'Conversion Rate',
-          description: 'Maintain 25% lead to customer conversion rate',
-          target_value: 25,
-          current_value: 23,
-          unit: 'percentage',
-          goal_type: 'conversion',
-          due_date: '2026-03-31',
-        },
-        {
-          id: '4',
-          name: 'Enterprise Clients',
-          description: 'Sign 5 new enterprise clients',
-          target_value: 5,
-          current_value: 3,
-          unit: 'count',
-          goal_type: 'clients',
-          due_date: '2026-03-31',
-        },
-        {
-          id: '5',
-          name: 'Customer Satisfaction',
-          description: 'Maintain NPS score above 8.5',
-          target_value: 8.5,
-          current_value: 8.7,
-          unit: 'count',
-          goal_type: 'satisfaction',
-          due_date: '2026-03-31',
-        },
-        {
-          id: '6',
-          name: 'Audit Completion',
-          description: 'Complete 20 compliance audits',
-          target_value: 20,
-          current_value: 12,
-          unit: 'count',
-          goal_type: 'audit',
-          due_date: '2026-03-31',
-        },
-      ]);
+      // On error, show empty state instead of mock data
+      setGoals([]);
     } finally {
       setLoading(false);
     }
