@@ -24,6 +24,31 @@ import PendingApproval from './pages/PendingApproval';
 // Components
 import Layout from './components/Layout';
 
+// Role-based Dashboard Component
+const RoleBasedDashboard = () => {
+  const { user, isSuperAdmin } = useAuth();
+  
+  // Sales roles see the AccountManagerDashboard with Kanban
+  const salesRoles = ['account_manager', 'sales_director', 'sales_rep', 'presales'];
+  const isSalesRole = salesRoles.includes(user?.role?.toLowerCase());
+  
+  // CEO and Sales Director also see the sales dashboard
+  const executiveWithSales = ['ceo', 'sales_director'].includes(user?.role?.toLowerCase());
+  
+  // Super Admin sees the admin dashboard by default
+  if (isSuperAdmin && !executiveWithSales) {
+    return <Dashboard />;
+  }
+  
+  // Sales roles and CEO see AccountManagerDashboard with Kanban
+  if (isSalesRole || executiveWithSales) {
+    return <AccountManagerDashboard />;
+  }
+  
+  // Default to admin dashboard
+  return <Dashboard />;
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isPending, isRejected, loading } = useAuth();
