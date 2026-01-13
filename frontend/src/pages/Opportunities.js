@@ -190,12 +190,12 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
           </div>
 
           {/* Red Flags */}
-          <div className="card p-5 border-red-200 bg-red-50/30">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+          <div>
+            <h3 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
               Red Flags
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { key: "no_access_to_economic_buyer", label: "No Access to Economic Buyer" },
                 { key: "reorganization_pending", label: "Reorganization Pending" },
@@ -203,40 +203,40 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
                 { key: "competition_preferred", label: "Competition Preferred" },
                 { key: "timeline_unclear", label: "Timeline Unclear" },
               ].map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-red-50 transition-colors border border-red-100">
+                <label key={key} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={analysis[key]}
                     onChange={(e) => setAnalysis(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="w-4 h-4 text-red-600 rounded"
+                    className="rounded border-slate-300"
                   />
-                  <span className="text-sm text-slate-700">{label}</span>
+                  <span className="text-sm text-red-700">{label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Win Results & Action Plan */}
-          <div className="card p-5 border-emerald-200 bg-emerald-50/30">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               Win Results & Action Plan
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { key: "clear_business_results", label: "Clear Business Results Defined" },
                 { key: "quantifiable_value", label: "Quantifiable Value Proposition" },
                 { key: "next_steps_defined", label: "Next Steps Defined" },
                 { key: "mutual_action_plan", label: "Mutual Action Plan Agreed" },
               ].map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-emerald-50 transition-colors border border-emerald-100">
+                <label key={key} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={analysis[key]}
                     onChange={(e) => setAnalysis(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="w-4 h-4 text-emerald-600 rounded"
+                    className="rounded border-slate-300"
                   />
-                  <span className="text-sm text-slate-700">{label}</span>
+                  <span className="text-sm">{label}</span>
                 </label>
               ))}
             </div>
