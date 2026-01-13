@@ -1743,29 +1743,34 @@ async def get_account_360_view(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     
-    # Get related opportunities from data_lake_serving
+    # Get related opportunities from data_lake_serving (only active records)
     opportunities = []
     
     # Build search patterns - use name if available, fallback to ID
     account_search_name = account.get("name", "")
     opp_query = {
         "entity_type": "opportunity",
-        "$or": [
-            {"data.partner_id": account_id},
+        "$and": [
+            # Only show active (non-deleted) records
+            {"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]},
+            # Match by partner ID or name
+            {"$or": [
+                {"data.partner_id": account_id},
+            ]}
         ]
     }
     
     # Add numeric ID search if applicable
     if account_id.isdigit():
-        opp_query["$or"].append({"data.partner_id": int(account_id)})
+        opp_query["$and"][1]["$or"].append({"data.partner_id": int(account_id)})
     
     # Add name-based search
     if account_search_name:
-        opp_query["$or"].append({"data.partner_name": {"$regex": account_search_name, "$options": "i"}})
+        opp_query["$and"][1]["$or"].append({"data.partner_name": {"$regex": account_search_name, "$options": "i"}})
     
     # Also search by account_name if we derived it from the synthetic ID
     if account_name and account_name != account_search_name:
-        opp_query["$or"].append({"data.partner_name": {"$regex": account_name, "$options": "i"}})
+        opp_query["$and"][1]["$or"].append({"data.partner_name": {"$regex": account_name, "$options": "i"}})
     
     opp_docs = await db.data_lake_serving.find(opp_query).to_list(100)
     
