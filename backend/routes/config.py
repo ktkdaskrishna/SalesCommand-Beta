@@ -669,25 +669,271 @@ async def update_bluesheet_weights(
     return updated
 
 # ===================== TARGET ASSIGNMENT CONFIGURATION =====================
+# Targets are ROLE-BASED, not user-specific
+# Users inherit targets from their assigned role
+# This allows dynamic target assignment as users change roles
 
-class TargetCreate(BaseModel):
-    user_id: Optional[str] = None
-    role_id: Optional[str] = None
+class RoleTargetCreate(BaseModel):
+    """Role-based target definition"""
+    role_id: str  # Required - targets are per role
     period_type: str = "monthly"  # monthly, quarterly, yearly
     period_start: datetime
     period_end: datetime
+    # Revenue targets
     target_revenue: float = 0
     target_deals: int = 0
+    # Activity targets (role-specific)
     target_activities: int = 0
+    target_demos: int = 0  # For presales
+    target_support_tickets: int = 0  # For support
+    target_meetings: int = 0  # For managers
+    # Product line specific targets
     product_line_targets: Dict[str, float] = {}
+    # Metadata
+    notes: Optional[str] = None
 
+
+class UserTargetOverride(BaseModel):
+    """User-specific target override (exception to role-based)"""
+    user_id: str
+    role_target_id: str  # Reference to the role target being overridden
+    override_revenue: Optional[float] = None
+    override_deals: Optional[int] = None
+    override_activities: Optional[int] = None
+    reason: str  # Required explanation for override
+
+
+@router.get("/role-targets")
+async def get_role_targets(
+    role_id: Optional[str] = Query(default=None),
+    period_type: Optional[str] = Query(default=None),
+    active_only: bool = Query(default=True),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get role-based targets.
+    Returns targets that apply to roles, not individual users.
+    """
+    db = Database.get_db()
+    
+    query = {}
+    if role_id:
+        query["role_id"] = role_id
+    if period_type:
+        query["period_type"] = period_type
+    if active_only:
+        now = datetime.now(timezone.utc)
+        query["period_end"] = {"$gte": now}
+    
+    targets = await db.role_targets.find(query, {"_id": 0}).to_list(100)
+    
+    # Enrich with role names
+    for target in targets:
+        role = await db.roles.find_one({"id": target.get("role_id")})
+        target["role_name"] = role.get("name") if role else "Unknown Role"
+    
+    return targets
+
+
+@router.post("/role-targets")
+async def create_role_target(
+    data: RoleTargetCreate,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Create a role-based target.
+    All users with this role will inherit this target.
+    """
+    db = Database.get_db()
+    
+    # Verify role exists
+    role = await db.roles.find_one({"id": data.role_id})
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Check for existing target for same role/period
+    existing = await db.role_targets.find_one({
+        "role_id": data.role_id,
+        "period_type": data.period_type,
+        "period_start": {"$lte": data.period_end},
+        "period_end": {"$gte": data.period_start}
+    })
+    if existing:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Target already exists for role '{role.get('name')}' in overlapping period"
+        )
+    
+    target = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc),
+        "created_by": token_data["id"]
+    }
+    
+    await db.role_targets.insert_one(target)
+    
+    # Audit log
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "create_role_target",
+        "entity_type": "role_target",
+        "entity_id": target["id"],
+        "user_id": token_data["id"],
+        "details": {"role_id": data.role_id, "role_name": role.get("name")},
+        "timestamp": datetime.now(timezone.utc),
+    })
+    
+    target.pop("_id", None)
+    target["role_name"] = role.get("name")
+    return target
+
+
+@router.put("/role-targets/{target_id}")
+async def update_role_target(
+    target_id: str,
+    target_revenue: Optional[float] = Query(default=None),
+    target_deals: Optional[int] = Query(default=None),
+    target_activities: Optional[int] = Query(default=None),
+    target_demos: Optional[int] = Query(default=None),
+    target_support_tickets: Optional[int] = Query(default=None),
+    target_meetings: Optional[int] = Query(default=None),
+    notes: Optional[str] = Query(default=None),
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Update a role-based target"""
+    db = Database.get_db()
+    
+    update_data = {"updated_at": datetime.now(timezone.utc)}
+    if target_revenue is not None:
+        update_data["target_revenue"] = target_revenue
+    if target_deals is not None:
+        update_data["target_deals"] = target_deals
+    if target_activities is not None:
+        update_data["target_activities"] = target_activities
+    if target_demos is not None:
+        update_data["target_demos"] = target_demos
+    if target_support_tickets is not None:
+        update_data["target_support_tickets"] = target_support_tickets
+    if target_meetings is not None:
+        update_data["target_meetings"] = target_meetings
+    if notes is not None:
+        update_data["notes"] = notes
+    
+    result = await db.role_targets.update_one(
+        {"id": target_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    return {"message": "Target updated"}
+
+
+@router.delete("/role-targets/{target_id}")
+async def delete_role_target(
+    target_id: str,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Delete a role-based target"""
+    db = Database.get_db()
+    
+    result = await db.role_targets.delete_one({"id": target_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    return {"message": "Target deleted"}
+
+
+@router.get("/user-targets/{user_id}")
+async def get_user_effective_targets(
+    user_id: str,
+    period_type: Optional[str] = Query(default="monthly"),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get effective targets for a specific user.
+    Resolves role-based targets + any user-specific overrides.
+    """
+    db = Database.get_db()
+    
+    # Get user and their role
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    role_id = user.get("role_id")
+    if not role_id:
+        return {
+            "user_id": user_id,
+            "user_name": user.get("name"),
+            "role_id": None,
+            "role_name": None,
+            "targets": None,
+            "message": "User has no assigned role"
+        }
+    
+    # Get role info
+    role = await db.roles.find_one({"id": role_id})
+    role_name = role.get("name") if role else "Unknown"
+    
+    # Get role-based targets for current period
+    now = datetime.now(timezone.utc)
+    role_target = await db.role_targets.find_one({
+        "role_id": role_id,
+        "period_type": period_type,
+        "period_start": {"$lte": now},
+        "period_end": {"$gte": now}
+    }, {"_id": 0})
+    
+    if not role_target:
+        return {
+            "user_id": user_id,
+            "user_name": user.get("name"),
+            "role_id": role_id,
+            "role_name": role_name,
+            "targets": None,
+            "message": f"No {period_type} targets defined for role '{role_name}'"
+        }
+    
+    # Check for user-specific overrides
+    override = await db.target_overrides.find_one({
+        "user_id": user_id,
+        "role_target_id": role_target["id"]
+    }, {"_id": 0})
+    
+    # Merge override into target
+    effective_target = {**role_target}
+    if override:
+        if override.get("override_revenue") is not None:
+            effective_target["target_revenue"] = override["override_revenue"]
+        if override.get("override_deals") is not None:
+            effective_target["target_deals"] = override["override_deals"]
+        if override.get("override_activities") is not None:
+            effective_target["target_activities"] = override["override_activities"]
+        effective_target["has_override"] = True
+        effective_target["override_reason"] = override.get("reason")
+    else:
+        effective_target["has_override"] = False
+    
+    return {
+        "user_id": user_id,
+        "user_name": user.get("name"),
+        "role_id": role_id,
+        "role_name": role_name,
+        "targets": effective_target
+    }
+
+
+# Legacy endpoints - kept for backwards compatibility
 @router.get("/targets")
 async def get_targets(
     user_id: Optional[str] = Query(default=None),
     period_type: Optional[str] = Query(default=None),
     token_data: dict = Depends(require_approved())
 ):
-    """Get sales targets (filtered by user or period)"""
+    """Get sales targets (legacy - use /role-targets instead)"""
     db = Database.get_db()
     
     query = {}
@@ -699,12 +945,13 @@ async def get_targets(
     targets = await db.targets.find(query, {"_id": 0}).to_list(100)
     return targets
 
+
 @router.post("/targets")
 async def create_target(
     data: TargetCreate,
     token_data: dict = Depends(require_approved())
 ):
-    """Create a new target (Super Admin only)"""
+    """Create a new target (legacy - use /role-targets instead)"""
     db = Database.get_db()
     
     # Check if user is super admin
@@ -722,6 +969,19 @@ async def create_target(
     await db.targets.insert_one(target)
     target.pop("_id", None)
     return target
+
+
+# Keep TargetCreate for legacy support
+class TargetCreate(BaseModel):
+    user_id: Optional[str] = None
+    role_id: Optional[str] = None
+    period_type: str = "monthly"
+    period_start: datetime
+    period_end: datetime
+    target_revenue: float = 0
+    target_deals: int = 0
+    target_activities: int = 0
+    product_line_targets: Dict[str, float] = {}
 
 @router.put("/targets/{target_id}")
 async def update_target(
