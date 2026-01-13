@@ -597,19 +597,22 @@ const Opportunities = () => {
     );
   };
 
+  // Apply search filter to all opportunities
+  const filteredOpportunities = opportunities.filter((opp) =>
+    opp.name.toLowerCase().includes(search.toLowerCase()) ||
+    (opp.account_name && opp.account_name.toLowerCase().includes(search.toLowerCase()))
+  );
+
   const getKanbanData = () => {
     const data = {};
     STAGES.forEach(stage => {
-      data[stage.value] = opportunities.filter(opp => opp.stage === stage.value);
+      // Use filtered opportunities for Kanban too
+      data[stage.value] = filteredOpportunities.filter(opp => opp.stage === stage.value);
     });
     return data;
   };
 
-  const filteredOpportunities = opportunities.filter((opp) =>
-    opp.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const totalPipeline = opportunities
+  const totalPipeline = filteredOpportunities
     .filter((o) => !["closed_won", "closed_lost"].includes(o.stage))
     .reduce((sum, o) => sum + (o.value || 0), 0);
     
