@@ -416,9 +416,10 @@ const AdminPanel = () => {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h1 className="text-2xl font-bold text-white">User Management</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
                     {pendingUsers.length > 0 && (
-                      <p className="text-sm text-yellow-400 mt-1">
+                      <p className="text-sm text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
                         {pendingUsers.length} user{pendingUsers.length > 1 ? 's' : ''} pending approval
                       </p>
                     )}
@@ -427,8 +428,7 @@ const AdminPanel = () => {
                     <Button
                       onClick={syncAzureUsers}
                       disabled={syncingAzure}
-                      variant="outline"
-                      className="border-blue-600 text-blue-400 hover:bg-blue-500/10"
+                      className="btn-secondary border-blue-200 text-blue-700 hover:bg-blue-50"
                       data-testid="sync-azure-btn"
                     >
                       {syncingAzure ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
@@ -437,63 +437,62 @@ const AdminPanel = () => {
                     <Button
                       onClick={syncOdooUsers}
                       disabled={loading}
-                      variant="outline"
-                      className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10"
+                      className="btn-secondary border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                       data-testid="sync-odoo-users-btn"
                     >
                       {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />}
                       Sync Odoo Users
                     </Button>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
                         placeholder="Search users..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 bg-zinc-800 border-zinc-700 w-64"
+                        className="pl-10 w-64"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="card overflow-hidden">
                   <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-zinc-800 bg-zinc-800/50">
-                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">User</th>
-                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Role</th>
-                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Department</th>
-                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Approval Status</th>
-                        <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Status</th>
-                        <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Actions</th>
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Approval Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {allFilteredUsers.map(u => (
                         <tr 
                           key={u.id} 
-                          className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 ${
-                            u.approval_status === 'pending' ? 'bg-yellow-500/5' : ''
+                          className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
+                            u.approval_status === 'pending' ? 'bg-amber-50/50' : ''
                           }`}
                         >
                           <td className="px-4 py-3">
-                            <p className="text-white font-medium">{u.name || 'No name'}</p>
-                            <p className="text-zinc-500 text-sm">{u.email}</p>
+                            <p className="font-medium text-slate-900">{u.name || 'No name'}</p>
+                            <p className="text-slate-500 text-sm">{u.email}</p>
                           </td>
                           <td className="px-4 py-3">
                             {editingUser?.id === u.id ? (
                               <select
                                 value={editingUser.role_id || ''}
                                 onChange={(e) => setEditingUser({ ...editingUser, role_id: e.target.value })}
-                                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                                className="input text-sm py-1"
                               >
                                 <option value="">No Role</option>
                                 {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                               </select>
                             ) : (
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                u.is_super_admin ? 'bg-purple-500/20 text-purple-400' :
-                                u.role_name ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-700 text-zinc-400'
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                                u.is_super_admin ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                u.role_name ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-600 border-slate-200'
                               }`}>
                                 {u.is_super_admin ? '👑 Super Admin' : u.role_name || 'No Role'}
                               </span>
@@ -504,33 +503,33 @@ const AdminPanel = () => {
                               <select
                                 value={editingUser.department_id || ''}
                                 onChange={(e) => setEditingUser({ ...editingUser, department_id: e.target.value })}
-                                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                                className="input text-sm py-1"
                               >
                                 <option value="">No Department</option>
                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                               </select>
                             ) : (
-                              <span className="text-zinc-400">{u.department_name || '-'}</span>
+                              <span className="text-slate-600">{u.department_name || '-'}</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
                             {u.approval_status === 'pending' ? (
-                              <span className="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-400 font-medium">
-                                🕐 Pending Approval
+                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                Pending
                               </span>
                             ) : u.approval_status === 'rejected' ? (
-                              <span className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">
-                                ✕ Rejected
+                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                                Rejected
                               </span>
                             ) : (
-                              <span className="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">
-                                ✓ Approved
+                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Approved
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              u.is_active !== false ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                              u.is_active !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
                             }`}>
                               {u.is_active !== false ? 'Active' : 'Inactive'}
                             </span>
@@ -541,7 +540,7 @@ const AdminPanel = () => {
                                 <Button 
                                   size="sm" 
                                   onClick={() => approveUser(u.id)}
-                                  className="bg-green-600 hover:bg-green-500 text-white"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 >
                                   <Check className="w-4 h-4 mr-1" />
                                   Approve
@@ -550,7 +549,7 @@ const AdminPanel = () => {
                                   size="sm" 
                                   variant="ghost" 
                                   onClick={() => rejectUser(u.id)}
-                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                 >
                                   <X className="w-4 h-4 mr-1" />
                                   Reject
@@ -558,7 +557,7 @@ const AdminPanel = () => {
                               </div>
                             ) : editingUser?.id === u.id ? (
                               <div className="flex justify-end gap-2">
-                                <Button size="sm" onClick={() => updateUser(u.id, editingUser)} className="bg-emerald-600 hover:bg-emerald-500">
+                                <Button size="sm" onClick={() => updateUser(u.id, editingUser)} className="btn-primary">
                                   <Save className="w-4 h-4" />
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => setEditingUser(null)}>
@@ -566,7 +565,7 @@ const AdminPanel = () => {
                                 </Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })}>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900">
                                 <Edit2 className="w-4 h-4" />
                               </Button>
                             )}
