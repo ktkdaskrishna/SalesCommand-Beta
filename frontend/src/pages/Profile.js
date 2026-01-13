@@ -39,14 +39,28 @@ const Profile = () => {
     setRelinkMessage(null);
     
     try {
-      const res = await api.post(`/admin/users/${profile.id}/relink`);
-      setRelinkMessage({ type: 'success', text: res.data.message });
-      // Refresh profile to show updated data
-      await fetchProfile();
+      // Use self-service endpoint (no admin required)
+      const res = await api.post('/auth/relink-odoo');
+      
+      if (res.data.success) {
+        setRelinkMessage({ 
+          type: 'success', 
+          text: `${res.data.message}${res.data.match_method ? ` (matched by ${res.data.match_method})` : ''}`
+        });
+        // Refresh profile to show updated data
+        await fetchProfile();
+      } else {
+        // No match found - show suggestions
+        setRelinkMessage({ 
+          type: 'warning', 
+          text: res.data.message,
+          suggestions: res.data.suggestions
+        });
+      }
     } catch (e) {
       setRelinkMessage({ 
         type: 'error', 
-        text: e.response?.data?.detail || 'Failed to re-link. Please try again.' 
+        text: e.response?.data?.detail || 'Failed to link. Please try again.' 
       });
     } finally {
       setRelinking(false);
