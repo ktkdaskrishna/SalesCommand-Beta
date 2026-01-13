@@ -378,11 +378,11 @@ async def calculate_blue_sheet_probability(
         model_name = "gpt-4o"
         
         if llm_config:
-            api_key = llm_config.get("api_key") or os.environ.get('EMERGENT_LLM_KEY')
+            api_key = llm_config.get("api_key") or settings.EMERGENT_LLM_KEY
             model_provider = llm_config.get("provider", "openai")
             model_name = llm_config.get("model", "gpt-4o")
         else:
-            api_key = os.environ.get('EMERGENT_LLM_KEY')
+            api_key = settings.EMERGENT_LLM_KEY
         
         logger.info(f"LLM config: provider={model_provider}, model={model_name}, key_set={bool(api_key)}")
         
