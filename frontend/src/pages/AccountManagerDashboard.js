@@ -937,38 +937,6 @@ const AccountManagerDashboard = () => {
         />
       </div>
 
-      {/* Sales Metrics Summary */}
-      {salesMetrics && (
-        <div className="card p-6" data-testid="sales-metrics">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
-            Sales Metrics ({salesMetrics.period})
-          </h3>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Orders Won</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_won)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Booked</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_booked)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Invoiced</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_invoiced)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Collected</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_collected)}</p>
-            </div>
-            <div className="text-center p-3 bg-emerald-50 rounded-lg">
-              <p className="label">Commission Earned</p>
-              <p className="text-xl font-bold text-emerald-600">{formatCurrency(salesMetrics.commission_earned)}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Pipeline Kanban - Expandable */}
       <ExpandableContainer
         title="Opportunity Pipeline"
