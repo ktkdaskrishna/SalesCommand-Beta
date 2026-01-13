@@ -275,7 +275,7 @@ const Opportunities = () => {
   const columns = [
     {
       key: "name",
-      header: "Opportunity",
+      label: "Opportunity",
       render: (val, row) => (
         <div>
           <p className="font-medium text-slate-900">{val}</p>
@@ -285,7 +285,7 @@ const Opportunities = () => {
     },
     {
       key: "value",
-      header: "Value",
+      label: "Value",
       render: (val) => (
         <span className="font-medium text-slate-900">
           {formatCurrency(val)}
@@ -294,12 +294,12 @@ const Opportunities = () => {
     },
     {
       key: "stage",
-      header: "Stage",
+      label: "Stage",
       render: (val) => <StageBadge stage={val} />,
     },
     {
       key: "probability",
-      header: "Probability",
+      label: "Probability",
       render: (val) => (
         <span className={cn(
           "px-2 py-0.5 rounded-full text-sm font-medium",
@@ -313,19 +313,19 @@ const Opportunities = () => {
     },
     {
       key: "product_lines",
-      header: "Products",
+      label: "Products",
       render: (val) =>
         val?.length > 0 ? val.join(", ") : "—",
     },
     {
       key: "expected_close_date",
-      header: "Expected Close",
+      label: "Expected Close",
       render: (val) =>
         val ? formatDate(val) : "—",
     },
     {
       key: "owner_email",
-      header: "Owner",
+      label: "Owner",
       render: (val) => val || "—",
     },
   ];
