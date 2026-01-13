@@ -156,6 +156,7 @@ function AppRoutes() {
         <Route path="data-lake" element={<DataLake />} />
         <Route path="my-outlook" element={<MyOutlook />} />
         <Route path="admin" element={<AdminPanel />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       {/* Fallback */}
