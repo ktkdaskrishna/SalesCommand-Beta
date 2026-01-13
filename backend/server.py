@@ -104,6 +104,7 @@ from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
 from routes.personal import router as personal_router
 from routes.sales import router as sales_router
+from routes.config import router as config_router
 
 # Register routes
 api_router.include_router(auth_router)
@@ -113,6 +114,7 @@ api_router.include_router(webhooks_router)
 api_router.include_router(admin_router)
 api_router.include_router(personal_router)
 api_router.include_router(sales_router)
+api_router.include_router(config_router)
 
 # Mount API router
 app.include_router(api_router)
