@@ -276,57 +276,57 @@ const Opportunities = () => {
     {
       key: "name",
       header: "Opportunity",
-      render: (opp) => (
+      render: (val, row) => (
         <div>
-          <p className="font-medium text-slate-900">{opp.name}</p>
-          <p className="text-sm text-slate-500">{opp.account_name || "-"}</p>
+          <p className="font-medium text-slate-900">{val}</p>
+          <p className="text-sm text-slate-500">{row?.account_name || "-"}</p>
         </div>
       ),
     },
     {
       key: "value",
       header: "Value",
-      render: (opp) => (
+      render: (val) => (
         <span className="font-medium text-slate-900">
-          {formatCurrency(opp.value)}
+          {formatCurrency(val)}
         </span>
       ),
     },
     {
       key: "stage",
       header: "Stage",
-      render: (opp) => <StageBadge stage={opp.stage} />,
+      render: (val) => <StageBadge stage={val} />,
     },
     {
       key: "probability",
       header: "Probability",
-      render: (opp) => (
+      render: (val) => (
         <span className={cn(
           "px-2 py-0.5 rounded-full text-sm font-medium",
-          opp.probability >= 70 ? "bg-emerald-100 text-emerald-700" :
-          opp.probability >= 40 ? "bg-amber-100 text-amber-700" :
+          val >= 70 ? "bg-emerald-100 text-emerald-700" :
+          val >= 40 ? "bg-amber-100 text-amber-700" :
           "bg-slate-100 text-slate-600"
         )}>
-          {opp.probability}%
+          {val}%
         </span>
       ),
     },
     {
       key: "product_lines",
       header: "Products",
-      render: (opp) =>
-        opp?.product_lines?.length > 0 ? opp.product_lines.join(", ") : "—",
+      render: (val) =>
+        val?.length > 0 ? val.join(", ") : "—",
     },
     {
       key: "expected_close_date",
       header: "Expected Close",
-      render: (opp) =>
-        opp.expected_close_date ? formatDate(opp.expected_close_date) : "—",
+      render: (val) =>
+        val ? formatDate(val) : "—",
     },
     {
-      key: "owner",
+      key: "owner_email",
       header: "Owner",
-      render: (opp) => opp.owner_email || "—",
+      render: (val) => val || "—",
     },
   ];
 
