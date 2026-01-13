@@ -10,8 +10,9 @@ import uuid
 import logging
 
 from core.database import Database
-from services.auth.jwt_handler import get_current_user_from_token
+from services.auth.jwt_handler import get_current_user_from_token, require_role
 from middleware.rbac import require_approved
+from models.base import UserRole
 
 router = APIRouter(prefix="/config", tags=["Configuration"])
 logger = logging.getLogger(__name__)
