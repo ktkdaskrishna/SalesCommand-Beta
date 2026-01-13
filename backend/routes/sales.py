@@ -1180,12 +1180,19 @@ async def get_real_dashboard(
     user_id = token_data["id"]
     user_email = token_data.get("email", "")
     user_role = token_data.get("role", "")
-    is_super_admin = token_data.get("is_super_admin", False)
+    
+    # Get user details including is_super_admin
+    user = token_data.get("user")
+    if user:
+        is_super_admin = getattr(user, "is_super_admin", False)
+    else:
+        user_doc = await db.users.find_one({"id": user_id})
+        is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
     
     # Get user's team_id for team-based visibility
-    user = await db.users.find_one({"id": user_id})
-    team_id = user.get("team_id") if user else None
-    department_id = user.get("department_id") if user else None
+    user_doc = await db.users.find_one({"id": user_id})
+    team_id = user_doc.get("team_id") if user_doc else None
+    department_id = user_doc.get("department_id") if user_doc else None
     
     # ---- OPPORTUNITIES FROM DATA LAKE ----
     opportunities_data = []
