@@ -275,16 +275,6 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 approval_status=approval_status
             )
         )
-                name=user.get("name", name),
-                role=user["role"],
-                department=user.get("department"),
-                product_line=user.get("product_line"),
-                is_active=user.get("is_active", True),
-                avatar_url=user.get("avatar_url"),
-                created_at=user.get("created_at", now),
-                updated_at=user.get("updated_at", now)
-            )
-        )
         
     except aiohttp.ClientError as e:
         logger.error(f"Network error during Microsoft SSO: {str(e)}")
