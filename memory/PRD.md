@@ -78,11 +78,15 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~Production-ready CRM List View (sorting, filtering, column customization)~~ ✅ Completed
 - [x] ~~360° Account View~~ ✅ Completed
 - [x] ~~Expandable Kanban Pipeline Board~~ ✅ Completed
+- [x] ~~Goals Dashboard with KPI tracking~~ ✅ Completed
+- [x] ~~Activity Timeline~~ ✅ Completed
+- [x] ~~User-Odoo re-link functionality~~ ✅ Completed
 - [ ] MS365 refresh token flow (recurring login issue)
 
 ### P1 (High Priority)
+- [ ] Automated background sync (15-30 min intervals) for Odoo data consistency
+- [ ] Real-time activity logging (currently using mock data)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
-- [ ] Investigate "Sync Failed" issues for domain users
 
 ### P2 (Medium Priority)
 - [ ] Calendar UI improvements in `MyOutlook.js`
