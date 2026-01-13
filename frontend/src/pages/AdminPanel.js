@@ -590,9 +590,20 @@ const AdminPanel = () => {
                                 </Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900">
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900">
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  onClick={() => deleteUser(u.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>
