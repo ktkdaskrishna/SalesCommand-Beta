@@ -1,99 +1,75 @@
 <analysis>**original_problem_statement:**
-The user has mandated a complete architectural rebuild of the application from scratch, transforming it into an enterprise-grade Sales Intelligence Platform.
+The user has mandated a complete architectural rebuild of the application from scratch, transforming it into an enterprise-grade Sales Intelligence Platform. The user has also provided screenshots of a reference application () and requested that its Account Manager Dashboard and Blue Sheet Probability Calculator features be replicated.
 
 **PRODUCT REQUIREMENTS:**
 1.  **Clean Rebuild:** Start with a clean, scalable shell structure and add features incrementally.
 2.  **Core Integration:** Odoo ERP (v16 and newer).
 3.  **Architecture:** A microservices-oriented approach for scalability.
-4.  **AI-Powered Field Mapping:** Utilize AI (specifically GPT-5.2) to map fields between Odoo and a new database, with a Bring Your Own Key (BYOK) configuration.
-5.  **Data Sync:** Implement robust data synchronization from Odoo, including real-time updates.
+4.  **AI-Powered Field Mapping:** Utilize AI (specifically GPT-5.2) to map fields between Odoo and a new database, with a Bring Your Own Key (BYOK) configuration. The mapping structure should be universal to support all future integrations.
+5.  **Data Sync:** Implement robust data synchronization from Odoo, including real-time updates and manual sync for Departments and Users.
 6.  **REST API:** A comprehensive REST API for all functionalities.
 7.  **Office 365 Integration:** Full integration including SSO, Email Sync, and Calendar Sync.
-8.  **Role-Based Access Control (RBAC):** A fully configurable system to manage user permissions, with a dedicated Super Admin view for configuration. New users signing up via SSO must be manually approved by a Super Admin before gaining access.
-9.  **Data Segregation:** User data, especially sensitive information like emails from O365, must be strictly isolated. Users should only ever see their own data. Super Admins should only be ableto sync high-level directory information, not personal user data.
+8.  **Role-Based Access Control (RBAC):** A fully configurable system to manage user permissions. New users signing up via SSO must be manually approved by a Super Admin before gaining access. Sales roles should have a restricted view, hiding tabs like Data Lake, Admin Panel, and Settings.
+9.  **Data Segregation:** User data must be strictly isolated.
+10. **Sales Features (from reference app):** Implement an Account Manager Dashboard with a Kanban-style opportunity pipeline and a Blue Sheet modal for calculating opportunity win probability.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A new application has been built with a FastAPI backend and React frontend.
-- **Integrations:** Odoo integration for syncing Accounts, Contacts, etc., is functional. Microsoft 365 SSO is now working correctly using a frontend MSAL flow.
-- **Data Lake:** A three-zone data lake exists to store data from integrations.
-- **RBAC & Admin Panel:** A comprehensive, database-driven RBAC system has been implemented. This includes backend APIs and a frontend Admin Panel for full CRUD operations on roles, permissions, and departments.
-- **Security Flaws Identified:** The user discovered major security flaws. New SSO users get immediate access without admin approval, and many API endpoints and frontend pages lack permission checks. The agent began fixing this by introducing an  for users and creating RBAC middleware.
+The application is a FastAPI backend with a React frontend. A major security overhaul has been completed, implementing a mandatory new-user approval flow. All key API endpoints are now protected by RBAC middleware that checks for an approved user status. The frontend has been updated to support this flow with a Pending Approval page and a modified Admin Panel for Super Admins to approve or reject users.
+
+Additionally, the Odoo integration was enhanced to allow manual syncing of Departments and Users. The AI-powered Field Mapping page was mistakenly replaced by the agent but was then restored and correctly extended to support both Odoo and Microsoft 365 as data sources. UI improvements were made to the My Outlook page, and role-based navigation was implemented to hide specific tabs from non-admin users.
 
 **Last working item**:
-    - Last item agent was working: The agent was in the initial stages of a major security overhaul based on user feedback. They updated the SSO login flow to assign a  status to new users and updated the  model and authentication routes accordingly. They also started securing the data lake API endpoints.
-    - Status: IN PROGRESS
+    - Last item agent was working: The agent just received user approval to begin implementing the Account Manager Dashboard and Blue Sheet Probability Calculator features, based on a detailed plan derived from user-provided screenshots of a reference application.
+    - Status: NOT STARTED
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: (P0) Critical Security & Logic Flaws identified by the user.
+  - Issue 1: (P0) MS365 Email sync is not working.
   - Issue 2: (P1) Department data should be synced from Odoo ERP.
-  - Issue 3: (P1) Field Mapping UI needs to support Microsoft 365.
-  - Issue 4: (P2) Microsoft 365 Email/Calendar data is not displayed anywhere.
+  - Issue 3: (P2) Microsoft 365 Email/Calendar data is not displayed anywhere.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: An  field was added to the  model. The  endpoint was updated to set new users to . RBAC middleware was created at  and applied to the data lake routes as a test case.
-     - Next debug checklist: 
-        1.  **Backend:** Apply the RBAC middleware from  as a dependency to **all** API routes (except login/public endpoints) to enforce permissions.
-        2.  **Backend:** Modify the MS365 sync logic in  to ensure it uses the individual user's token for personal data and an admin-consented token only for directory sync.
-        3.  **Frontend:** Create a Pending Approval page and redirect newly registered users there.
-        4.  **Frontend:** Update the Admin Panel () to allow Super Admins to view and approve/reject users with  status.
-        5.  **Frontend:** Implement a  component that wraps all pages in  and validates user permissions from the  before rendering.
-     - Why fix this issue and what will be achieved with the fix? This is a critical security requirement. It ensures that no user can access the application or its data without being explicitly approved and assigned a role by a Super Admin.
+     - Attempted fixes: The agent added a more descriptive error message on the frontend (Failed to fetch emails. Please check your connection.). The underlying problem, likely related to expired MS365 access tokens, has not been resolved. The user has reported this multiple times.
+     - Next debug checklist:
+        1.  **Backend:** In , implement logic to refresh the MS365 access token if it's expired before making a Graph API call.
+        2.  **Backend:** Add robust error handling around the token refresh and data fetch process to log specific errors from the Microsoft Graph API.
+        3.  **Frontend:** In , display a more specific error to the user if the backend reports a token or permission issue (e.g., Could not sync emails. Please try re-connecting your Microsoft account.).
+     - Why fix this issue and what will be achieved with the fix? This is a critical user-facing feature. Fixing it will allow users to see their own emails within the application, a key part of the Office 365 integration.
      - Status:  IN PROGRESS
-     - Is recurring issue? N
+     - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: None.
-     - Next debug checklist:
-        1.  Enhance the Odoo connector () to fetch data from the Odoo Employee module.
-        2.  Create a new admin-only sync function and API endpoint to import Odoo employees as departments in the application database.
-     - Why fix this issue and what will be achieved with the fix? This fulfills the user's requirement to manage departments based on the source ERP system, rather than manually.
-     - Status:  NOT STARTED
+     - Attempted fixes: **This is now complete.** The agent added  and  methods to , created  and  endpoints, and added buttons to the Admin Panel UI.
+     - Next debug checklist: N/A
+     - Why fix this issue and what will be achieved with the fix? This fulfills the user's requirement to manage departments based on the source ERP system.
+     - Status:  RESOLVED
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
+     - Should Test frontend/backend/both after fix? N/A
      - Blocked on other issue: None
   - Issue 3: 
-     - Attempted fixes: None.
+     - Attempted fixes: The agent added date filtering and UI improvements to the Calendar view in . However, the email portion is still not working due to the sync issue (Issue #1).
      - Next debug checklist:
-        1.  Update the  page to accept Microsoft 365 as a data source.
-        2.  Update the backend logic and models to store and apply field mappings for MS365 user directory sync, similar to how it works for Odoo.
-     - Why fix this issue and what will be achieved with the fix? The user expects to be able to map fields for all key integrations, including O365 user attributes.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
+        1.  Resolve Issue #1 (Email Sync).
+        2.  Ensure the email list UI in  correctly renders the fetched emails.
+     - Why fix this issue and what will be achieved with the fix? This will complete the user-facing part of the Microsoft 365 integration.
+     - Status:  BLOCKED
+     - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
-  - Issue 4: 
-     - Attempted fixes: The initial global sync was found to be insecure and the data was deleted. A My Outlook page was created but is not fully implemented.
-     - Next debug checklist:
-        1.  Implement the data fetching logic on the My Outlook page () to call the  and  endpoints.
-        2.  Ensure the backend endpoints in  are secure and correctly use the logged-in user's MS365 token to fetch only their own data.
-     - Why fix this issue and what will be achieved with the fix? This will provide a secure way for users to view their own O365 emails and calendar events within the application, a key part of the integration.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
+     - Blocked on other issue: Issue 1: MS365 Email sync is not working.
 
 **In progress Task List**:
-  - Task 1:  (P0) Complete the Security Overhaul & Implement New User Approval Flow
-
- Task Detail:
-  - Task 1: 
-     - Where to resume: The agent has just added the  field and created the RBAC middleware. The next step is to systematically apply this middleware to all backend routes and then build the corresponding frontend components for the approval flow.
-     - What will be achieved with this? The application will be secure. New users will be sandboxed until approved, and all data access will be governed by the RBAC system.
-     - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None
+  - None.
 
 **Upcoming and Future Tasks**
 Upcoming Tasks:
+- **(P0) Implement Sales Dashboard & Blue Sheet Features:** Build the Account Manager Dashboard and Blue Sheet Probability Calculator as per the approved plan. This involves creating new backend models and APIs for Opportunities and building the corresponding frontend components (Kanban board, modal calculator).
 - **(P1) Implement Real-Time Sync (Odoo):** Implement logic for Odoo webhooks in .
-- **(P1) Integrate GPT-5.2 for AI Mapping:** Use the  to integrate GPT-5.2 into the  service.
 - **(P2) Build Dashboard Analytics:** Populate the main dashboard with charts and KPIs using the analytics-ready data from the Serving zone.
 
 Future Tasks:
@@ -101,16 +77,23 @@ Future Tasks:
 - **(P2) Add More Integrations:** Build out connectors for other platforms like Salesforce and HubSpot.
 
 **Completed work in this session**
-- **Microsoft SSO Fix:** Refactored the broken Microsoft SSO to a correct frontend-led flow using .
-- **Configurable RBAC System:** Built a complete, database-driven RBAC system with a full-featured frontend Admin Panel for CRUD operations on roles and permissions.
-- **Admin Panel UI:** Created a comprehensive UI for managing users, roles, and permissions, including a permission matrix for role creation/editing.
-- **Azure AD User Sync:** Implemented backend logic and a UI button for admins to sync users from Azure AD.
-- **My Outlook Page:** Created the scaffold for a personal page for users to view their own O365 data.
-- **Security Cleanup:** Deleted insecurely synced personal email/calendar data from the database.
-- **System Analysis:** Performed a thorough review of the application, identifying numerous security and logic flaws, documented in .
+- **Security Overhaul & User Approval Flow:**
+  - Implemented a mandatory approval flow for all new users signing up via SSO.
+  - Secured all relevant backend API endpoints (, , ) by applying the RBAC middleware to enforce an  status.
+  - Created a  page and updated  to allow Super Admins to approve/reject users.
+  - Wrote a migration script to set  for all existing users to prevent lockout.
+- **Odoo Sync Expansion:**
+  - Added backend methods and API endpoints (, ) to sync departments and users from Odoo.
+  - Added corresponding buttons to the Admin Panel UI.
+- **Field Mapping Restoration & Enhancement:**
+  - Corrected a major error by restoring the original AI-powered  page after it was mistakenly replaced.
+  - Extended the restored page to be universal, adding a selector to switch between Odoo and Microsoft 365 as data sources while preserving all AI-mapping functionality.
+- **UI/UX Improvements:**
+  - Implemented role-based navigation in  to hide admin-only tabs from sales users.
+  - Improved the calendar UI in  with date filtering and pagination.
 
 **Earlier issues found/mentioned but not fixed**
-   - None not already captured in the pending issue list.
+   - **Issue 1:** MS365 Email Sync is still not working. The user has reported this multiple times, and despite frontend UI changes, the core backend issue (likely token refresh) remains unresolved.
 
 **Known issue recurrence from previous fork**
   - None.
@@ -121,83 +104,81 @@ Future Tasks:
 **Key Technical Concepts**
 - **Backend:** FastAPI, Pydantic, Motor (async MongoDB).
 - **Frontend:** React, Tailwind CSS, shadcn/ui.
-- **Authentication:** JWT, Microsoft SSO (OAuth with PKCE via ).
-- **Authorization:** Database-driven RBAC with middleware for permission enforcement. A new-user approval flow is being implemented.
-- **Architecture:** Modular Monolith, 3-Zone Data Lake.
+- **Authentication:** JWT, Microsoft SSO (OAuth via ).
+- **Authorization:** Database-driven RBAC with a mandatory new-user approval flow. Middleware is applied globally to secure API endpoints.
+- **Architecture:** Modular Monolith.
 
 **key DB schema**
-- **users**: Stores user profiles. Now includes  and .
-- **integrations**: Stores configuration for connected systems.
-- **roles**: (New) Stores role definitions, including name, description, and data scope.
-- **permissions**: (New) Stores permission definitions (e.g., ).
-- **departments**: (New) Stores department information.
-- **dl_raw, dl_canonical, dl_serving**: Data lake collections.
+- **users**: Now includes . This is a critical field for the new security model.
+- **departments**: Now populated via sync from Odoo.
+- **(Proposed) opportunities**: New collection to be created for the Sales Dashboard feature. Will include fields for , , , , and a nested  object to store probability calculation data.
 
 **changes in tech stack**
--  was installed on the frontend for Microsoft SSO.
+- None.
 
 **All files of reference**
-- : Critical analysis of all current security flaws. This MUST be the guide for the next set of fixes.
-- : The new middleware that must be applied to secure endpoints.
-- : The SSO callback logic was updated here.
-- : The  model was updated here.
-- : The UI for all RBAC management.
-- : The API backing the Admin Panel.
+- : The core middleware enforcing user approval status.
+- : New page for the user approval workflow.
+- : Contains the UI for approving users and syncing Odoo data.
+- : Contains the API logic for user approval and Odoo sync.
+- : The restored and extended universal mapping page.
+- : Contains the role-based navigation logic.
+- : The file that needs to be fixed to resolve the email sync issue.
 
 **Areas that need refactoring**:
-- **Application-wide Security:** All API routes and Frontend pages must be refactored to use the new RBAC system for authorization. This is not a small task; it's a foundational security overhaul.
+- The agent made a critical mistake by deleting the working  and replacing it with a new , which had to be undone. This indicates a process failure. The next agent must be extremely careful to extend existing functionality rather than replacing it.
 
 **key api endpoints**
-- : Completes SSO login, now sets  for new users.
-- , : Manage RBAC roles.
-- , : Manage RBAC permissions.
-- , : Manage users (needs update for approval).
-- : Triggers a sync of the Azure AD user directory.
-- , : Fetch personal data for the logged-in user.
+- : Approves a pending user.
+- : Rejects a pending user.
+- : Triggers a sync of departments from Odoo.
+- : Triggers a sync of employees from Odoo and updates/creates users.
 
 **Critical Info for New Agent**
-- **IMMEDIATE PRIORITY:** You must complete the security lockdown detailed in . The user is very concerned about the identified flaws. The new user approval flow is the most critical part of this.
-- **New User Flow:** The required flow is: User signs in with MS SSO -> Is created in DB with  -> Is redirected to a Pending Approval page -> Super Admin sees user in Admin Panel and approves them -> User can then log in and access the app.
-- **RBAC Enforcement:** Do not add any new features until all existing API endpoints and frontend pages are protected by the RBAC system. Use the  middleware as a dependency for backend routes and create a  component for the frontend.
+- **Immediate Priority:** Begin implementation of the **Account Manager Dashboard** and **Blue Sheet Probability Calculator**. The user has seen and approved a detailed plan for this. Do not deviate from it.
+- **Urgent Bug:** The **MS365 Email Sync is still broken**. This is a recurring, high-priority issue. The fix likely involves implementing token refresh logic in . This should be addressed before or alongside the new features.
+- **CRITICAL - AVOID PAST MISTAKES:** The previous agent angered the user by deleting a working AI Field Mapping feature and replacing it. **DO NOT replace working features.** Always analyze the existing code and extend it to meet new requirements.
+- **User is a Tester:** The user actively tests the application and will report bugs and regressions. Ensure features are well-tested before finishing.
 
 **documents and test reports created in this job**
 - 
 - 
 - 
-- 
-- 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1.  **User:** Asks for O365 field mapping.
-2.  **User:** Approves implementing the best approach for both O365 data privacy and field mapping.
-3.  **User:** States that roles/permissions should be fully configurable, not hardcoded.
-4.  **User:** Points out that the newly created Admin Panel is not functional (can't create/edit roles).
-5.  **User (CRITICAL):** Reports a major security flaw: after logging in with a new MS account, they have access to the app before being assigned a role by an admin. They also note their emails aren't syncing.
-6.  **User:** Asks for Odoo to be the source for department data.
-7.  **User:** Requests a detailed analysis of all current flows, a rating, and enhancement suggestions for UI/security.
-8.  **User:** After reviewing the agent's analysis (), instructs the agent to fix all identified issues.
-9.  **User:** Explicitly states that the testing agent should be updated/used to check for these security flaws in the future.
+10. **User:** Asks for Odoo to be the source for department data, user management to be editable, and user details to be synced from Odoo. Also requests a universal field mapping structure.
+9. **Agent:** Proposes a plan for the above and asks for confirmation.
+8. **User:** yes - approves the plan.
+7. **Agent:** Implements the Odoo sync and a *new* universal mapping page, replacing the old one. Finishes with a summary.
+6. **User:** Provides credentials for a reference app () and asks the agent to replicate its sales dashboard and blue sheet features. Also reports that **email sync is still not working**.
+5. **Agent:** Analyzes the reference app and screenshots, creates a detailed implementation plan for the new sales features, and asks for approval.
+4. **User:** Expresses anger that the agent removed the AI field mapping functionality and replaced it with a static page. Demands that the old configuration be restored and that existing code not be changed.
+3. **Agent:** Apologizes, restores the original , extends it to support MS365 (as intended), and deletes the problematic new file. Summarizes the fix.
+2. **User:** proceed with this now - Pastes the agent's plan for the Sales Dashboard and Blue Sheet features, indicating approval to start that work.
+1. **Agent:** Acknowledges the approval and prepares to start building the sales features.
 
 **Project Health Check:**
-- **Working:** Odoo integration (manual sync), Database-driven RBAC backend.
-- **In Progress:** Security lockdown and new user approval workflow.
-- **Broken:** The application's authorization model is critically flawed. Unapproved users can access the system. Most APIs and UI pages are not protected by RBAC.
-- **Mocked:** The My Outlook page UI exists but does not fetch or display data.
+- **Working:** New user approval workflow, RBAC security on endpoints, Odoo department/user sync, universal Field Mapping UI.
+- **In Progress:** None.
+- **Broken:** **Microsoft 365 Email Sync.** This is a critical, user-reported bug that prevents the My Outlook page from being functional for emails.
+- **Mocked:** The My Outlook page's email section is mocked as it cannot fetch data.
 
 **3rd Party Integrations**
-- **Odoo ERP:** Integrated for manual data sync.
-- **Emergent LLM Key (OpenAI):** Used for AI auto-mapping.
-- **Microsoft 365 (Azure AD / Graph API):** SSO is functional. Data sync is being re-architected for security and data isolation.
+- **Odoo ERP:** Integrated for manual data sync of contacts, accounts, departments, and users.
+- **Emergent LLM Key (OpenAI):** Used for AI auto-mapping in the Field Mapping feature.
+- **Microsoft 365 (Azure AD / Graph API):** SSO is functional. Data sync for calendar works, but email sync is broken.
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: Yes, in previous test runs.
-  - Known regressions: The entire authorization model. Previous tests are likely to fail until they are updated to reflect the new, stricter RBAC rules and the user approval flow.
+  - Test files created: No new test files were created. The agent performed extensive manual testing of the backend security flow using  and custom Python scripts.
+  - Known regressions: MS365 Email sync remains broken.
 
 **Credentials to test flow:**
 - **Super Admin:**  / 
-- **Microsoft 365:** User needs to provide their own Microsoft account for SSO testing. A new, previously unused account is required to test the pending approval flow.
+- **Microsoft 365:** A new, previously unused Microsoft account is required to test the pending approval flow from scratch. Existing user accounts were migrated to approved. User's test account is .
+- **Reference App:**  /  for .
 
 **What agent forgot to execute**
-- The agent built numerous features (MS365 Sync, Data Lake access, Admin Panel) without implementing security and authorization from the start. This led to the current critical state where a major, application-wide refactoring is required to fix the security holes, as pointed out by the user.</analysis>
+- The agent failed to resolve the recurring MS365 email sync issue despite multiple user reports and attempts to fix the UI. The core backend problem was never addressed.
+- The agent made a significant process error by replacing a complex, working feature () with a simplified new one, demonstrating a lack of diligence. This required a rollback and rework, wasting time and frustrating the user.</analysis>
