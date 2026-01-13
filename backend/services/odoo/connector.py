@@ -98,7 +98,7 @@ class OdooConnector:
             raise Exception(f"HTTP error {e.response.status_code}: Check if URL is correct")
         except httpx.ConnectError as e:
             logger.error(f"Odoo connection error: {e}")
-            raise Exception(f"Cannot connect to Odoo server. Check the URL.")
+            raise Exception("Cannot connect to Odoo server. Check the URL.")
         except Exception as e:
             logger.error(f"Odoo authentication error: {e}")
             raise
