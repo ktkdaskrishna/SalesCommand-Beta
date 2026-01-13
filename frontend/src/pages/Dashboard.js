@@ -85,7 +85,7 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-slate-900">
             Welcome back, {user?.name?.split(' ')[0] || 'there'}
           </h1>
-          <p className="text-slate-500 mt-1">Here's what's happening with your data platform</p>
+          <p className="text-slate-500 mt-1">Here&apos;s what&apos;s happening with your data platform</p>
         </div>
         <Button
           onClick={fetchData}
