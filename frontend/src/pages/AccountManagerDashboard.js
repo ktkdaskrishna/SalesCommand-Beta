@@ -801,20 +801,24 @@ const AccountManagerDashboard = () => {
   const handleSyncFromOdoo = async () => {
     setSyncing(true);
     try {
-      const res = await api.post("/integrations/odoo/sync-all");
-      if (res.data.success) {
-        alert(`Sync completed! Synced: ${JSON.stringify(res.data.synced_entities)}`);
-        // Refresh dashboard data
-        await fetchDashboardData();
-      } else {
-        alert(`Sync completed with errors: ${res.data.errors.join(", ")}`);
+      // Use the main sync endpoint which uses the proper sync service
+      const res = await api.post("/integrations/sync/odoo", { 
+        entity_types: ["account", "opportunity", "contact", "order", "invoice"] 
+      });
+      if (res.data.job_id) {
+        alert(`Sync job started! Job ID: ${res.data.job_id}\n\nData will refresh in a few seconds...`);
+        // Wait a bit for sync to complete then refresh
+        setTimeout(async () => {
+          await fetchDashboardData();
+          setSyncing(false);
+        }, 5000);
+        return;
       }
     } catch (e) {
       console.error("Sync failed:", e);
       alert("Sync failed. Please check Odoo integration configuration.");
-    } finally {
-      setSyncing(false);
     }
+    setSyncing(false);
   };
 
   const fetchDashboardData = async () => {
