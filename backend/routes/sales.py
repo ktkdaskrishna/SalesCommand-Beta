@@ -1205,7 +1205,6 @@ async def get_real_dashboard(
         if not is_super_admin and user_role == "account_manager":
             # Filter by salesperson_name (Odoo field maps to user email)
             salesperson = opp.get("salesperson_name", "")
-            logger.info(f"  Checking opp: {opp.get('name')}, salesperson={salesperson}, match={user_email in salesperson if salesperson else 'N/A'}")
             if salesperson and user_email not in salesperson:
                 continue
         
