@@ -7,7 +7,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sales-intel-beta.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://audit-phase-1.preview.emergentagent.com')
 
 class TestSalesDashboardAPIs:
     """Sales Dashboard API tests"""
