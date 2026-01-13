@@ -148,6 +148,35 @@ export const searchAPI = {
 export const configAPI = {
   getLLM: () => api.get('/config/llm'),
   updateLLM: (params) => api.put('/config/llm', null, { params }),
+  
+  // Widgets
+  getWidgets: () => api.get('/config/widgets'),
+  
+  // Navigation
+  getNavigationItems: () => api.get('/config/navigation-items'),
+  getUserNavigation: () => api.get('/config/user/navigation'),
+  
+  // Roles
+  getRoles: () => api.get('/config/roles'),
+  getRole: (id) => api.get(`/config/roles/${id}`),
+  createRole: (data) => api.post('/config/roles', data),
+  updateRole: (id, data) => api.put(`/config/roles/${id}`, data),
+  deleteRole: (id) => api.delete(`/config/roles/${id}`),
+  
+  // User Dashboard
+  getUserDashboard: () => api.get('/config/user/dashboard'),
+  saveUserDashboard: (data) => api.put('/config/user/dashboard', data),
+  resetUserDashboard: () => api.delete('/config/user/dashboard'),
+  
+  // Service Lines
+  getServiceLines: () => api.get('/config/service-lines'),
+  createServiceLine: (params) => api.post('/config/service-lines', null, { params }),
+  updateServiceLine: (id, params) => api.put(`/config/service-lines/${id}`, null, { params }),
+  
+  // Pipeline Stages
+  getPipelineStages: () => api.get('/config/pipeline-stages'),
+  updatePipelineStage: (id, params) => api.put(`/config/pipeline-stages/${id}`, null, { params }),
+  createPipelineStage: (params) => api.post('/config/pipeline-stages', null, { params }),
 };
 
 export default api;
