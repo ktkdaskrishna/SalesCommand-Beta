@@ -1498,6 +1498,191 @@ async def get_real_accounts(
     }
 
 
+# ===================== 360° ACCOUNT VIEW =====================
+
+@router.get("/accounts/{account_id}/360")
+async def get_account_360_view(
+    account_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get 360° view of an account with all related entities.
+    Aggregates opportunities, invoices, activities, and contacts from data_lake_serving.
+    """
+    db = Database.get_db()
+    
+    # Find the account - try both data lake and legacy accounts
+    account = None
+    
+    # First check data_lake_serving
+    acc_doc = await db.data_lake_serving.find_one({
+        "entity_type": "account",
+        "$or": [
+            {"data.id": account_id},
+            {"data.id": int(account_id) if account_id.isdigit() else account_id},
+            {"serving_id": account_id}
+        ]
+    })
+    
+    if acc_doc:
+        acc_data = acc_doc.get("data", {})
+        account = {
+            "id": str(acc_data.get("id", account_id)),
+            "name": acc_data.get("name", ""),
+            "email": acc_data.get("email", ""),
+            "phone": acc_data.get("phone", ""),
+            "mobile": acc_data.get("mobile", ""),
+            "website": acc_data.get("website", ""),
+            "street": acc_data.get("street", ""),
+            "city": acc_data.get("city", ""),
+            "state": acc_data.get("state", ""),
+            "country": acc_data.get("country", ""),
+            "zip": acc_data.get("zip", ""),
+            "industry": acc_data.get("industry", ""),
+            "company_type": acc_data.get("company_type", ""),
+            "is_company": acc_data.get("is_company", False),
+            "parent_id": acc_data.get("parent_id"),
+            "parent_name": acc_data.get("parent_name", ""),
+            "credit_limit": float(acc_data.get("credit_limit", 0) or 0),
+            "total_invoiced": float(acc_data.get("total_invoiced", 0) or 0),
+            "total_due": float(acc_data.get("total_due", 0) or 0),
+            "source": "odoo",
+            "last_synced": acc_doc.get("last_aggregated"),
+        }
+    else:
+        # Fallback to legacy accounts collection
+        legacy_acc = await db.accounts.find_one({"id": account_id}, {"_id": 0})
+        if legacy_acc:
+            account = {**legacy_acc, "source": "crm"}
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Get related opportunities from data_lake_serving
+    opportunities = []
+    opp_docs = await db.data_lake_serving.find({
+        "entity_type": "opportunity",
+        "$or": [
+            {"data.partner_id": account_id},
+            {"data.partner_id": int(account_id) if account_id.isdigit() else None},
+            {"data.partner_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}}
+        ]
+    }).to_list(100)
+    
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        opportunities.append({
+            "id": str(opp.get("id", "")),
+            "name": opp.get("name", ""),
+            "value": float(opp.get("expected_revenue", 0) or 0),
+            "probability": float(opp.get("probability", 0) or 0),
+            "stage": opp.get("stage_name", "New"),
+            "salesperson": opp.get("salesperson_name", ""),
+            "expected_close_date": opp.get("date_deadline"),
+            "created_date": opp.get("create_date"),
+        })
+    
+    # Also check legacy opportunities
+    legacy_opps = await db.opportunities.find(
+        {"account_id": account_id}, 
+        {"_id": 0}
+    ).to_list(100)
+    for opp in legacy_opps:
+        if not any(o["id"] == opp.get("id") for o in opportunities):
+            opportunities.append({
+                "id": opp.get("id", ""),
+                "name": opp.get("name", ""),
+                "value": float(opp.get("value", 0) or 0),
+                "probability": float(opp.get("probability", 0) or 0),
+                "stage": opp.get("stage", "lead"),
+                "salesperson": opp.get("owner_name", ""),
+                "expected_close_date": opp.get("expected_close_date"),
+                "created_date": opp.get("created_at"),
+            })
+    
+    # Get related invoices from data_lake_serving
+    invoices = []
+    inv_docs = await db.data_lake_serving.find({
+        "entity_type": "invoice",
+        "$or": [
+            {"data.partner_id": account_id},
+            {"data.partner_id": int(account_id) if account_id.isdigit() else None},
+            {"data.partner_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}},
+            {"data.customer_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}}
+        ]
+    }).to_list(100)
+    
+    for doc in inv_docs:
+        inv = doc.get("data", {})
+        invoices.append({
+            "id": str(inv.get("id", "")),
+            "number": inv.get("name", inv.get("invoice_number", "")),
+            "amount_total": float(inv.get("amount_total", 0) or 0),
+            "amount_due": float(inv.get("amount_residual", inv.get("amount_due", 0)) or 0),
+            "payment_status": inv.get("payment_state", inv.get("payment_status", "pending")),
+            "invoice_date": inv.get("invoice_date"),
+            "due_date": inv.get("invoice_date_due", inv.get("due_date")),
+        })
+    
+    # Get related activities
+    activities = []
+    activity_docs = await db.activities.find({"account_id": account_id}, {"_id": 0}).to_list(50)
+    for act in activity_docs:
+        activities.append({
+            "id": act.get("id", ""),
+            "title": act.get("title", ""),
+            "activity_type": act.get("activity_type", "task"),
+            "status": act.get("status", "pending"),
+            "due_date": act.get("due_date"),
+            "priority": act.get("priority", "medium"),
+        })
+    
+    # Get related contacts (child accounts/contacts in Odoo)
+    contacts = []
+    contact_docs = await db.data_lake_serving.find({
+        "entity_type": "account",
+        "$or": [
+            {"data.parent_id": account_id},
+            {"data.parent_id": int(account_id) if account_id.isdigit() else None}
+        ]
+    }).to_list(50)
+    
+    for doc in contact_docs:
+        contact = doc.get("data", {})
+        if not contact.get("is_company", False):
+            contacts.append({
+                "id": str(contact.get("id", "")),
+                "name": contact.get("name", ""),
+                "email": contact.get("email", ""),
+                "phone": contact.get("phone", contact.get("mobile", "")),
+                "job_title": contact.get("function", ""),
+            })
+    
+    # Calculate summary metrics
+    total_pipeline = sum(o["value"] for o in opportunities if o["stage"] not in ["Won", "Lost", "Closed Won", "Closed Lost"])
+    total_won = sum(o["value"] for o in opportunities if o["stage"] in ["Won", "Closed Won"])
+    total_invoiced = sum(i["amount_total"] for i in invoices)
+    total_outstanding = sum(i["amount_due"] for i in invoices)
+    
+    return {
+        "account": account,
+        "summary": {
+            "total_opportunities": len(opportunities),
+            "total_pipeline_value": total_pipeline,
+            "total_won_value": total_won,
+            "total_invoiced": total_invoiced,
+            "total_outstanding": total_outstanding,
+            "total_activities": len(activities),
+            "pending_activities": len([a for a in activities if a["status"] == "pending"]),
+            "total_contacts": len(contacts),
+        },
+        "opportunities": sorted(opportunities, key=lambda x: x.get("value", 0), reverse=True),
+        "invoices": sorted(invoices, key=lambda x: x.get("invoice_date") or "", reverse=True),
+        "activities": sorted(activities, key=lambda x: x.get("due_date") or ""),
+        "contacts": contacts,
+    }
+
+
 # ===================== SYNC HEALTH STATUS =====================
 
 @router.get("/sync-status")
