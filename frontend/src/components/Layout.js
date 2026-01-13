@@ -198,6 +198,8 @@ const Header = ({ onMenuClick, user, onLogout }) => {
     if (path === '/dashboard') return 'Dashboard';
     if (path === '/accounts') return 'Accounts';
     if (path === '/opportunities') return 'Opportunities';
+    if (path === '/goals') return 'Goals';
+    if (path === '/activity') return 'Activity';
     if (path === '/kpis') return 'KPIs';
     if (path === '/my-outlook') return 'Email & Calendar';
     if (path === '/sales-dashboard') return 'Sales Dashboard';
