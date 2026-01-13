@@ -153,6 +153,38 @@ const Profile = () => {
                 Match Status: {data.odoo_match_status}
               </p>
             )}
+            
+            {/* Re-link Button - visible for admins or if not linked */}
+            {(isExecutive() || !data?.odoo_matched) && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                {relinkMessage && (
+                  <div className={`mb-3 p-3 rounded-lg text-sm ${
+                    relinkMessage.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                    {relinkMessage.text}
+                  </div>
+                )}
+                <button
+                  onClick={handleRelink}
+                  disabled={relinking}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {relinking ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  {data?.odoo_matched ? 'Re-sync from Odoo' : 'Link to Odoo'}
+                </button>
+                <p className="text-xs text-slate-500 mt-2">
+                  {data?.odoo_matched 
+                    ? 'Re-sync your profile with the latest Odoo data'
+                    : 'Attempt to match your email with an Odoo user/employee'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Account Status */}
