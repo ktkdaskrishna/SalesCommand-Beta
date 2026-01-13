@@ -871,7 +871,7 @@ const FieldMapping = () => {
                   {mappings.some(m => m.target_field === field) ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
-                    <span className="text-xs text-zinc-500">unmapped</span>
+                    <span className="text-xs text-amber-400/70">unmapped</span>
                   )}
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">
