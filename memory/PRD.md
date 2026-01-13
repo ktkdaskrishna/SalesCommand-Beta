@@ -96,8 +96,10 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~Sales user pipeline display~~ ✅ Fixed Jan 13, 2026 (was already working)
 - [x] ~~Industry filter on Accounts page~~ ✅ Fixed Jan 13, 2026 (infer_industry function)
 - [x] ~~Activity Timeline showing real data~~ ✅ Fixed Jan 13, 2026 (ActivityLogger service + seeded data)
-- [ ] 360° View: Contacts section shows data now, but needs more Odoo contact-account linking
-- [ ] 360° View: Activities/Invoices counts working (8+ activities now)
+- [x] ~~Non-admin sync button~~ ✅ Fixed Jan 14, 2026 (new /user-sync/refresh endpoint with rate limiting)
+- [x] ~~360° View "Account not found" error~~ ✅ Fixed Jan 14, 2026 (synthetic ID support added)
+- [x] ~~Odoo user profile fields not showing~~ ✅ Fixed Jan 14, 2026 (UserResponse model updated)
+- [ ] Deletion sync from Odoo (soft-delete logic exists but needs Odoo 19 field compatibility)
 - [ ] Automated background sync hardening (5-min intervals verified working)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
 
