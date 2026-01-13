@@ -20,6 +20,7 @@ import {
   Shield,
   Users,
   Mail,
+  Target,
 } from 'lucide-react';
 
 const Layout = () => {
