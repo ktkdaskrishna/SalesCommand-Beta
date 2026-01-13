@@ -33,7 +33,46 @@ import {
   Database,
   RefreshCw,
   Info,
+  CheckCircle,
+  AlertTriangle as AlertTriangleIcon,
 } from "lucide-react";
+
+// Sync Status Widget - shows integration health
+const SyncStatusWidget = ({ integrations }) => {
+  if (!integrations || integrations.length === 0) return null;
+  
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'needs_refresh':
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-amber-500" />;
+      default:
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      {integrations.map((integration, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-1.5 text-xs"
+          title={integration.note || `${integration.name}: ${integration.status}`}
+        >
+          {getStatusIcon(integration.status)}
+          <span className={
+            integration.status === 'connected' ? 'text-slate-600' :
+            integration.status === 'needs_refresh' ? 'text-amber-600' :
+            'text-slate-400'
+          }>
+            {integration.name.split(' ')[0]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // Data Source Badge Component - shows where data comes from
 const DataSourceBadge = ({ source, lastSync }) => {
