@@ -193,31 +193,31 @@ const IncentiveConfiguration = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-white">Incentive Configuration</h2>
-          <p className="text-sm text-zinc-400 mt-1">Manage commission templates and service line weights</p>
+          <h2 className="text-xl font-semibold text-slate-900">Incentive Configuration</h2>
+          <p className="text-sm text-slate-600 mt-1">Manage commission templates and service line weights</p>
         </div>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}
       {success && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm">
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
           {success}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-zinc-800 pb-4">
+      <div className="flex gap-2 border-b border-slate-200 pb-4">
         <button
           onClick={() => setActiveTab('templates')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
             activeTab === 'templates'
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Award className="w-4 h-4" />
@@ -227,8 +227,8 @@ const IncentiveConfiguration = () => {
           onClick={() => setActiveTab('service-lines')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
             activeTab === 'service-lines'
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -242,7 +242,7 @@ const IncentiveConfiguration = () => {
           <div className="flex justify-end">
             <Button
               onClick={() => { resetTemplateForm(); setShowTemplateModal(true); }}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="btn-primary"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Template
@@ -254,16 +254,16 @@ const IncentiveConfiguration = () => {
             {templates.map(template => (
               <div
                 key={template.id}
-                className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 hover:border-zinc-600 transition-colors"
+                className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 transition-all"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-medium text-white">{template.name}</h3>
-                    <p className="text-sm text-zinc-400">{template.description || 'No description'}</p>
+                    <h3 className="font-semibold text-slate-900">{template.name}</h3>
+                    <p className="text-sm text-slate-600">{template.description || 'No description'}</p>
                   </div>
                   <button
                     onClick={() => openEditTemplate(template)}
-                    className="text-zinc-400 hover:text-white"
+                    className="text-slate-400 hover:text-slate-700 p-1 hover:bg-slate-100 rounded"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -271,27 +271,27 @@ const IncentiveConfiguration = () => {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Type:</span>
-                    <span className="text-white capitalize">{template.template_type?.replace('_', ' ')}</span>
+                    <span className="text-slate-500">Type:</span>
+                    <span className="text-slate-900 font-medium capitalize">{template.template_type?.replace('_', ' ')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Base Rate:</span>
-                    <span className="text-emerald-400">{(template.base_rate * 100).toFixed(1)}%</span>
+                    <span className="text-slate-500">Base Rate:</span>
+                    <span className="text-emerald-600 font-semibold">{(template.base_rate * 100).toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">New Logo Bonus:</span>
-                    <span className="text-emerald-400">{template.new_logo_multiplier}x</span>
+                    <span className="text-slate-500">New Logo Bonus:</span>
+                    <span className="text-blue-600 font-semibold">{template.new_logo_multiplier}x</span>
                   </div>
                   
                   {/* Tiers Preview */}
                   {template.tiers && template.tiers.length > 0 && (
-                    <div className="pt-2 border-t border-zinc-700 mt-2">
-                      <span className="text-zinc-400 text-xs">Tiers:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
+                    <div className="pt-3 border-t border-slate-100 mt-3">
+                      <span className="text-slate-500 text-xs font-medium">Tiers:</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
                         {template.tiers.map((tier, i) => (
                           <span
                             key={i}
-                            className="px-2 py-0.5 bg-zinc-700 rounded text-xs text-zinc-300"
+                            className="px-2 py-1 bg-slate-100 rounded-full text-xs text-slate-700 border border-slate-200"
                           >
                             {tier.min_attainment}-{tier.max_attainment}%: {tier.multiplier}x
                           </span>
@@ -312,7 +312,7 @@ const IncentiveConfiguration = () => {
           <div className="flex justify-end">
             <Button
               onClick={() => { resetServiceLineForm(); setShowServiceLineModal(true); }}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="btn-primary"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Service Line
@@ -320,44 +320,44 @@ const IncentiveConfiguration = () => {
           </div>
 
           {/* Service Lines Table */}
-          <div className="bg-zinc-800/30 rounded-xl border border-zinc-800 overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Code</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Name</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Weight</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-zinc-400">Recurring</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-zinc-400">Actions</th>
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Weight</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Recurring</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {serviceLines.map(line => (
-                  <tr key={line.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                    <td className="px-4 py-3 text-sm font-mono text-emerald-400">{line.code}</td>
-                    <td className="px-4 py-3 text-sm text-white">{line.name}</td>
+                  <tr key={line.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-sm font-mono text-indigo-600 font-semibold">{line.code}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{line.name}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-0.5 rounded ${
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                         line.commission_weight > 1 
-                          ? 'bg-emerald-500/20 text-emerald-400'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : line.commission_weight < 1
-                            ? 'bg-orange-500/20 text-orange-400'
-                            : 'bg-zinc-700 text-zinc-300'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}>
                         {line.commission_weight}x
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {line.is_recurring ? (
-                        <span className="text-emerald-400">Yes</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Yes</span>
                       ) : (
-                        <span className="text-zinc-500">No</span>
+                        <span className="text-slate-400">No</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => openEditServiceLine(line)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-slate-400 hover:text-slate-700 p-1 hover:bg-slate-100 rounded"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -372,13 +372,13 @@ const IncentiveConfiguration = () => {
 
       {/* Template Modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">
+              <h3 className="text-xl font-bold text-slate-900">
                 {editingTemplate ? 'Edit Template' : 'New Commission Template'}
               </h3>
-              <button onClick={() => setShowTemplateModal(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -386,56 +386,56 @@ const IncentiveConfiguration = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-zinc-300">Template Name</Label>
+                  <Label className="text-slate-700 font-medium">Template Name</Label>
                   <Input
                     value={templateForm.name}
                     onChange={(e) => setTemplateForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., Cybersecurity Standard"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label className="text-zinc-300">Base Rate (%)</Label>
+                  <Label className="text-slate-700 font-medium">Base Rate (%)</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={(templateForm.base_rate * 100).toFixed(1)}
                     onChange={(e) => setTemplateForm(prev => ({ ...prev, base_rate: parseFloat(e.target.value) / 100 }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                    className="mt-1.5"
                   />
                 </div>
               </div>
 
               <div>
-                <Label className="text-zinc-300">Description</Label>
+                <Label className="text-slate-700 font-medium">Description</Label>
                 <Input
                   value={templateForm.description}
                   onChange={(e) => setTemplateForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Template description..."
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  className="mt-1.5"
                 />
               </div>
 
               <div>
-                <Label className="text-zinc-300">New Logo Multiplier</Label>
+                <Label className="text-slate-700 font-medium">New Logo Multiplier</Label>
                 <Input
                   type="number"
                   step="0.1"
                   value={templateForm.new_logo_multiplier}
                   onChange={(e) => setTemplateForm(prev => ({ ...prev, new_logo_multiplier: parseFloat(e.target.value) || 1 }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white w-32"
+                  className="mt-1.5 w-32"
                 />
               </div>
 
               {/* Tiers */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Label className="text-zinc-300">Attainment Tiers</Label>
+                  <Label className="text-slate-700 font-medium">Attainment Tiers</Label>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={addTier}
-                    className="border-zinc-700 text-zinc-300"
+                    className="btn-secondary text-sm"
                   >
                     <Plus className="w-3 h-3 mr-1" />
                     Add Tier
@@ -443,35 +443,35 @@ const IncentiveConfiguration = () => {
                 </div>
                 <div className="space-y-2">
                   {templateForm.tiers.map((tier, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-zinc-800/50 p-2 rounded-lg">
+                    <div key={index} className="flex items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                       <Input
                         type="number"
                         value={tier.min_attainment}
                         onChange={(e) => updateTier(index, 'min_attainment', e.target.value)}
-                        className="w-20 bg-zinc-800 border-zinc-700 text-white text-sm"
+                        className="w-20 text-sm"
                         placeholder="Min %"
                       />
-                      <span className="text-zinc-500">-</span>
+                      <span className="text-slate-400">-</span>
                       <Input
                         type="number"
                         value={tier.max_attainment}
                         onChange={(e) => updateTier(index, 'max_attainment', e.target.value)}
-                        className="w-20 bg-zinc-800 border-zinc-700 text-white text-sm"
+                        className="w-20 text-sm"
                         placeholder="Max %"
                       />
-                      <span className="text-zinc-500">% →</span>
+                      <span className="text-slate-400">% →</span>
                       <Input
                         type="number"
                         step="0.1"
                         value={tier.multiplier}
                         onChange={(e) => updateTier(index, 'multiplier', e.target.value)}
-                        className="w-20 bg-zinc-800 border-zinc-700 text-white text-sm"
+                        className="w-20 text-sm"
                         placeholder="Mult"
                       />
-                      <span className="text-zinc-400 text-sm">x</span>
+                      <span className="text-slate-500 text-sm">x</span>
                       <button
                         onClick={() => removeTier(index)}
-                        className="text-zinc-500 hover:text-red-400 ml-auto"
+                        className="text-slate-400 hover:text-red-500 ml-auto p-1 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -481,18 +481,18 @@ const IncentiveConfiguration = () => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-zinc-800">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
               <Button
                 variant="outline"
                 onClick={() => setShowTemplateModal(false)}
-                className="border-zinc-700 text-zinc-300"
+                className="btn-secondary"
               >
                 Cancel
               </Button>
               <Button
                 onClick={saveTemplate}
                 disabled={loading || !templateForm.name}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="btn-primary"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Template
@@ -504,74 +504,74 @@ const IncentiveConfiguration = () => {
 
       {/* Service Line Modal */}
       {showServiceLineModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 max-w-md w-full animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">
+              <h3 className="text-xl font-bold text-slate-900">
                 {editingServiceLine ? 'Edit Service Line' : 'New Service Line'}
               </h3>
-              <button onClick={() => setShowServiceLineModal(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setShowServiceLineModal(false)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label className="text-zinc-300">Code</Label>
+                <Label className="text-slate-700 font-medium">Code</Label>
                 <Input
                   value={serviceLineForm.code}
                   onChange={(e) => setServiceLineForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
                   placeholder="e.g., MCD"
                   disabled={!!editingServiceLine}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white font-mono"
+                  className="mt-1.5 font-mono"
                 />
               </div>
 
               <div>
-                <Label className="text-zinc-300">Name</Label>
+                <Label className="text-slate-700 font-medium">Name</Label>
                 <Input
                   value={serviceLineForm.name}
                   onChange={(e) => setServiceLineForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Managed Cyber Defense"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white"
+                  className="mt-1.5"
                 />
               </div>
 
               <div>
-                <Label className="text-zinc-300">Commission Weight</Label>
+                <Label className="text-slate-700 font-medium">Commission Weight</Label>
                 <Input
                   type="number"
                   step="0.05"
                   value={serviceLineForm.commission_weight}
                   onChange={(e) => setServiceLineForm(prev => ({ ...prev, commission_weight: parseFloat(e.target.value) || 1 }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white w-32"
+                  className="mt-1.5 w-32"
                 />
-                <p className="text-xs text-zinc-500 mt-1">1.0 = standard, &gt;1 = premium, &lt;1 = reduced</p>
+                <p className="text-xs text-slate-500 mt-1">1.0 = standard, &gt;1 = premium, &lt;1 = reduced</p>
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <input
                   type="checkbox"
                   checked={serviceLineForm.is_recurring}
                   onChange={(e) => setServiceLineForm(prev => ({ ...prev, is_recurring: e.target.checked }))}
-                  className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600"
                 />
-                <span className="text-sm text-zinc-300">Is Recurring Revenue (MRR/ARR)</span>
+                <span className="text-sm text-slate-700">Is Recurring Revenue (MRR/ARR)</span>
               </label>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-zinc-800">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
               <Button
                 variant="outline"
                 onClick={() => setShowServiceLineModal(false)}
-                className="border-zinc-700 text-zinc-300"
+                className="btn-secondary"
               >
                 Cancel
               </Button>
               <Button
                 onClick={saveServiceLine}
                 disabled={loading || !serviceLineForm.code || !serviceLineForm.name}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="btn-primary"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save
