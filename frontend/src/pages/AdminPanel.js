@@ -328,7 +328,7 @@ const AdminPanel = () => {
     { id: 'roles', label: 'Roles & Permissions', icon: Shield },
     { id: 'role-config', label: 'Role Configuration', icon: LayoutDashboard },
     { id: 'incentives', label: 'Incentive Config', icon: DollarSign },
-    { id: 'bluesheet', label: 'Blue Sheet Config', icon: Brain },
+    { id: 'bluesheet', label: 'Deal Confidence', icon: Brain },
     { id: 'departments', label: 'Departments', icon: Building2 },
     { id: 'permissions', label: 'All Permissions', icon: Settings },
   ];
