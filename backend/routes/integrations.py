@@ -344,6 +344,274 @@ async def test_ms365_connection(
         )
 
 
+# ===================== ODOO DEPARTMENT & USER SYNC =====================
+
+class DepartmentSyncResponse(BaseModel):
+    synced: int
+    created: int
+    updated: int
+    deactivated: int
+    errors: List[str] = []
+
+class UserSyncResponse(BaseModel):
+    synced: int
+    created: int
+    updated: int
+    deactivated: int
+    errors: List[str] = []
+
+@router.post("/odoo/sync-departments", response_model=DepartmentSyncResponse)
+async def sync_departments_from_odoo(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Sync departments from Odoo hr.department.
+    Departments are SOURCE OF TRUTH from Odoo - CRM departments are read-only.
+    """
+    db = Database.get_db()
+    
+    # Get Odoo config
+    intg = await db.integrations.find_one({"integration_type": "odoo"})
+    if not intg or not intg.get("enabled"):
+        raise HTTPException(status_code=400, detail="Odoo integration not enabled")
+    
+    config = intg.get("config", {})
+    if not config.get("url"):
+        raise HTTPException(status_code=400, detail="Odoo not configured")
+    
+    # Connect to Odoo
+    from integrations.odoo.connector import OdooConnector
+    connector = OdooConnector(config)
+    
+    try:
+        departments = await connector.fetch_departments()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
+    finally:
+        await connector.disconnect()
+    
+    # Sync to CRM
+    created = 0
+    updated = 0
+    errors = []
+    odoo_ids = []
+    
+    for dept in departments:
+        odoo_ids.append(dept['odoo_id'])
+        
+        try:
+            existing = await db.departments.find_one({"odoo_id": dept['odoo_id']})
+            
+            if existing:
+                # Update existing
+                await db.departments.update_one(
+                    {"odoo_id": dept['odoo_id']},
+                    {"$set": {
+                        "name": dept['name'],
+                        "complete_name": dept.get('complete_name'),
+                        "parent_odoo_id": dept.get('parent_id'),
+                        "manager_odoo_id": dept.get('manager_id'),
+                        "active": dept.get('active', True),
+                        "synced_at": datetime.now(timezone.utc),
+                        "source": "odoo",
+                    }}
+                )
+                updated += 1
+            else:
+                # Create new
+                await db.departments.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "odoo_id": dept['odoo_id'],
+                    "name": dept['name'],
+                    "complete_name": dept.get('complete_name'),
+                    "parent_odoo_id": dept.get('parent_id'),
+                    "manager_odoo_id": dept.get('manager_id'),
+                    "active": dept.get('active', True),
+                    "source": "odoo",
+                    "synced_at": datetime.now(timezone.utc),
+                    "created_at": datetime.now(timezone.utc),
+                })
+                created += 1
+        except Exception as e:
+            errors.append(f"Failed to sync department {dept.get('name')}: {str(e)}")
+    
+    # Deactivate departments no longer in Odoo
+    deactivated = 0
+    result = await db.departments.update_many(
+        {"source": "odoo", "odoo_id": {"$nin": odoo_ids}, "active": True},
+        {"$set": {"active": False, "deactivated_at": datetime.now(timezone.utc)}}
+    )
+    deactivated = result.modified_count
+    
+    # Log sync event
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "sync_departments",
+        "source": "odoo",
+        "user_id": token_data["id"],
+        "details": {"synced": len(departments), "created": created, "updated": updated, "deactivated": deactivated},
+        "timestamp": datetime.now(timezone.utc),
+    })
+    
+    return DepartmentSyncResponse(
+        synced=len(departments),
+        created=created,
+        updated=updated,
+        deactivated=deactivated,
+        errors=errors
+    )
+
+
+@router.post("/odoo/sync-users", response_model=UserSyncResponse)
+async def sync_users_from_odoo(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Sync users from Odoo hr.employee.
+    Users are SOURCE OF TRUTH from Odoo - manual user creation is blocked.
+    Users synced here are set to 'pending' approval status.
+    """
+    db = Database.get_db()
+    
+    # Get Odoo config
+    intg = await db.integrations.find_one({"integration_type": "odoo"})
+    if not intg or not intg.get("enabled"):
+        raise HTTPException(status_code=400, detail="Odoo integration not enabled")
+    
+    config = intg.get("config", {})
+    if not config.get("url"):
+        raise HTTPException(status_code=400, detail="Odoo not configured")
+    
+    # Connect to Odoo
+    from integrations.odoo.connector import OdooConnector
+    connector = OdooConnector(config)
+    
+    try:
+        odoo_users = await connector.fetch_users()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
+    finally:
+        await connector.disconnect()
+    
+    # Sync to CRM
+    created = 0
+    updated = 0
+    errors = []
+    odoo_ids = []
+    
+    for odoo_user in odoo_users:
+        employee_id = odoo_user.get('odoo_employee_id')
+        user_id = odoo_user.get('odoo_user_id')
+        odoo_ids.append(employee_id or user_id)
+        
+        if not odoo_user.get('email'):
+            errors.append(f"Skipped user {odoo_user.get('name')}: no email")
+            continue
+        
+        try:
+            # Find by email (preferred) or odoo_id
+            existing = await db.users.find_one({
+                "$or": [
+                    {"email": odoo_user['email']},
+                    {"odoo_employee_id": employee_id},
+                    {"odoo_user_id": user_id}
+                ]
+            })
+            
+            # Map department
+            dept = None
+            if odoo_user.get('department_odoo_id'):
+                dept = await db.departments.find_one({"odoo_id": odoo_user['department_odoo_id']})
+            
+            if existing:
+                # Update existing user
+                update_data = {
+                    "name": odoo_user['name'],
+                    "odoo_employee_id": employee_id,
+                    "odoo_user_id": user_id,
+                    "job_title": odoo_user.get('job_title'),
+                    "phone": odoo_user.get('phone'),
+                    "department_id": dept['id'] if dept else existing.get('department_id'),
+                    "department_name": odoo_user.get('department_name'),
+                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
+                    "synced_at": datetime.now(timezone.utc),
+                    "source": "odoo",
+                }
+                await db.users.update_one({"id": existing['id']}, {"$set": update_data})
+                updated += 1
+            else:
+                # Create new user (pending approval)
+                new_user = {
+                    "id": str(uuid.uuid4()),
+                    "email": odoo_user['email'],
+                    "name": odoo_user['name'],
+                    "hashed_password": None,  # SSO only - no password
+                    "odoo_employee_id": employee_id,
+                    "odoo_user_id": user_id,
+                    "job_title": odoo_user.get('job_title'),
+                    "phone": odoo_user.get('phone'),
+                    "department_id": dept['id'] if dept else None,
+                    "department_name": odoo_user.get('department_name'),
+                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
+                    "role": "pending",  # Needs admin approval to assign role
+                    "role_id": None,
+                    "is_approved": False,
+                    "approval_status": "pending",
+                    "is_super_admin": False,
+                    "source": "odoo",
+                    "synced_at": datetime.now(timezone.utc),
+                    "created_at": datetime.now(timezone.utc),
+                }
+                await db.users.insert_one(new_user)
+                created += 1
+                
+        except Exception as e:
+            errors.append(f"Failed to sync user {odoo_user.get('name')}: {str(e)}")
+    
+    # Deactivate users no longer in Odoo (only odoo-sourced users)
+    deactivated = 0
+    result = await db.users.update_many(
+        {
+            "source": "odoo",
+            "$and": [
+                {"odoo_employee_id": {"$nin": [u.get('odoo_employee_id') for u in odoo_users if u.get('odoo_employee_id')]}},
+                {"odoo_user_id": {"$nin": [u.get('odoo_user_id') for u in odoo_users if u.get('odoo_user_id')]}}
+            ],
+            "is_approved": True
+        },
+        {"$set": {"is_approved": False, "approval_status": "deactivated", "deactivated_at": datetime.now(timezone.utc)}}
+    )
+    deactivated = result.modified_count
+    
+    # Log sync event
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "sync_users",
+        "source": "odoo",
+        "user_id": token_data["id"],
+        "details": {"synced": len(odoo_users), "created": created, "updated": updated, "deactivated": deactivated},
+        "timestamp": datetime.now(timezone.utc),
+    })
+    
+    return UserSyncResponse(
+        synced=len(odoo_users),
+        created=created,
+        updated=updated,
+        deactivated=deactivated,
+        errors=errors
+    )
+
+
+@router.get("/departments")
+async def get_synced_departments(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """Get all departments (synced from Odoo)"""
+    db = Database.get_db()
+    departments = await db.departments.find({"active": True}, {"_id": 0}).to_list(100)
+    return departments
+
+
 # ===================== FIELD MAPPING ROUTES =====================
 
 @router.get("/mappings/{integration_type}/{entity_type}")
