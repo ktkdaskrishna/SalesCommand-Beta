@@ -1025,15 +1025,17 @@ const AccountManagerDashboard = () => {
 
       {/* Quick Actions - Simplified for Beta */}
       <div className="flex gap-3">
-        <button
-          onClick={handleSyncFromOdoo}
-          disabled={syncing}
-          className="btn-primary flex items-center gap-2"
-          data-testid="sync-odoo-btn"
-        >
-          <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
-          {syncing ? "Syncing..." : "Sync from Odoo"}
-        </button>
+        {canTriggerSync && (
+          <button
+            onClick={handleSyncFromOdoo}
+            disabled={syncing}
+            className="btn-primary flex items-center gap-2"
+            data-testid="sync-odoo-btn"
+          >
+            <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+            {syncing ? "Syncing..." : "Sync from Odoo"}
+          </button>
+        )}
         <button
           onClick={() => setShowCalculator(true)}
           className="btn-secondary flex items-center gap-2"
