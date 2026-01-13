@@ -180,11 +180,13 @@ const Opportunities = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Target className="w-8 h-8 text-blue-600" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <Target className="w-5 h-5 text-white" />
+            </div>
             Opportunities
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-500 mt-1">
             Track and manage your sales pipeline
           </p>
         </div>
@@ -199,51 +201,53 @@ const Opportunities = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search opportunities..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pl-10"
-            data-testid="search-input"
-          />
+      <div className="card p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search opportunities..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pl-10"
+              data-testid="search-input"
+            />
+          </div>
+          <select
+            value={stageFilter}
+            onChange={(e) => setStageFilter(e.target.value)}
+            className="input w-auto min-w-[140px]"
+            data-testid="stage-filter"
+          >
+            <option value="">All Stages</option>
+            {STAGES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-          className="input w-auto"
-          data-testid="stage-filter"
-        >
-          <option value="">All Stages</option>
-          {STAGES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <p className="label">Total Pipeline</p>
+        <div className="card p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Total Pipeline</p>
           <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalPipeline)}</p>
         </div>
-        <div className="card p-4">
-          <p className="label">Won Revenue</p>
+        <div className="card p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Won Revenue</p>
           <p className="text-2xl font-bold text-emerald-600">{formatCurrency(wonValue)}</p>
         </div>
-        <div className="card p-4">
-          <p className="label">Active Deals</p>
+        <div className="card p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Active Deals</p>
           <p className="text-2xl font-bold text-slate-900">
             {opportunities.filter((o) => !["closed_won", "closed_lost"].includes(o.stage)).length}
           </p>
         </div>
-        <div className="card p-4">
-          <p className="label">Avg. Deal Size</p>
+        <div className="card p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Avg. Deal Size</p>
           <p className="text-2xl font-bold text-slate-900">{formatCurrency(avgDealSize)}</p>
         </div>
       </div>
