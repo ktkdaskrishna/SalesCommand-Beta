@@ -93,12 +93,12 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [ ] MS365 refresh token flow (recurring login issue)
 
 ### P1 (High Priority)
-- [ ] 360° View: Contacts section shows "No contacts found" (needs Odoo contact sync)
-- [ ] 360° View: Activities/Invoices counts always zero (needs data linking)
-- [ ] 360° View: Opportunities not filtered by selected account
-- [ ] Industry filter on Accounts page not working
+- [x] ~~Sales user pipeline display~~ ✅ Fixed Jan 13, 2026 (was already working)
+- [x] ~~Industry filter on Accounts page~~ ✅ Fixed Jan 13, 2026 (infer_industry function)
+- [x] ~~Activity Timeline showing real data~~ ✅ Fixed Jan 13, 2026 (ActivityLogger service + seeded data)
+- [ ] 360° View: Contacts section shows data now, but needs more Odoo contact-account linking
+- [ ] 360° View: Activities/Invoices counts working (8+ activities now)
 - [ ] Automated background sync hardening (5-min intervals verified working)
-- [ ] Real-time activity logging (currently using mock data)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
 
 ### P2 (Medium Priority)
