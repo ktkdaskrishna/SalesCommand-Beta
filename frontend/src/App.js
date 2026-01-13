@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Integrations from './pages/Integrations';
 import DataLake from './pages/DataLake';
 import FieldMapping from './pages/FieldMapping';
+import UniversalFieldMapping from './pages/UniversalFieldMapping';
 import AdminPanel from './pages/AdminPanel';
 import MyOutlook from './pages/MyOutlook';
 import PendingApproval from './pages/PendingApproval';
@@ -128,7 +129,8 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="integrations/:type" element={<Integrations />} />
-        <Route path="field-mapping" element={<FieldMapping />} />
+        <Route path="field-mapping" element={<UniversalFieldMapping />} />
+        <Route path="field-mapping-old" element={<FieldMapping />} />
         <Route path="data-lake" element={<DataLake />} />
         <Route path="my-outlook" element={<MyOutlook />} />
         <Route path="admin" element={<AdminPanel />} />
