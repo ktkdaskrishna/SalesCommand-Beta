@@ -487,21 +487,29 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
           {result && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-slate-900">Analysis Result</h4>
-                <span className={cn(
-                  "text-2xl font-bold",
-                  result.calculated_probability >= 70 ? "text-emerald-600" :
-                  result.calculated_probability >= 40 ? "text-amber-600" :
-                  "text-red-600"
-                )}>
-                  {result.calculated_probability}%
-                </span>
+                <div>
+                  <h4 className="font-semibold text-slate-900">Deal Confidence Signal</h4>
+                  <p className="text-xs text-slate-500">Use as guidance, not prediction</p>
+                </div>
+                <div className="text-center">
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    result.calculated_probability >= 70 ? "text-emerald-600" :
+                    result.calculated_probability >= 40 ? "text-amber-600" :
+                    "text-red-600"
+                  )}>
+                    {result.calculated_probability >= 70 ? "High" :
+                     result.calculated_probability >= 40 ? "Medium" :
+                     "Low"}
+                  </span>
+                  <p className="text-xs text-slate-400">{result.calculated_probability}% score</p>
+                </div>
               </div>
               <p className="text-sm text-slate-700 mb-3">{result.analysis_summary}</p>
               
               {result.recommendations?.length > 0 && (
                 <div>
-                  <h5 className="text-sm font-medium text-slate-700 mb-2">AI Recommendations:</h5>
+                  <h5 className="text-sm font-medium text-slate-700 mb-2">Suggested Actions:</h5>
                   <ul className="space-y-1">
                     {result.recommendations.map((rec, i) => (
                       <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
