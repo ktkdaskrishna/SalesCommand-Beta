@@ -907,7 +907,7 @@ const AccountManagerDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Simplified for Beta */}
       <div className="flex gap-3">
         <button
           onClick={() => setShowCalculator(true)}
@@ -919,23 +919,14 @@ const AccountManagerDashboard = () => {
         </button>
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* KPI Cards Row - Simplified: Only show metrics tied to real data */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <KPICard
           title="Pipeline Value"
           value={stats?.total_pipeline_value || 0}
-          target={salesMetrics?.quota || 500000}
           unit="currency"
-          trend="up"
+          trend="stable"
           icon={DollarSign}
-        />
-        <KPICard
-          title="Won Revenue"
-          value={stats?.won_revenue || 0}
-          target={salesMetrics?.quota || 500000}
-          unit="currency"
-          trend="up"
-          icon={TrendingUp}
         />
         <KPICard
           title="Active Opportunities"
@@ -943,13 +934,6 @@ const AccountManagerDashboard = () => {
           unit="number"
           trend="stable"
           icon={Target}
-        />
-        <KPICard
-          title="Activity Completion"
-          value={stats?.activity_completion_rate || 0}
-          target={90}
-          unit="percentage"
-          icon={CheckCircle2}
         />
       </div>
 
