@@ -221,9 +221,11 @@ const FieldMapping = () => {
   };
 
   // Canonical schema now matches Odoo field names more closely
-  const getDefaultCanonicalSchema = (entity) => {
-    const schemas = {
-      account: {
+  const getDefaultCanonicalSchema = (entity, integration = 'odoo') => {
+    // Odoo schemas (existing)
+    if (integration === 'odoo') {
+      const schemas = {
+        account: {
         name: { type: 'string', required: true, description: 'Company Name' },
         email: { type: 'string', required: false, description: 'Email Address' },
         phone: { type: 'string', required: false, description: 'Phone Number' },
@@ -290,6 +292,40 @@ const FieldMapping = () => {
       },
     };
     return schemas[entity] || {};
+    }
+    
+    // MS365 schemas
+    if (integration === 'ms365') {
+      const schemas = {
+        user: {
+          full_name: { type: 'string', required: true, description: 'Full Name' },
+          email: { type: 'string', required: true, description: 'Email Address' },
+          job_title: { type: 'string', required: false, description: 'Job Title' },
+          department: { type: 'string', required: false, description: 'Department' },
+          phone: { type: 'string', required: false, description: 'Phone Number' },
+          office_location: { type: 'string', required: false, description: 'Office Location' },
+        },
+        email: {
+          subject: { type: 'string', required: true, description: 'Email Subject' },
+          from_email: { type: 'string', required: false, description: 'Sender Email' },
+          from_name: { type: 'string', required: false, description: 'Sender Name' },
+          received_at: { type: 'datetime', required: false, description: 'Received Date' },
+          body_preview: { type: 'string', required: false, description: 'Body Preview' },
+          has_attachments: { type: 'boolean', required: false, description: 'Has Attachments' },
+        },
+        calendar: {
+          subject: { type: 'string', required: true, description: 'Event Title' },
+          start_time: { type: 'datetime', required: true, description: 'Start Time' },
+          end_time: { type: 'datetime', required: false, description: 'End Time' },
+          organizer_email: { type: 'string', required: false, description: 'Organizer Email' },
+          location: { type: 'string', required: false, description: 'Location' },
+          is_all_day: { type: 'boolean', required: false, description: 'All Day Event' },
+        },
+      };
+      return schemas[entity] || {};
+    }
+    
+    return {};
   };
 
   const handleAutoMap = async () => {
