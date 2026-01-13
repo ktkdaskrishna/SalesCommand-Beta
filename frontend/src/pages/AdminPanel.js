@@ -1087,4 +1087,127 @@ const DepartmentModal = ({ onSave, onClose }) => {
   );
 };
 
+// ===================== ROLE CONFIG TAB COMPONENT =====================
+const RoleConfigTab = ({ roles, onRoleUpdated }) => {
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleEditRole = (role) => {
+    setSelectedRole(role);
+    setShowConfigPanel(true);
+  };
+
+  const handleCreateRole = () => {
+    setSelectedRole(null);
+    setShowConfigPanel(true);
+  };
+
+  const handleSaveRole = async (formData) => {
+    setLoading(true);
+    setError('');
+    try {
+      if (selectedRole) {
+        await configAPI.updateRole(selectedRole.id, formData);
+      } else {
+        await configAPI.createRole({
+          code: formData.name.toLowerCase().replace(/\s/g, '_'),
+          ...formData
+        });
+      }
+      setShowConfigPanel(false);
+      setSelectedRole(null);
+      if (onRoleUpdated) onRoleUpdated();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save role');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Role Configuration</h1>
+          <p className="text-sm text-zinc-400 mt-1">Configure navigation, dashboard, and incentives for each role</p>
+        </div>
+        <Button onClick={handleCreateRole} className="bg-emerald-600 hover:bg-emerald-500">
+          <Plus className="w-4 h-4 mr-2" /> New Role
+        </Button>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Role Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {roles.map(role => (
+          <div
+            key={role.id}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors cursor-pointer"
+            onClick={() => handleEditRole(role)}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-white">{role.name}</h3>
+                <p className="text-xs text-zinc-500 font-mono">{role.code}</p>
+              </div>
+              {role.is_system && (
+                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">System</span>
+              )}
+            </div>
+            
+            <p className="text-sm text-zinc-400 mb-3 line-clamp-2">{role.description || 'No description'}</p>
+            
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <span className="px-2 py-0.5 bg-zinc-800 rounded">Scope: {role.data_scope}</span>
+              <span className="px-2 py-0.5 bg-zinc-800 rounded">
+                {role.permissions?.length === 1 && role.permissions[0] === '*' 
+                  ? 'All permissions' 
+                  : `${role.permissions?.length || 0} permissions`}
+              </span>
+            </div>
+            
+            {/* Navigation preview */}
+            {role.navigation?.main_menu && (
+              <div className="mt-3 pt-3 border-t border-zinc-800">
+                <span className="text-xs text-zinc-500">Navigation:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {role.navigation.main_menu.filter(i => i.enabled).slice(0, 4).map(item => (
+                    <span key={item.id} className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs rounded">
+                      {item.label}
+                    </span>
+                  ))}
+                  {role.navigation.main_menu.filter(i => i.enabled).length > 4 && (
+                    <span className="text-xs text-zinc-500">+{role.navigation.main_menu.filter(i => i.enabled).length - 4} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Role Configuration Panel (Modal) */}
+      {showConfigPanel && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-4xl">
+            <RoleConfigurationPanel
+              role={selectedRole}
+              onSave={handleSaveRole}
+              onCancel={() => { setShowConfigPanel(false); setSelectedRole(null); }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default AdminPanel;
