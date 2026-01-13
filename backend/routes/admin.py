@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
+import uuid
+import logging
 
 from models.rbac import (
     RoleCreateRequest, RoleUpdateRequest,
@@ -19,6 +21,8 @@ from models.rbac import (
 from services.rbac.service import RBACService
 from services.auth.jwt_handler import get_current_user_from_token, hash_password
 from core.database import Database
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
