@@ -69,11 +69,23 @@ const MyOutlook = () => {
       if (res.ok) {
         setEmails(data.emails || []);
         setEmailMeta({ count: data.count, total: data.total, source: data.source });
+        
+        // Show helpful message if no emails but connected
+        if (data.emails && data.emails.length === 0 && data.message) {
+          setError(data.message);
+        }
       } else {
-        setError(data.detail || data.message || 'Failed to load emails');
+        // Better error messages
+        if (res.status === 403) {
+          setError('Access denied. Your account may need approval or role assignment.');
+        } else if (res.status === 400) {
+          setError(data.detail || 'Not connected to Microsoft 365. Please sign in again.');
+        } else {
+          setError(data.detail || data.message || 'Failed to load emails');
+        }
       }
     } catch (err) {
-      setError('Failed to fetch emails');
+      setError('Failed to fetch emails. Please check your connection.');
     } finally {
       setLoading(false);
     }
