@@ -1656,7 +1656,14 @@ async def get_account_360_view(
     # Find the account - try both data lake and legacy accounts
     account = None
     
-    # First check data_lake_serving
+    # Handle synthetic IDs (from opportunity-derived accounts like "opp_techcorp_industri")
+    account_name = None
+    if account_id.startswith("opp_"):
+        # Extract name from synthetic ID: opp_techcorp_industri -> techcorp industri
+        name_part = account_id[4:].replace("_", " ")
+        account_name = name_part.title()
+    
+    # First check data_lake_serving by ID
     acc_doc = await db.data_lake_serving.find_one({
         "entity_type": "account",
         "$or": [
@@ -1665,6 +1672,13 @@ async def get_account_360_view(
             {"serving_id": account_id}
         ]
     })
+    
+    # If not found and we have a name, try searching by name
+    if not acc_doc and account_name:
+        acc_doc = await db.data_lake_serving.find_one({
+            "entity_type": "account",
+            "data.name": {"$regex": account_name, "$options": "i"}
+        })
     
     if acc_doc:
         acc_data = acc_doc.get("data", {})
