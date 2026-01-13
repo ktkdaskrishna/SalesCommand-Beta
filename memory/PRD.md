@@ -4,79 +4,56 @@
 Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based experiences.
 
 ## Version
-**v2.9.0** - Beta Stabilization Complete (Jan 13, 2026)
+**v3.0.0** - Trust-Focused Beta (Jan 13, 2026)
+
+---
+
+## Beta Philosophy
+
+> **"A great beta CRM feels boring, stable, and honest. Not impressive. Not clever. Not dense."**
+
+### Core Principles:
+1. **Trust Subset** - Users forgive missing features, but NOT wrong numbers
+2. **Narrative Dashboards** - 2-3 metrics max, clear data origin
+3. **Assistive AI** - "Guidance", not "Prediction"
+4. **Read-only ERP Data** - Explicit framing for finance views
 
 ---
 
 ## Completed Work (This Session - Jan 13, 2026)
 
-### P0 Fixes - Critical for Beta ✅
+### Trust-Focused Revisions ✅
 
-#### 1. Dashboard Data Connection
-- Connected Account Manager dashboard to `data_lake_serving` (real Odoo-synced data)
-- Added **Data Source Badge** showing "Source: Odoo | Last sync time"
-- Fixed KPI cards to display correct field mappings
-- Added **Empty State Explainer** component with helpful messages
+#### 1. Dashboard Scope Reduction
+- **Simplified to 2 KPI cards only:**
+  - Pipeline Value
+  - Active Opportunities
+- **Removed:** Won Revenue, Activity Completion (can show misleading data)
+- **Removed:** Sales Metrics Summary section
+- **Added:** Data Source Badge ("Source: Odoo | Just now")
 
-#### 2. UI Contrast Fix
-- Fixed unreadable text on Incentive Configuration page
-- All text now has proper contrast against backgrounds
+#### 2. Blue Sheet → Deal Confidence Reframing
+- Renamed "Calculate Probability" → "**Get Deal Confidence**"
+- Renamed "AI Probability" → "**Deal Confidence Signal**"
+- Shows **High/Medium/Low** labels instead of percentages
+- Added tooltip: "Based on configurable factors. Use as guidance, not prediction."
+- Admin tab renamed: "Deal Confidence" (not "Blue Sheet Config")
 
-### P1 Features - High Priority ✅
+#### 3. Finance View Reframing
+- Renamed "Receivables" → "**Invoices**"
+- Route changed: `/receivables` → `/invoices`
+- Read-only banner: "Accounting is managed in Odoo. This view is for sales awareness."
+- Simplified to essential fields: Invoice #, Account, Amount, Status, Dates
 
-#### 3. Receivables/Invoices View
-- New `/receivables` page displaying synced invoice data
-- **Features:**
-  - Data Source Badge (Source: Odoo)
-  - Read-only Banner ("This data is synced from Odoo and cannot be edited here")
-  - Summary cards (Total Receivables, Collected, Pending, Overdue)
-  - Invoice table with search and status filter
-  - Payment status badges (Paid, Pending, Partial, Overdue)
-  - Empty state explainer when no invoices synced
+#### 4. Accounts Real Data
+- Now fetches from `/accounts/real` (data_lake_serving)
+- Shows real Odoo accounts: TEST, VM, amc inc, MUSCAT OVERSEAS, Securado.Test
+- Data Source Badge showing sync status
 
-#### 4. Blue Sheet Configuration UI
-- New admin UI in System Config panel
-- **Configurable Weight Categories:**
-  | Category | Weights |
-  |----------|---------|
-  | Buying Influences | Economic Buyer, User Buyers, Technical Buyers, Coach |
-  | Red Flags | No Access to EB, Reorganization, Budget, Competition, Timeline |
-  | Win Results | Clear Business Results, Quantifiable Value |
-  | Action Plan | Next Steps Defined, Mutual Action Plan |
-- Validation warnings for misconfiguration
-- Save/Reset functionality
-
-### Beta Enhancement Components ✅
-
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| **DataSourceBadge** | Shows data origin and sync time | Dashboard, Receivables |
-| **EmptyStateExplainer** | Meaningful empty states with context | Dashboard, Receivables |
-| **ReadOnlyBanner** | Indicates ERP-synced read-only data | Receivables |
-
----
-
-## Previous Work (Earlier Sessions)
-
-### Enhanced Kanban Board ✅
-- Product/Segment Tags on cards
-- Activities count display
-- Calculate Probability button with Blue Sheet modal
-- Drag & drop between pipeline stages
-- AI-powered recommendations
-
-### Configurable Blue Sheet Weights ✅
-- Backend API at `/api/config/bluesheet-weights`
-- Admin-configurable scoring weights
-- Frontend UI in Admin Panel
-
-### Target Assignment System ✅
-- CRUD API endpoints for sales targets
-
-### UI/UX Modernization ✅
-- Light content area with dark sidebar
-- Modern gradient icons
-- Consistent card styling
+#### 5. Navigation Cleanup
+- Removed "Reports" (not implemented)
+- Added "Invoices" to main navigation
+- Fixed Email path to /my-outlook
 
 ---
 
@@ -88,10 +65,9 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 | Dashboard | LayoutDashboard | /dashboard |
 | Accounts | Building2 | /accounts |
 | Opportunities | Target | /opportunities |
-| **Receivables** | FileText | /receivables |
+| **Invoices** | FileText | /invoices |
 | KPIs | BarChart3 | /kpis |
 | Email | Mail | /my-outlook |
-| Reports | FileText | /reports |
 
 ### Administration (Super Admin Only)
 | Item | Icon | Path |
@@ -108,41 +84,19 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 | Roles & Permissions | Shield | Role management |
 | Role Configuration | LayoutDashboard | Nav/dashboard config |
 | Incentive Config | DollarSign | Commission templates |
-| **Blue Sheet Config** | Brain | AI weight configuration |
+| **Deal Confidence** | Brain | Weight configuration |
 | Departments | Building2 | Department management |
 | All Permissions | Settings | Permission list |
 
 ---
 
-## Pages Status
+## Beta Enhancement Components
 
-| Page | Status | Features |
-|------|--------|----------|
-| Dashboard | ✅ | Data Lake health (Admin), Sales KPIs (Sales roles) |
-| Sales Dashboard | ✅ | KPIs, Kanban, Blue Sheet, Incentive Calculator, **Data Source Badge** |
-| Accounts | ✅ | Card/Table view, health scores, CRUD |
-| Opportunities | ✅ | Kanban with Blue Sheet, Table view, CRUD |
-| **Receivables** | ✅ | Invoice table, summary cards, filters, **Read-only Banner** |
-| KPIs | ✅ | Personal metrics, charts |
-| Email/Calendar | ✅ | MS365 integration |
-| Admin Panel | ✅ | Users, Roles, Incentive Config, **Blue Sheet Config** |
-| Integrations | ✅ | Odoo, MS365 connectors |
-| Data Lake | ✅ | 3-zone data pipeline |
-| Field Mapping | ✅ | AI-powered mapping |
-
----
-
-## Pending Tasks (P2 and Future)
-
-### P2 - Medium Priority
-- **Sales Targets UI** - Admin panel for assigning quotas
-- Better Calendar view in MyOutlook.js
-
-### Future Enhancements
-- MS365 refresh token mechanism (reduce re-login frequency)
-- Customizable dashboard grid layout (react-grid-layout)
-- Opportunity Activities drawer
-- Audit log for admin actions
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **DataSourceBadge** | Shows data origin + sync time | Dashboard, Accounts, Invoices |
+| **EmptyStateExplainer** | Meaningful empty states | Dashboard Activities |
+| **ReadOnlyBanner** | "Accounting is managed in Odoo" | Invoices page |
 
 ---
 
@@ -153,16 +107,27 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 - Entity types: `opportunity`, `account`, `invoice`
 - Real-time sync status tracked
 
-### Collections
-| Collection | Purpose |
-|------------|---------|
-| `data_lake_serving` | Synced ERP data (source of truth) |
-| `opportunities` | Legacy/demo opportunities |
-| `accounts` | Account master data |
-| `invoices` | Synced from Odoo |
-| `bluesheet_config` | AI weight configuration |
-| `users` | User accounts with roles |
-| `roles` | Role definitions |
+### API Endpoints
+| Endpoint | Purpose | Data Source |
+|----------|---------|-------------|
+| `/api/dashboard/real` | Dashboard metrics | data_lake_serving |
+| `/api/accounts/real` | Synced accounts | data_lake_serving |
+| `/api/receivables` | Synced invoices | data_lake_serving |
+| `/api/config/bluesheet-weights` | Deal confidence config | bluesheet_config |
+
+---
+
+## Pending Tasks
+
+### P2 - Post-Beta Validation
+- **Sales Targets UI** - Admin panel for assigning quotas
+- **MS365 Token Refresh** - Reduce re-login frequency
+- **Calendar View** - Improve MyOutlook.js UX
+
+### Future Enhancements
+- Customizable dashboard grid layout (react-grid-layout)
+- Opportunity Activities drawer
+- Audit log for admin config changes
 
 ---
 
@@ -174,17 +139,8 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 
 ---
 
-## Integrations
-| Integration | Status | Purpose |
-|-------------|--------|---------|
-| Odoo ERP | ✅ Connected | Sales/Finance data sync |
-| Emergent LLM (GPT-4o) | ✅ Active | Blue Sheet AI recommendations |
-| Microsoft 365 | ⚠️ Token issues | Email/Calendar sync |
-
----
-
 ## Test Reports
-- `/app/test_reports/iteration_17.json` - Latest beta stabilization tests (100% pass)
+- `/app/test_reports/iteration_18.json` - Trust-focused beta tests (100% pass)
 - Needed: Visual calendar grid with week/month view
 
 ### Opportunity Activities
