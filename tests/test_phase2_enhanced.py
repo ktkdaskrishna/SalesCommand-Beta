@@ -7,7 +7,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://audit-phase-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sales-intel-hub-3.preview.emergentagent.com').rstrip('/')
 
 # Test credentials
 SUPER_ADMIN_CREDS = {"email": "superadmin@salescommand.com", "password": "demo123"}
