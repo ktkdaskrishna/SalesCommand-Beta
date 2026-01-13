@@ -45,10 +45,38 @@ const SyncStatusWidget = ({ integrations }) => {
     switch (status) {
       case 'connected':
         return <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'syncing':
+        return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin" />;
       case 'needs_refresh':
+      case 'warning':
+      case 'no_data':
         return <AlertTriangleIcon className="w-3.5 h-3.5 text-amber-500" />;
+      case 'error':
+      case 'failed':
+        return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+      case 'not_configured':
+      case 'not_connected':
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-slate-400" />;
       default:
         return <AlertTriangleIcon className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'connected':
+        return 'text-emerald-600';
+      case 'syncing':
+        return 'text-blue-600';
+      case 'needs_refresh':
+      case 'warning':
+      case 'no_data':
+        return 'text-amber-600';
+      case 'error':
+      case 'failed':
+        return 'text-red-600';
+      default:
+        return 'text-slate-400';
     }
   };
 
@@ -61,11 +89,7 @@ const SyncStatusWidget = ({ integrations }) => {
           title={integration.note || `${integration.name}: ${integration.status}`}
         >
           {getStatusIcon(integration.status)}
-          <span className={
-            integration.status === 'connected' ? 'text-slate-600' :
-            integration.status === 'needs_refresh' ? 'text-amber-600' :
-            'text-slate-400'
-          }>
+          <span className={getStatusColor(integration.status)}>
             {integration.name.split(' ')[0]}
           </span>
         </div>
