@@ -9,12 +9,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { accountsAPI, opportunitiesAPI } from '../services/api';
 import api from '../services/api';
+import Account360Panel from '../components/Account360Panel';
 import {
   Building2, Plus, Search, LayoutGrid, List,
   ChevronRight, TrendingUp, TrendingDown,
   Phone, Globe, MapPin, Users, DollarSign, X, Save,
   MoreVertical, Edit2, Trash2, ExternalLink, Filter,
-  Database, RefreshCw, Info
+  Database, RefreshCw, Info, Eye
 } from 'lucide-react';
 
 // Data Source Badge
