@@ -8,13 +8,15 @@ import api from '../services/api';
 import { 
   User, Mail, Briefcase, Building2, Phone, MapPin, 
   Calendar, Shield, CheckCircle, AlertCircle, RefreshCw,
-  Link as LinkIcon, Users
+  Link as LinkIcon, Users, Loader2
 } from 'lucide-react';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, isExecutive } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [relinking, setRelinking] = useState(false);
+  const [relinkMessage, setRelinkMessage] = useState(null);
 
   useEffect(() => {
     fetchProfile();
