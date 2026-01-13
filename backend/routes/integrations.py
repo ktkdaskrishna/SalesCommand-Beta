@@ -12,7 +12,7 @@ from models.base import (
     IntegrationType, EntityType, IntegrationConfig,
     FieldMapping, IntegrationMapping, SyncJob, SyncStatus, UserRole
 )
-from services.auth.jwt_handler import get_current_user_from_token, require_role
+from services.auth.jwt_handler import get_current_user_from_token, require_role, require_approved
 from services.odoo.connector import OdooConnector
 from services.ai_mapping.mapper import AIFieldMapper, get_canonical_schema
 from services.data_lake.manager import DataLakeManager
