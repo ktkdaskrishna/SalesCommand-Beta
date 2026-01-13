@@ -299,6 +299,69 @@ class OdooConnector:
             order="date_order desc"
         )
     
+    async def get_departments(
+        self,
+        domain: List = None,
+        limit: int = 500,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Get departments from Odoo HR module.
+        Maps to Departments in our system.
+        """
+        domain = domain or []
+        
+        fields = [
+            "id", "name", "complete_name",
+            "parent_id", "child_ids",
+            "manager_id", "member_ids",
+            "company_id", "color",
+            "create_date", "write_date"
+        ]
+        
+        return await self.search_read(
+            "hr.department",
+            domain=domain,
+            fields=fields,
+            offset=offset,
+            limit=limit,
+            order="complete_name"
+        )
+    
+    async def get_employees(
+        self,
+        domain: List = None,
+        limit: int = 500,
+        offset: int = 0,
+        modified_since: datetime = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get employees from Odoo HR module.
+        Maps to Users in our system.
+        """
+        domain = domain or []
+        if modified_since:
+            domain.append(("write_date", ">=", modified_since.isoformat()))
+        
+        fields = [
+            "id", "name", "work_email", "work_phone", "mobile_phone",
+            "job_title", "job_id",
+            "department_id", "parent_id", "coach_id",
+            "user_id", "company_id",
+            "address_id", "work_location_id",
+            "active", "barcode",
+            "create_date", "write_date"
+        ]
+        
+        return await self.search_read(
+            "hr.employee",
+            domain=domain,
+            fields=fields,
+            offset=offset,
+            limit=limit,
+            order="name"
+        )
+    
     async def get_invoices(
         self,
         domain: List = None,
