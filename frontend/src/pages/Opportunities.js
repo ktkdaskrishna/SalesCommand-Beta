@@ -882,13 +882,25 @@ const Opportunities = () => {
       {viewMode === 'kanban' && (
         <div className="card overflow-hidden" data-testid="kanban-board">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              Pipeline Board
-              <span className="text-sm font-normal text-slate-500">
-                (Drag cards to move between stages)
-              </span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-600" />
+                Pipeline Board
+                <span className="text-sm font-normal text-slate-500">
+                  (Drag cards to move between stages)
+                </span>
+              </h3>
+              {expandedColumn && (
+                <button
+                  onClick={() => setExpandedColumn(null)}
+                  className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                  data-testid="collapse-all-btn"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                  Collapse
+                </button>
+              )}
+            </div>
           </div>
           <div className="p-4 overflow-x-auto">
             <DragDropContext onDragEnd={handleDragEnd}>
@@ -900,6 +912,11 @@ const Opportunities = () => {
                     opportunities={kanbanData[stage.value] || []}
                     onOpenBlueSheet={setBlueSheetOpp}
                     onViewDetails={setSelectedOpp}
+                    isExpanded={expandedColumn === stage.value}
+                    isMinimized={expandedColumn && expandedColumn !== stage.value}
+                    onToggleExpand={() => {
+                      setExpandedColumn(prev => prev === stage.value ? null : stage.value);
+                    }}
                   />
                 ))}
               </div>
