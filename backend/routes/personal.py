@@ -109,6 +109,22 @@ async def get_my_emails(
             }
             
     except Exception as e:
+        error_msg = str(e)
+        # Handle token expiration specifically
+        if "expired" in error_msg.lower() or "invalid" in error_msg.lower() or "401" in error_msg:
+            # Clear the expired token
+            await db.users.update_one(
+                {"id": user_id},
+                {"$unset": {"ms_access_token": ""}}
+            )
+            return {
+                "emails": [],
+                "count": 0,
+                "total": 0,
+                "source": "error",
+                "error_type": "token_expired",
+                "message": "Your Microsoft session has expired. Please sign in with Microsoft again to refresh your connection."
+            }
         raise HTTPException(status_code=500, detail=f"Failed to fetch emails: {str(e)}")
 
 
