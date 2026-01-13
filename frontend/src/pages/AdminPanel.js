@@ -16,7 +16,7 @@ import { configAPI } from '../services/api';
 import {
   Users, Shield, Building2, Settings, ChevronRight,
   Plus, Edit2, Trash2, Check, X, Search, AlertCircle,
-  Loader2, Save, Cloud, ChevronDown, ChevronUp, DollarSign, LayoutDashboard, Brain
+  Loader2, Save, Cloud, ChevronDown, ChevronUp, DollarSign, LayoutDashboard, Brain, Target
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
