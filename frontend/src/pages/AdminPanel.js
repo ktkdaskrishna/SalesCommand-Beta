@@ -11,6 +11,7 @@ import { Label } from '../components/ui/label';
 import RoleConfigurationPanel from '../components/RoleConfigurationPanel';
 import IncentiveConfiguration from '../components/IncentiveConfiguration';
 import BlueSheetConfiguration from '../components/BlueSheetConfiguration';
+import SalesTargetsConfiguration from '../components/SalesTargetsConfiguration';
 import { configAPI } from '../services/api';
 import {
   Users, Shield, Building2, Settings, ChevronRight,
