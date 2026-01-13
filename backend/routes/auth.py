@@ -67,6 +67,18 @@ async def login(credentials: UserLogin):
     
     token = create_access_token(user["id"], user["email"], user["role"])
     
+    # Log login activity (non-blocking)
+    try:
+        from services.activity_logger import activity_logger
+        await activity_logger.log_login(
+            user_id=user["id"],
+            user_name=user.get("name", user["email"]),
+            user_email=user["email"]
+        )
+    except Exception as e:
+        # Don't fail login if activity logging fails
+        pass
+    
     return TokenResponse(
         access_token=token,
         user=UserResponse(
