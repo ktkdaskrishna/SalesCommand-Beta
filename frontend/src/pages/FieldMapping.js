@@ -601,7 +601,7 @@ const FieldMapping = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500">Click to {showMappedData ? 'collapse' : 'expand'}</span>
+            <span className="text-xs text-zinc-400">Click to {showMappedData ? 'collapse' : 'expand'}</span>
             {showMappedData ? (
               <ChevronUp className="w-5 h-5 text-zinc-400" />
             ) : (
