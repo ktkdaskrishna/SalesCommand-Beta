@@ -179,10 +179,10 @@ const BlueSheetConfiguration = () => {
         <div>
           <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Brain className="w-5 h-5 text-indigo-600" />
-            Blue Sheet AI Configuration
+            Deal Confidence Configuration
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            Configure the weights used in AI probability calculations for opportunities
+            Configure the weights used in deal confidence calculations
           </p>
         </div>
         <div className="flex items-center gap-3">
