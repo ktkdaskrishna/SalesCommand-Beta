@@ -27,13 +27,17 @@ export const AuthProvider = ({ children }) => {
       
       if (token && savedUser) {
         try {
-          // Verify token is still valid
+          // Verify token is still valid and get latest user data
           const response = await authAPI.getMe();
-          setUser(response.data);
+          const userData = response.data;
+          setUser(userData);
+          // Update localStorage with latest data
+          localStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
           // Token invalid, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          setUser(null);
         }
       }
       setLoading(false);
@@ -67,6 +71,8 @@ export const AuthProvider = ({ children }) => {
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'ceo';
   const isSuperAdmin = user?.role === 'super_admin' || user?.is_super_admin;
+  const isPending = user?.approval_status === 'pending';
+  const isRejected = user?.approval_status === 'rejected';
   
   // Get token from localStorage
   const token = localStorage.getItem('token');
@@ -81,6 +87,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isAdmin,
     isSuperAdmin,
+    isPending,
+    isRejected,
   };
 
   return (
