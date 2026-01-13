@@ -158,28 +158,72 @@ async def get_opportunities(
     product_line: Optional[str] = None,
     token_data: dict = Depends(require_approved())
 ):
-    """Get opportunities with optional filters"""
+    """Get opportunities from data_lake_serving (real Odoo-synced data)"""
     db = Database.get_db()
     user_id = token_data["id"]
+    user_email = token_data.get("email", "")
     user_role = token_data.get("role", "")
     
-    query = {}
+    # Get user details
+    user = token_data.get("user")
+    if user:
+        is_super_admin = getattr(user, "is_super_admin", False)
+    else:
+        user_doc = await db.users.find_one({"id": user_id})
+        is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
     
-    # Role-based filtering
-    if user_role == "account_manager":
-        query["owner_id"] = user_id
+    # Fetch from data_lake_serving (real Odoo data)
+    opportunities = []
+    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
     
-    if stage:
-        query["stage"] = stage
-    if product_line:
-        query["product_lines"] = product_line
-    
-    opportunities = await db.opportunities.find(query, {"_id": 0}).to_list(1000)
-    
-    # Enrich with activity counts
-    for opp in opportunities:
-        activity_count = await db.activities.count_documents({"opportunity_id": opp["id"]})
-        opp["activity_count"] = activity_count
+    for doc in opp_docs:
+        opp_data = doc.get("data", {})
+        
+        # User-based filtering for non-admin users
+        if not is_super_admin and user_role == "account_manager":
+            salesperson = opp_data.get("salesperson_name", "")
+            if salesperson and user_email not in salesperson:
+                continue
+        
+        # Map Odoo stage to internal stage
+        odoo_stage = opp_data.get("stage_name", "New").lower()
+        if "won" in odoo_stage:
+            mapped_stage = "closed_won"
+        elif "lost" in odoo_stage:
+            mapped_stage = "closed_lost"
+        elif "negot" in odoo_stage:
+            mapped_stage = "negotiation"
+        elif "propos" in odoo_stage:
+            mapped_stage = "proposal"
+        elif "discov" in odoo_stage:
+            mapped_stage = "discovery"
+        elif "qualif" in odoo_stage:
+            mapped_stage = "qualification"
+        else:
+            mapped_stage = "lead"
+        
+        # Stage filter
+        if stage and mapped_stage != stage:
+            continue
+        
+        opp = {
+            "id": opp_data.get("id") or doc.get("serving_id"),
+            "name": opp_data.get("name", ""),
+            "account_name": opp_data.get("partner_name", ""),
+            "account_id": opp_data.get("partner_id"),
+            "value": float(opp_data.get("expected_revenue", 0) or 0),
+            "probability": float(opp_data.get("probability", 0) or 0),
+            "stage": mapped_stage,
+            "stage_name": opp_data.get("stage_name", "New"),
+            "product_lines": opp_data.get("product_lines", []),
+            "expected_close_date": opp_data.get("date_deadline"),
+            "owner_email": opp_data.get("salesperson_name", ""),
+            "owner_id": opp_data.get("salesperson_id"),
+            "description": opp_data.get("description", ""),
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        }
+        opportunities.append(opp)
     
     return opportunities
 
