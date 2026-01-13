@@ -74,6 +74,12 @@ export const AuthProvider = ({ children }) => {
   const isPending = user?.approval_status === 'pending';
   const isRejected = user?.approval_status === 'rejected';
   
+  // Executive check - CEO, Director, Super Admin
+  const isExecutive = useCallback(() => {
+    const executiveRoles = ['super_admin', 'ceo', 'sales_director', 'director', 'executive'];
+    return user?.is_super_admin || executiveRoles.includes(user?.role?.toLowerCase());
+  }, [user]);
+  
   // Get token from localStorage
   const token = localStorage.getItem('token');
 
@@ -89,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     isSuperAdmin,
     isPending,
     isRejected,
+    isExecutive,
   };
 
   return (
