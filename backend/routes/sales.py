@@ -379,17 +379,17 @@ async def calculate_blue_sheet_probability(
     score_breakdown["win_results"] = win_results_score
     total_score += win_results_score
     
-    # Action Plan (max 15 points)
+    # Action Plan (configurable weights)
     action_score = 0
     if analysis.next_steps_defined:
-        action_score += 8
+        action_score += weights_config.get("next_steps_defined", 8)
     if analysis.mutual_action_plan:
-        action_score += 7
+        action_score += weights_config.get("mutual_action_plan", 7)
     score_breakdown["action_plan"] = action_score
     total_score += action_score
     
-    # Calculate probability (scale to 0-100)
-    max_possible = 75
+    # Calculate probability (scale to 0-100) using configurable max
+    max_possible = weights_config.get("max_possible_score", 75)
     calculated_probability = max(0, min(100, int((total_score / max_possible) * 100)))
     
     # Confidence level
