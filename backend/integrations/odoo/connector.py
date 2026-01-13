@@ -427,6 +427,20 @@ class OdooConnector(BaseConnector):
                     'phone': rec.get('work_phone') or rec.get('mobile_phone'),
                     'job_title': rec.get('job_title') or (rec.get('job_id')[1] if rec.get('job_id') else None),
                     'department_odoo_id': rec.get('department_id')[0] if rec.get('department_id') else None,
+                    'department_name': rec.get('department_id')[1] if rec.get('department_id') else None,
+                    'manager_odoo_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'manager_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'active': rec.get('active', True),
+                    'source': 'odoo',
+                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                })
+            
+            logger.info(f"Fetched {len(users)} employees from Odoo hr.employee")
+            return users
+            
+        except Exception as e:
+            logger.warning(f"hr.employee fetch failed: {e}, trying res.users fallback")
+            return await self._fetch_users_fallback()
 
     async def _fetch_users_fallback(self) -> List[Dict[str, Any]]:
         """Fallback to res.users if hr.employee is not available"""
