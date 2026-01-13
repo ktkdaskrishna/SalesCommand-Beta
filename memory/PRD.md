@@ -4,7 +4,7 @@
 Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based experiences.
 
 ## Version
-**v3.0.0** - Trust-Focused Beta (Jan 13, 2026)
+**v3.1.0** - Trust-Focused Beta + Management Features (Jan 13, 2026)
 
 ---
 
@@ -20,9 +20,28 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 
 ---
 
-## Completed Work (This Session - Jan 13, 2026)
+## Latest Completed Work (This Session - Jan 13, 2026)
 
-### Trust-Focused Revisions ✅
+### New: Sales Targets UI ✅
+- **Admin Panel tab** for assigning revenue/activity targets to sales team
+- **Features:**
+  - Create/Edit/Delete targets
+  - Assign to specific users
+  - Period types: Monthly, Quarterly, Yearly
+  - Target metrics: Revenue, Deals, Activities
+  - Filter by period type
+- **Info banner:** "Set revenue goals, deal counts, and activity targets for each team member"
+
+### New: Sync Status Widget ✅
+- **Dashboard header component** showing integration health
+- **Indicators:**
+  - Odoo: ✓ (green checkmark when connected)
+  - Microsoft: ⚠️ (amber when needs refresh, gray when not connected)
+- **API endpoint:** `/api/sync-status`
+
+---
+
+## Trust-Focused Revisions (Earlier This Session) ✅
 
 #### 1. Dashboard Scope Reduction
 - **Simplified to 2 KPI cards only:**
