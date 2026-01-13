@@ -104,6 +104,9 @@ export const opportunitiesAPI = {
 
 export const salesAPI = {
   getDashboard: () => api.get('/sales/dashboard'),
+  getRealDashboard: () => api.get('/dashboard/real'),  // Real Odoo data
+  getRealOpportunities: () => api.get('/opportunities/real'),  // Real Odoo opportunities
+  getReceivables: () => api.get('/receivables'),  // Real Odoo invoices
   getKanban: () => api.get('/opportunities/kanban'),
   calculateProbability: (oppId, data) => api.post(`/opportunities/${oppId}/calculate-probability`, data),
   getActivitiesByOpportunity: (oppId) => api.get(`/activities?opportunity_id=${oppId}`),
