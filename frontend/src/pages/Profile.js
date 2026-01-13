@@ -33,6 +33,26 @@ const Profile = () => {
     }
   };
 
+  const handleRelink = async () => {
+    if (!profile?.id) return;
+    setRelinking(true);
+    setRelinkMessage(null);
+    
+    try {
+      const res = await api.post(`/admin/users/${profile.id}/relink`);
+      setRelinkMessage({ type: 'success', text: res.data.message });
+      // Refresh profile to show updated data
+      await fetchProfile();
+    } catch (e) {
+      setRelinkMessage({ 
+        type: 'error', 
+        text: e.response?.data?.detail || 'Failed to re-link. Please try again.' 
+      });
+    } finally {
+      setRelinking(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
