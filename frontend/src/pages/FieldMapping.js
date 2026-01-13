@@ -503,7 +503,7 @@ const FieldMapping = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Field Mapping</h1>
-          <p className="text-zinc-400 mt-1">Configure how Odoo fields map to your canonical schema</p>
+          <p className="text-zinc-400 mt-1">Configure how external integration fields map to your canonical schema</p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -517,11 +517,57 @@ const FieldMapping = () => {
         </div>
       </div>
 
-      {/* Entity Selector */}
+      {/* Integration Selector */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+        <h3 className="text-white font-medium mb-4">Select Integration Source</h3>
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => {
+              setSelectedIntegration('odoo');
+              setSelectedEntity('opportunity');
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              selectedIntegration === 'odoo'
+                ? 'bg-purple-600 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            Odoo ERP
+          </button>
+          <button
+            onClick={() => {
+              setSelectedIntegration('ms365');
+              setSelectedEntity('user');
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              selectedIntegration === 'ms365'
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+            }`}
+          >
+            <Cloud className="w-4 h-4" />
+            Microsoft 365
+          </button>
+        </div>
+
         <h3 className="text-white font-medium mb-4">Select Entity Type</h3>
         <div className="flex flex-wrap gap-3">
-          {Object.entries(ODOO_MODELS).map(([key, value]) => (
+          {selectedIntegration === 'odoo' && Object.entries(ODOO_MODELS).map(([key, value]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedEntity(key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedEntity === key
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+              }`}
+              data-testid={`entity-${key}`}
+            >
+              {value.label}
+            </button>
+          ))}
+          {selectedIntegration === 'ms365' && Object.entries(MS365_ENTITIES).map(([key, value]) => (
             <button
               key={key}
               onClick={() => setSelectedEntity(key)}
