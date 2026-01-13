@@ -1,6 +1,6 @@
 /**
  * Admin Panel - System Configuration
- * Full CRUD for Roles, Permissions, Departments, Users
+ * Full CRUD for Roles, Permissions, Departments, Users, Incentives
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,10 +8,13 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import RoleConfigurationPanel from '../components/RoleConfigurationPanel';
+import IncentiveConfiguration from '../components/IncentiveConfiguration';
+import { configAPI } from '../services/api';
 import {
   Users, Shield, Building2, Settings, ChevronRight,
   Plus, Edit2, Trash2, Check, X, Search, AlertCircle,
-  Loader2, Save, Cloud, ChevronDown, ChevronUp
+  Loader2, Save, Cloud, ChevronDown, ChevronUp, DollarSign, LayoutDashboard
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
