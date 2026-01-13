@@ -657,7 +657,7 @@ const FieldMapping = () => {
               <div className="text-center py-8 bg-zinc-800/30 rounded-lg">
                 <Sparkles className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
                 <p className="text-zinc-400">No mappings configured yet</p>
-                <p className="text-zinc-500 text-sm mt-1">Click &quot;AI Auto-Map&quot; or &quot;Add Mapping&quot; to get started</p>
+                <p className="text-zinc-400 text-sm mt-1">Click &quot;AI Auto-Map&quot; or &quot;Add Mapping&quot; to get started</p>
               </div>
             ) : (
               <div className="space-y-2">
