@@ -350,7 +350,11 @@ const Accounts = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-600">{account.industry || '-'}</td>
-                    <td className="px-4 py-4"><HealthBadge status={health} /></td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getHealthBadgeStyle(health)}`}>
+                        {getHealthLabel(health)}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 text-right text-sm font-medium text-slate-900">{formatCurrency(metrics.pipelineValue)}</td>
                     <td className="px-4 py-4 text-right text-sm font-medium text-emerald-600">{formatCurrency(metrics.wonValue)}</td>
                     <td className="px-4 py-4 text-center">
