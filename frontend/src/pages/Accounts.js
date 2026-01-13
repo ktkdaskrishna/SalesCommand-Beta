@@ -445,12 +445,25 @@ const Accounts = () => {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button 
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpen360View(account.id);
+                          }}
+                          title="360° View"
+                          data-testid={`table-360-btn-${account.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
