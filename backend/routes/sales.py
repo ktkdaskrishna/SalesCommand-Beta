@@ -1612,15 +1612,16 @@ async def get_real_accounts(
     for partner_name, metrics in account_metrics.items():
         if partner_name not in existing_names and partner_name:
             # Create a synthetic account from opportunity data
+            display_name = partner_name.title()
             accounts.append({
                 "id": f"opp_{partner_name[:20].replace(' ', '_')}",
-                "name": partner_name.title(),  # Title case the name
+                "name": display_name,
                 "email": "",
                 "phone": "",
                 "website": "",
                 "city": "",
                 "country": "",
-                "industry": "",
+                "industry": infer_industry(display_name),
                 # Aggregated metrics
                 "pipeline_value": metrics["pipeline_value"],
                 "won_value": metrics["won_value"],
