@@ -425,7 +425,15 @@ async def approve_user(
     user_id: str,
     token_data: dict = Depends(require_super_admin)
 ):
-    """Approve a pending user"""
+    """
+    Approve a pending user and enrich with Odoo data.
+    
+    This is the KEY integration point:
+    1. User logged in via Azure AD (has email, name from Microsoft)
+    2. On approval, we match email with Odoo users/employees
+    3. Enrich user with Odoo: department, salesperson_id, team_id
+    4. This enables Odoo-based access control (users see only their data)
+    """
     db = Database.get_db()
     
     user = await db.users.find_one({"id": user_id})
@@ -435,17 +443,119 @@ async def approve_user(
     if user.get("approval_status") != "pending":
         raise HTTPException(status_code=400, detail="User is not in pending state")
     
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {
-            "approval_status": "approved",
-            "updated_at": datetime.now(timezone.utc)
-        }}
-    )
+    user_email = user.get("email", "").lower()
+    odoo_enrichment = {}
+    odoo_match_status = "not_matched"
+    
+    # === ODOO ENRICHMENT: Match user email with Odoo ===
+    try:
+        # 1. Check if we have Odoo users synced in data_lake_serving
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{user_email}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            odoo_enrichment = {
+                "odoo_user_id": odoo_data.get("id"),
+                "odoo_employee_id": odoo_data.get("employee_id"),
+                "odoo_department_id": odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "odoo_salesperson_name": odoo_data.get("name"),  # The salesperson name used in opportunities
+                "odoo_matched": True,
+                "odoo_match_email": user_email,
+            }
+            odoo_match_status = "matched_from_sync"
+        
+        # 2. Also check synced users collection (from /sync/users endpoint)
+        if not odoo_enrichment:
+            synced_user = await db.users.find_one({
+                "source": "odoo",
+                "email": {"$regex": f"^{user_email}$", "$options": "i"}
+            })
+            if synced_user:
+                odoo_enrichment = {
+                    "odoo_user_id": synced_user.get("odoo_user_id"),
+                    "odoo_employee_id": synced_user.get("odoo_employee_id"),
+                    "odoo_department_id": synced_user.get("department_id"),
+                    "odoo_department_name": synced_user.get("department_name"),
+                    "odoo_job_title": synced_user.get("job_title"),
+                    "odoo_matched": True,
+                    "odoo_match_email": user_email,
+                }
+                odoo_match_status = "matched_from_users"
+        
+        # 3. Check if user's email appears as salesperson in any opportunity
+        if not odoo_enrichment:
+            opp_with_user = await db.data_lake_serving.find_one({
+                "entity_type": "opportunity",
+                "$or": [
+                    {"data.salesperson_name": {"$regex": user_email, "$options": "i"}},
+                    {"data.user_id.1": {"$regex": user_email, "$options": "i"}}  # Odoo often stores [id, name]
+                ]
+            })
+            if opp_with_user:
+                opp_data = opp_with_user.get("data", {})
+                odoo_enrichment = {
+                    "odoo_salesperson_name": user_email,  # Use email as salesperson identifier
+                    "odoo_team_id": opp_data.get("team_id"),
+                    "odoo_team_name": opp_data.get("team_name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": user_email,
+                }
+                odoo_match_status = "matched_from_opportunities"
+        
+        # 4. Check synced departments and match by department name from Azure AD
+        if not odoo_enrichment.get("odoo_department_id") and user.get("ad_department"):
+            dept = await db.departments.find_one({
+                "name": {"$regex": user.get("ad_department"), "$options": "i"},
+                "source": "odoo"
+            })
+            if dept:
+                odoo_enrichment["department_id"] = dept.get("id")
+                odoo_enrichment["odoo_department_id"] = dept.get("odoo_id")
+                odoo_enrichment["odoo_department_name"] = dept.get("name")
+                if not odoo_enrichment.get("odoo_matched"):
+                    odoo_match_status = "matched_department_only"
+    
+    except Exception as e:
+        logger.error(f"Error enriching user from Odoo: {e}")
+        odoo_match_status = f"error: {str(e)}"
+    
+    # Build update payload
+    update_data = {
+        "approval_status": "approved",
+        "updated_at": datetime.now(timezone.utc),
+        "odoo_match_status": odoo_match_status,
+        **odoo_enrichment
+    }
+    
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    # Log the enrichment for audit
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "user_approved",
+        "user_id": user_id,
+        "approved_by": token_data["id"],
+        "odoo_match_status": odoo_match_status,
+        "odoo_enrichment": odoo_enrichment,
+        "timestamp": datetime.now(timezone.utc),
+    })
     
     return {
         "message": "User approved",
-        "user_email": user.get("email")
+        "user_email": user.get("email"),
+        "odoo_match_status": odoo_match_status,
+        "odoo_enrichment": odoo_enrichment if odoo_enrichment else "No Odoo match found - user will need manual assignment"
     }
 
 
