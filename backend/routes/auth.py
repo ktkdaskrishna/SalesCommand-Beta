@@ -163,14 +163,17 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
     Complete Microsoft SSO login.
     Called by frontend after MSAL authentication.
     Validates the tokens, creates/updates user, and returns app JWT.
+    Fetches user profile details from Azure AD (name, email, job title, department, etc.)
     """
     db = Database.get_db()
     
     try:
-        # Verify the access token by calling Microsoft Graph
+        # Verify the access token by calling Microsoft Graph with extended fields
         async with aiohttp.ClientSession() as session:
             headers = {"Authorization": f"Bearer {request.access_token}"}
-            async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
+            # Request additional user profile fields from Graph API
+            graph_url = "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName,jobTitle,department,officeLocation,mobilePhone,businessPhones,companyName"
+            async with session.get(graph_url, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"Microsoft Graph API error: {error_text}")
@@ -181,10 +184,19 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 
                 ms_user = await response.json()
         
-        # Extract user info from Graph API response (more reliable than MSAL account)
+        # Log the fetched user data for debugging
+        logger.info(f"Microsoft Graph user data: {ms_user}")
+        
+        # Extract user info from Graph API response
         email = ms_user.get("mail") or ms_user.get("userPrincipalName")
         name = ms_user.get("displayName") or request.account.get("name") or email.split("@")[0]
         ms_id = ms_user.get("id") or request.account.get("localAccountId")
+        job_title = ms_user.get("jobTitle")
+        department = ms_user.get("department")
+        office_location = ms_user.get("officeLocation")
+        mobile_phone = ms_user.get("mobilePhone")
+        business_phones = ms_user.get("businessPhones", [])
+        company_name = ms_user.get("companyName")
         
         if not email:
             raise HTTPException(status_code=400, detail="Could not get email from Microsoft account")
