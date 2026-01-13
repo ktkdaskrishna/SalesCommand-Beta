@@ -29,12 +29,14 @@ import {
   Plug,
   Database,
   Wand2,
+  Activity,
+  Award,
 } from 'lucide-react';
 
 // Icon mapping for dynamic navigation
 const ICON_MAP = {
   LayoutDashboard, Building2, Target, BarChart3, Mail, FileText,
-  Settings, Users, Shield, Plug, Database, Wand2,
+  Settings, Users, Shield, Plug, Database, Wand2, Activity, Award,
 };
 
 // Get initials from name
