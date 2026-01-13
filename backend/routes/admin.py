@@ -596,8 +596,16 @@ async def reject_user(
 
 
 @router.delete("/users/{user_id}")
-async def delete_user(user_id: str, token_data: dict = Depends(require_super_admin)):
-    """Deactivate a user (soft delete)"""
+async def delete_user(
+    user_id: str, 
+    permanent: bool = False,
+    token_data: dict = Depends(require_super_admin)
+):
+    """
+    Delete a user.
+    - Default: Soft delete (sets is_active=False)
+    - With ?permanent=true: Hard delete (removes from database completely)
+    """
     db = Database.get_db()
     
     if user_id == token_data["id"]:
@@ -607,12 +615,28 @@ async def delete_user(user_id: str, token_data: dict = Depends(require_super_adm
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Soft delete
-    result = await db.users.update_one(
-        {"id": user_id},
-        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc)}}
-    )
-    return {"message": "User deactivated" if result.modified_count else "No changes made"}
+    if permanent:
+        # Hard delete - completely remove from database
+        result = await db.users.delete_one({"id": user_id})
+        
+        # Log the deletion
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "action": "user_hard_deleted",
+            "user_id": user_id,
+            "user_email": user.get("email"),
+            "deleted_by": token_data["id"],
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {"message": f"User {user.get('email')} permanently deleted" if result.deleted_count else "No user deleted"}
+    else:
+        # Soft delete - just deactivate
+        result = await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc)}}
+        )
+        return {"message": "User deactivated" if result.modified_count else "No changes made"}
 
 
 # ===================== BULK OPERATIONS =====================
