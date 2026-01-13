@@ -564,3 +564,209 @@ async def create_pipeline_stage(
     await db.pipeline_stages.insert_one(stage)
     stage.pop("_id", None)
     return stage
+
+
+# ===================== BLUE SHEET WEIGHTS CONFIGURATION =====================
+
+DEFAULT_BLUESHEET_WEIGHTS = {
+    # Buying Influences (positive)
+    "economic_buyer_identified": 10,
+    "economic_buyer_favorable": 10,
+    "user_buyer_favorable_each": 3,  # Per favorable user buyer (max 3)
+    "technical_buyer_favorable_each": 3,  # Per favorable tech buyer (max 2)
+    "coach_identified": 3,
+    "coach_engaged": 2,
+    # Red Flags (negative)
+    "no_access_to_economic_buyer": -15,
+    "reorganization_pending": -10,
+    "budget_not_confirmed": -12,
+    "competition_preferred": -15,
+    "timeline_unclear": -8,
+    # Win Results (positive)
+    "clear_business_results": 12,
+    "quantifiable_value": 8,
+    # Action Plan (positive)
+    "next_steps_defined": 8,
+    "mutual_action_plan": 7,
+    # Max caps
+    "max_user_buyers": 3,
+    "max_technical_buyers": 2,
+    "max_possible_score": 75
+}
+
+class BlueSheetWeightsUpdate(BaseModel):
+    economic_buyer_identified: Optional[int] = None
+    economic_buyer_favorable: Optional[int] = None
+    user_buyer_favorable_each: Optional[int] = None
+    technical_buyer_favorable_each: Optional[int] = None
+    coach_identified: Optional[int] = None
+    coach_engaged: Optional[int] = None
+    no_access_to_economic_buyer: Optional[int] = None
+    reorganization_pending: Optional[int] = None
+    budget_not_confirmed: Optional[int] = None
+    competition_preferred: Optional[int] = None
+    timeline_unclear: Optional[int] = None
+    clear_business_results: Optional[int] = None
+    quantifiable_value: Optional[int] = None
+    next_steps_defined: Optional[int] = None
+    mutual_action_plan: Optional[int] = None
+    max_user_buyers: Optional[int] = None
+    max_technical_buyers: Optional[int] = None
+    max_possible_score: Optional[int] = None
+
+@router.get("/bluesheet-weights")
+async def get_bluesheet_weights(
+    token_data: dict = Depends(require_approved())
+):
+    """Get Blue Sheet probability calculation weights (Super Admin configurable)"""
+    db = Database.get_db()
+    
+    weights = await db.bluesheet_config.find_one({}, {"_id": 0})
+    if not weights:
+        # Seed defaults
+        weights = {
+            "id": str(uuid.uuid4()),
+            **DEFAULT_BLUESHEET_WEIGHTS,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        await db.bluesheet_config.insert_one(weights)
+        weights.pop("_id", None)
+    
+    return weights
+
+@router.put("/bluesheet-weights")
+async def update_bluesheet_weights(
+    data: BlueSheetWeightsUpdate,
+    token_data: dict = Depends(require_approved())
+):
+    """Update Blue Sheet weights (Super Admin only)"""
+    db = Database.get_db()
+    
+    # Check if user is super admin
+    user = await db.users.find_one({"id": token_data["id"]})
+    if not user or not user.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Only Super Admin can modify Blue Sheet weights")
+    
+    # Get existing config
+    config = await db.bluesheet_config.find_one({})
+    if not config:
+        # Create with defaults
+        config = {
+            "id": str(uuid.uuid4()),
+            **DEFAULT_BLUESHEET_WEIGHTS,
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.bluesheet_config.insert_one(config)
+    
+    # Update only provided fields
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.bluesheet_config.update_one({}, {"$set": update_data})
+    
+    updated = await db.bluesheet_config.find_one({}, {"_id": 0})
+    return updated
+
+# ===================== TARGET ASSIGNMENT CONFIGURATION =====================
+
+class TargetCreate(BaseModel):
+    user_id: Optional[str] = None
+    role_id: Optional[str] = None
+    period_type: str = "monthly"  # monthly, quarterly, yearly
+    period_start: datetime
+    period_end: datetime
+    target_revenue: float = 0
+    target_deals: int = 0
+    target_activities: int = 0
+    product_line_targets: Dict[str, float] = {}
+
+@router.get("/targets")
+async def get_targets(
+    user_id: Optional[str] = Query(default=None),
+    period_type: Optional[str] = Query(default=None),
+    token_data: dict = Depends(require_approved())
+):
+    """Get sales targets (filtered by user or period)"""
+    db = Database.get_db()
+    
+    query = {}
+    if user_id:
+        query["user_id"] = user_id
+    if period_type:
+        query["period_type"] = period_type
+    
+    targets = await db.targets.find(query, {"_id": 0}).to_list(100)
+    return targets
+
+@router.post("/targets")
+async def create_target(
+    data: TargetCreate,
+    token_data: dict = Depends(require_approved())
+):
+    """Create a new target (Super Admin only)"""
+    db = Database.get_db()
+    
+    # Check if user is super admin
+    user = await db.users.find_one({"id": token_data["id"]})
+    if not user or not user.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Only Super Admin can create targets")
+    
+    target = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc),
+        "created_by": token_data["id"]
+    }
+    
+    await db.targets.insert_one(target)
+    target.pop("_id", None)
+    return target
+
+@router.put("/targets/{target_id}")
+async def update_target(
+    target_id: str,
+    target_revenue: Optional[float] = Query(default=None),
+    target_deals: Optional[int] = Query(default=None),
+    target_activities: Optional[int] = Query(default=None),
+    token_data: dict = Depends(require_approved())
+):
+    """Update a target"""
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": token_data["id"]})
+    if not user or not user.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Only Super Admin can modify targets")
+    
+    update_data = {"updated_at": datetime.now(timezone.utc)}
+    if target_revenue is not None:
+        update_data["target_revenue"] = target_revenue
+    if target_deals is not None:
+        update_data["target_deals"] = target_deals
+    if target_activities is not None:
+        update_data["target_activities"] = target_activities
+    
+    result = await db.targets.update_one({"id": target_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    updated = await db.targets.find_one({"id": target_id}, {"_id": 0})
+    return updated
+
+@router.delete("/targets/{target_id}")
+async def delete_target(
+    target_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """Delete a target"""
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": token_data["id"]})
+    if not user or not user.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Only Super Admin can delete targets")
+    
+    result = await db.targets.delete_one({"id": target_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    return {"message": "Target deleted"}
