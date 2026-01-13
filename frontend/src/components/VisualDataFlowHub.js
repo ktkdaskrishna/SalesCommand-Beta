@@ -74,12 +74,16 @@ const VisualDataFlowHub = () => {
   const handleSyncAll = async () => {
     setSyncingAll(true);
     try {
-      const response = await api.post("/odoo/sync-all");
-      const results = response.data.results || [];
-      const totalCreated = results.reduce((sum, r) => sum + (r.created || 0), 0);
-      const totalUpdated = results.reduce((sum, r) => sum + (r.updated || 0), 0);
-      toast.success(`Sync complete: ${totalCreated} created, ${totalUpdated} updated`);
-      fetchConfig();
+      // Use the correct sync endpoint
+      const response = await api.post("/integrations/sync/odoo", {
+        entity_types: ["account", "opportunity", "contact", "order", "invoice"]
+      });
+      if (response.data.job_id) {
+        toast.success(`Sync job started! Job ID: ${response.data.job_id}`);
+        setTimeout(() => {
+          fetchConfig();
+        }, 5000);
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || "Sync failed");
     } finally {
