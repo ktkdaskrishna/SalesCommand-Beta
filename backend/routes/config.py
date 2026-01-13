@@ -704,6 +704,19 @@ class UserTargetOverride(BaseModel):
     reason: str  # Required explanation for override
 
 
+# Legacy target create model (for backwards compatibility)
+class TargetCreate(BaseModel):
+    user_id: Optional[str] = None
+    role_id: Optional[str] = None
+    period_type: str = "monthly"
+    period_start: datetime
+    period_end: datetime
+    target_revenue: float = 0
+    target_deals: int = 0
+    target_activities: int = 0
+    product_line_targets: Dict[str, float] = {}
+
+
 @router.get("/role-targets")
 async def get_role_targets(
     role_id: Optional[str] = Query(default=None),
