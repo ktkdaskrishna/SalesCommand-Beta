@@ -859,6 +859,13 @@ const AccountManagerDashboard = () => {
           <p className="text-slate-600 mt-1">
             Your sales dashboard and pipeline management
           </p>
+          {/* Data Source Badge */}
+          <div className="mt-3">
+            <DataSourceBadge 
+              source={kanbanData?.source === "data_lake_serving" ? "Odoo" : "CRM"} 
+              lastSync={new Date().toISOString()} 
+            />
+          </div>
         </div>
         
         {/* Global Search */}
