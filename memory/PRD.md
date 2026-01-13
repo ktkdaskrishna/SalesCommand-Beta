@@ -4,13 +4,47 @@
 Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based experiences.
 
 ## Version
-**v2.7.0** - Modern ERP UI/UX Overhaul (Jan 13, 2026)
+**v2.8.0** - Enhanced Kanban with Blue Sheet AI (Jan 13, 2026)
 
 ---
 
 ## Completed Work (This Session)
 
-### UI/UX Modernization ✅ (Jan 13, 2026)
+### Enhanced Kanban Board ✅ (Jan 13, 2026)
+**Feature:** Full-featured Kanban board with AI-powered Blue Sheet integration
+
+#### Kanban Card Enhancements:
+| Feature | Description |
+|---------|-------------|
+| **Product/Segment Tag** | Shows MSSP, GRC, AppSec, etc. on each card |
+| **Activities Count** | Displays linked activities (e.g., "2 activities") |
+| **Calculate Probability Button** | Opens Blue Sheet modal |
+| **Drag & Drop** | Move between pipeline stages |
+| **Deal Progress Bar** | Visual probability indicator |
+
+#### Blue Sheet Modal Features:
+| Section | Elements |
+|---------|----------|
+| **Buying Influences** | Economic Buyer Identified/Favorable, Coach Identified/Engaged, User Buyers, Technical Buyers |
+| **Red Flags** | No Access to EB, Reorganization Pending, Budget Not Confirmed, Competition Preferred, Timeline Unclear |
+| **Win Results** | Clear Business Results, Quantifiable Value, Next Steps Defined, Mutual Action Plan |
+| **AI Result Display** | Calculated probability %, confidence level, AI recommendations |
+
+### Configurable Blue Sheet Weights ✅
+**Super Admin** can configure scoring weights via `/api/config/bluesheet-weights`:
+- Buying influence weights (default: Economic Buyer=10 pts each)
+- Red flag penalties (default: -15 for no EB access)
+- Win results weights (default: 12 pts for clear results)
+- Max possible score configuration
+
+### Target Assignment System ✅
+**API endpoints created:**
+- `GET /api/config/targets` - List targets by user/period
+- `POST /api/config/targets` - Create new target (Super Admin)
+- `PUT /api/config/targets/{id}` - Update target
+- `DELETE /api/config/targets/{id}` - Delete target
+
+### UI/UX Modernization ✅
 **Theme:** Light content area with dark sidebar - matching modern ERP design patterns
 
 #### Design System Updates:
@@ -18,39 +52,6 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 - **Content Area:** Light slate-50 background 
 - **Header Icons:** Gradient backgrounds (indigo-purple, blue-indigo, violet-purple per page)
 - **Cards:** White background with subtle borders and hover shadows
-- **Badges:** Consistent color coding (emerald=healthy, blue=new, amber=at-risk, red=critical)
-- **Typography:** Proper hierarchy with semibold headings
-
-#### Pages Updated:
-| Page | Changes |
-|------|---------|
-| Accounts | Gradient header icon, glassmorphic cards, health badges |
-| Opportunities | Updated header, KPI cards with hover effects, filter card |
-| KPIs | Gradient header, category tabs in card container |
-| Dashboard | Clean layout with zone cards and quality score |
-| Admin Panel | Light theme sidebar, clean table styling, modern modals |
-
-### Phase 0: Role Configuration Engine ✅
-- Role Configuration UI with visual builders
-- Navigation tab builder (toggle menu items per role)
-- Dashboard widget drag-drop builder
-- Incentive settings per role
-- Service lines pre-configured (MCD, ACS, GRC, Consulting, MSSP, Academy)
-- 17 dashboard widgets registered
-
-### Phase 1: Role-Based Navigation ✅
-- Dynamic navigation fetched from `/api/config/user/navigation`
-- Role-specific menu items (Main Menu + Admin Menu)
-- Super Admin sees all navigation including Administration section
-- Regular users see only Main Menu items assigned to their role
-
-### Phase 3a: Accounts Page ✅
-- Card view with health score badges (Healthy, At Risk, Critical, New)
-- Table view with sortable columns
-- View toggle (Card/Table)
-- Search and industry filter
-- Account metrics: Pipeline Value, Won Revenue, Active Opportunities, Win Rate
-- New Account modal with full form
 
 ---
 
@@ -83,7 +84,7 @@ Enterprise-grade Sales CRM for Securado's cybersecurity business with role-based
 | Dashboard | ✅ | Data Lake health, integrations status |
 | Sales Dashboard | ✅ | KPIs, Kanban, Blue Sheet, Incentive Calculator |
 | Accounts | ✅ | Card/Table view, health scores, CRUD |
-| Opportunities | ✅ | Table view, stage badges, CRUD |
+| Opportunities | ✅ | **Kanban with Blue Sheet**, Table view, CRUD |
 | KPIs | ✅ | Personal metrics, charts |
 | Email/Calendar | ✅ | MS365 integration |
 | Admin Panel | ✅ | Users, Roles, Role Config, Incentive Config |
