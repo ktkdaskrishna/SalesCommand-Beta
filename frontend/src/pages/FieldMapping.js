@@ -852,7 +852,7 @@ const FieldMapping = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">Canonical Schema</h3>
-              <p className="text-xs text-zinc-500">Your standard fields - Reference</p>
+              <p className="text-xs text-zinc-400">Your standard fields - Reference</p>
             </div>
           </div>
           
