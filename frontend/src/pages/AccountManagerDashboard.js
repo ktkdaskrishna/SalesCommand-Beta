@@ -34,6 +34,7 @@ import {
   RefreshCw,
   Info,
   CheckCircle,
+  XCircle,
   AlertTriangle as AlertTriangleIcon,
 } from "lucide-react";
 
