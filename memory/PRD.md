@@ -146,7 +146,7 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~Non-admin sync button~~ ✅ Fixed Jan 14, 2026 (new /user-sync/refresh endpoint with rate limiting)
 - [x] ~~360° View "Account not found" error~~ ✅ Fixed Jan 14, 2026 (synthetic ID support added)
 - [x] ~~Odoo user profile fields not showing~~ ✅ Fixed Jan 14, 2026 (UserResponse model updated)
-- [ ] Target Reporting UI (aggregate progress against role-based targets)
+- [x] ~~Target Progress Report UI~~ ✅ Completed Jan 14, 2026 (new /target-progress page)
 - [ ] Automated background sync hardening (5-min intervals verified working)
 
 ### P2 (Medium Priority)
