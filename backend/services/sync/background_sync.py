@@ -38,15 +38,23 @@ class OdooReconciler:
         Reconcile a single entity type.
         
         Returns dict with counts: {inserted, updated, soft_deleted, errors}
+        
+        Handles both numeric Odoo IDs and string UUIDs for backwards compatibility.
         """
         stats = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0}
         
-        # Get IDs from Odoo
+        if not odoo_records:
+            logger.info(f"No {entity_type} records to reconcile")
+            return stats
+        
+        # Get IDs from Odoo - store both original and string versions
         odoo_ids = set()
         for rec in odoo_records:
             odoo_id = rec.get(id_field)
             if odoo_id:
                 odoo_ids.add(str(odoo_id))
+        
+        logger.info(f"Reconciling {len(odoo_records)} {entity_type} records (IDs: {len(odoo_ids)} unique)")
         
         # Process each Odoo record
         for rec in odoo_records:
@@ -56,10 +64,15 @@ class OdooReconciler:
                 continue
                 
             try:
-                # Check if exists in our DB
+                # Check if exists in our DB - try multiple ID formats
+                odoo_id_str = str(odoo_id)
                 existing = await self.db.data_lake_serving.find_one({
                     "entity_type": entity_type,
-                    "data.id": odoo_id
+                    "$or": [
+                        {"data.id": odoo_id},
+                        {"data.id": odoo_id_str},
+                        {"serving_id": odoo_id_str}
+                    ]
                 })
                 
                 now = datetime.now(timezone.utc)
@@ -71,6 +84,7 @@ class OdooReconciler:
                         {"$set": {
                             "data": rec,
                             "is_active": True,
+                            "serving_id": odoo_id_str,  # Normalize serving_id
                             "last_aggregated": now,
                             "updated_at": now,
                         }}
@@ -80,7 +94,7 @@ class OdooReconciler:
                     # Insert new record
                     await self.db.data_lake_serving.insert_one({
                         "entity_type": entity_type,
-                        "serving_id": str(odoo_id),
+                        "serving_id": odoo_id_str,
                         "data": rec,
                         "is_active": True,
                         "source": "odoo",
@@ -95,17 +109,17 @@ class OdooReconciler:
                 stats["errors"] += 1
         
         # Soft-delete records no longer in Odoo
-        # Use serving_id for matching since data.id might be nested differently
+        # Only delete records that were synced from Odoo (source=odoo)
         if odoo_ids:
-            # Build list of string IDs for comparison
-            odoo_id_strs = [str(oid) for oid in odoo_ids]
+            odoo_id_strs = list(odoo_ids)
             
+            # Find records to soft-delete (in our DB but not in Odoo)
             result = await self.db.data_lake_serving.update_many(
                 {
                     "entity_type": entity_type,
+                    "source": "odoo",  # Only delete Odoo-synced records
                     "serving_id": {"$nin": odoo_id_strs},
-                    "is_active": {"$ne": False},  # Only update active records
-                    "source": "odoo"
+                    "is_active": {"$ne": False},  # Only update records not already deleted
                 },
                 {"$set": {
                     "is_active": False,
