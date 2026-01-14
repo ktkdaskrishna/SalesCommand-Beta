@@ -24,6 +24,7 @@ import Invoices from './pages/Invoices';
 import Profile from './pages/Profile';
 import Goals from './pages/Goals';
 import ActivityTimeline from './pages/ActivityTimeline';
+import TargetProgressReport from './pages/TargetProgressReport';
 
 // Components
 import Layout from './components/Layout';
