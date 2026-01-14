@@ -236,9 +236,13 @@ async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
                 return None
             
             # Extract all relevant Odoo fields for data access control
+            # Handle both old format (id) and new format (odoo_employee_id, odoo_user_id)
+            odoo_user_id = odoo_data.get("odoo_user_id") or odoo_data.get("id")
+            odoo_employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
+            
             result = {
-                "odoo_user_id": odoo_data.get("id"),
-                "odoo_employee_id": odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id"),
+                "odoo_user_id": odoo_user_id,
+                "odoo_employee_id": odoo_employee_id,
                 "odoo_salesperson_name": odoo_data.get("name"),
                 "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
                 "odoo_department_name": odoo_data.get("department_name"),
@@ -249,7 +253,7 @@ async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
                 "odoo_match_email": email_lower,
             }
             
-            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, name={result['odoo_salesperson_name']}")
+            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, employee_id={result['odoo_employee_id']}, name={result['odoo_salesperson_name']}")
             return result
         
         logger.warning(f"No Odoo user found for email: {email}")
