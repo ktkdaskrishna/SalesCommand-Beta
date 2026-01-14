@@ -403,6 +403,159 @@ class BackgroundSyncService:
                 "sync_id": sync_id,
                 "error": str(e),
             }
+    
+    async def _sync_entity_with_retry(
+        self,
+        entity_name: str,
+        fetch_func,
+        reconciler: 'OdooReconciler',
+        entity_type: str,
+        max_retries: int = MAX_RETRIES
+    ) -> Dict[str, int]:
+        """
+        Sync a single entity type with retry logic and exponential backoff.
+        """
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                records = await fetch_func()
+                stats = await reconciler.reconcile_entity(entity_type, records)
+                
+                if attempt > 0:
+                    logger.info(f"{entity_name} sync succeeded on retry {attempt}")
+                
+                return stats
+                
+            except Exception as e:
+                last_error = e
+                delay = min(
+                    INITIAL_RETRY_DELAY_SECONDS * (2 ** attempt),
+                    MAX_RETRY_DELAY_SECONDS
+                )
+                
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"{entity_name} sync failed (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"{entity_name} sync failed after {max_retries} attempts: {e}")
+        
+        # Return error stats after all retries exhausted
+        return {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 1, "error": str(last_error)}
+    
+    async def run_manual_sync(self, trigger: str = "manual") -> Dict[str, Any]:
+        """
+        Run a manual sync with custom trigger label.
+        Public method for API endpoints to trigger sync.
+        """
+        db = Database.get_db()
+        sync_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc)
+        
+        # Create sync log entry with manual trigger
+        await db.sync_logs.insert_one({
+            "id": sync_id,
+            "started_at": started_at,
+            "status": "running",
+            "trigger": trigger,
+        })
+        
+        # Run the actual sync (reuse internal method logic)
+        result = await self._run_full_sync()
+        
+        # Update the sync log with trigger type
+        await db.sync_logs.update_one(
+            {"id": sync_id},
+            {"$set": {"trigger": trigger}}
+        )
+        
+        return result
+    
+    async def get_sync_health(self) -> Dict[str, Any]:
+        """
+        Get comprehensive health status of the sync service.
+        Returns detailed metrics for monitoring and alerting.
+        """
+        db = Database.get_db()
+        now = datetime.now(timezone.utc)
+        
+        # Get last successful sync
+        last_success = await db.sync_logs.find_one(
+            {"status": "completed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Get last failure
+        last_failure = await db.sync_logs.find_one(
+            {"status": "failed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Count recent failures (last 24 hours)
+        yesterday = now - timedelta(hours=24)
+        recent_failures = await db.sync_logs.count_documents({
+            "status": "failed",
+            "completed_at": {"$gte": yesterday}
+        })
+        
+        # Count recent successes (last 24 hours)
+        recent_successes = await db.sync_logs.count_documents({
+            "status": "completed",
+            "completed_at": {"$gte": yesterday}
+        })
+        
+        # Calculate success rate
+        total_recent = recent_failures + recent_successes
+        success_rate = (recent_successes / total_recent * 100) if total_recent > 0 else 100
+        
+        # Determine health status
+        if recent_failures >= CRITICAL_FAILURE_THRESHOLD:
+            health = "critical"
+            health_message = f"Critical: {recent_failures} failures in last 24h"
+        elif recent_failures >= HEALTH_CHECK_FAILURE_THRESHOLD:
+            health = "degraded"
+            health_message = f"Degraded: {recent_failures} failures in last 24h"
+        elif last_success and (now - last_success.get("completed_at", now)).total_seconds() > 3600:
+            health = "stale"
+            health_message = "No successful sync in over 1 hour"
+        else:
+            health = "healthy"
+            health_message = "Sync service operating normally"
+        
+        # Get average sync duration (last 10 successful syncs)
+        duration_pipeline = [
+            {"$match": {"status": "completed", "duration_seconds": {"$exists": True}}},
+            {"$sort": {"completed_at": -1}},
+            {"$limit": 10},
+            {"$group": {"_id": None, "avg_duration": {"$avg": "$duration_seconds"}}}
+        ]
+        duration_result = await db.sync_logs.aggregate(duration_pipeline).to_list(1)
+        avg_duration = duration_result[0]["avg_duration"] if duration_result else None
+        
+        return {
+            "is_running": self._is_running,
+            "interval_minutes": self._sync_interval_minutes,
+            "health": health,
+            "health_message": health_message,
+            "metrics": {
+                "recent_failures_24h": recent_failures,
+                "recent_successes_24h": recent_successes,
+                "success_rate_24h": round(success_rate, 1),
+                "avg_duration_seconds": round(avg_duration, 1) if avg_duration else None,
+            },
+            "last_success": {
+                "timestamp": last_success.get("completed_at").isoformat() if last_success and last_success.get("completed_at") else None,
+                "duration_seconds": last_success.get("duration_seconds") if last_success else None,
+                "totals": last_success.get("totals") if last_success else None,
+            } if last_success else None,
+            "last_failure": {
+                "timestamp": last_failure.get("completed_at").isoformat() if last_failure and last_failure.get("completed_at") else None,
+                "error": last_failure.get("error_message") if last_failure else None,
+            } if last_failure else None,
+        }
 
 
 # Global sync service instance
