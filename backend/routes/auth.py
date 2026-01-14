@@ -309,21 +309,45 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             if company_name:
                 update_data["company_name"] = company_name
             
-            # Map to Odoo employee if not already mapped
-            if not existing_user.get("odoo_employee_id"):
-                employee_id = await lookup_employee_id_from_odoo(db, email)
-                if employee_id:
-                    update_data["odoo_employee_id"] = employee_id
-                    logger.info(f"Mapped existing SSO user {email} to Odoo employee_id: {employee_id}")
+            # CRITICAL: Map to Odoo user data for proper data access control
+            # Always refresh Odoo mapping to ensure correct user-to-data association
+            odoo_data = await lookup_odoo_user_data(db, email)
+            if odoo_data:
+                # Update with ALL Odoo enrichment fields
+                update_data.update({
+                    "odoo_user_id": odoo_data.get("odoo_user_id"),
+                    "odoo_employee_id": odoo_data.get("odoo_employee_id"),
+                    "odoo_salesperson_name": odoo_data.get("odoo_salesperson_name"),
+                    "odoo_department_id": odoo_data.get("odoo_department_id"),
+                    "odoo_department_name": odoo_data.get("odoo_department_name"),
+                    "odoo_team_id": odoo_data.get("odoo_team_id"),
+                    "odoo_team_name": odoo_data.get("odoo_team_name"),
+                    "odoo_job_title": odoo_data.get("odoo_job_title"),
+                    "odoo_matched": True,
+                    "odoo_match_email": email.lower(),
+                })
+                logger.info(f"Mapped SSO user {email} to Odoo: user_id={odoo_data.get('odoo_user_id')}, salesperson={odoo_data.get('odoo_salesperson_name')}")
+            else:
+                # Clear any stale Odoo mapping to prevent cross-user data access
+                update_data.update({
+                    "odoo_matched": False,
+                    "odoo_user_id": None,
+                    "odoo_employee_id": None,
+                    "odoo_salesperson_name": None,
+                    "odoo_team_id": None,
+                })
+                logger.warning(f"No Odoo match for SSO user {email} - cleared Odoo fields to prevent data leaks")
                 
             await db.users.update_one(
                 {"email": email},
                 {"$set": update_data}
             )
-            user = existing_user
-            user_id = existing_user["id"]
-            approval_status = existing_user.get("approval_status", "approved")
-            logger.info(f"Existing SSO user updated with Azure AD data: {email}")
+            
+            # Fetch updated user to return correct data
+            user = await db.users.find_one({"email": email})
+            user_id = user["id"]
+            approval_status = user.get("approval_status", "approved")
+            logger.info(f"Existing SSO user updated with Azure AD + Odoo data: {email}")
         else:
             # Create new user for SSO - PENDING APPROVAL
             # All Azure AD profile data is synced
