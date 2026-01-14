@@ -1505,12 +1505,25 @@ async def get_real_dashboard(
         if user_email and record_email and user_email == record_email:
             return True
         
-        # MANAGER HIERARCHY: Check if current user manages the salesperson
-        if salesperson_id and salesperson_id in subordinate_user_ids:
-            return True
+        # CRITICAL FIX: MANAGER HIERARCHY - Check if current user manages the salesperson
+        # This allows managers to see their subordinates' opportunities
+        if salesperson_id:
+            # Check if this salesperson_id belongs to any of our subordinates
+            if salesperson_id in subordinate_user_ids:
+                logger.debug(f"Manager access granted: {user_email} manages salesperson_id={salesperson_id}")
+                return True
         
-        if salesperson_name and salesperson_name in subordinate_salesperson_names:
-            return True
+        # Also check by salesperson name if ID match didn't work
+        if salesperson_name:
+            # Check if salesperson name matches any subordinate
+            if salesperson_name in subordinate_salesperson_names:
+                logger.debug(f"Manager access granted: {user_email} manages {salesperson_name}")
+                return True
+            
+            # Check if salesperson email matches any subordinate
+            if any(salesperson_name in sub_name for sub_name in subordinate_salesperson_names):
+                logger.debug(f"Manager access granted: {user_email} manages user with name containing {salesperson_name}")
+                return True
         
         return False
     
