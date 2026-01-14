@@ -153,6 +153,7 @@ function AppRoutes() {
         <Route path="opportunities" element={<Opportunities />} />
         <Route path="goals" element={<Goals />} />
         <Route path="activity" element={<ActivityTimeline />} />
+        <Route path="target-progress" element={<TargetProgressReport />} />
         <Route path="kpis" element={<KPIs />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="integrations" element={<Integrations />} />
