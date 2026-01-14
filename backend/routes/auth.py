@@ -163,6 +163,40 @@ async def get_microsoft_config():
     }
 
 
+# ===================== HELPER: ODOO EMPLOYEE MAPPING =====================
+
+async def lookup_employee_id_from_odoo(db, email: str) -> Optional[int]:
+    """
+    Look up Odoo employee_id by email from the data_lake.
+    Returns employee_id if found, None otherwise.
+    """
+    try:
+        # Search Odoo data_lake for user by email (case-insensitive)
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{email}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{email}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{email}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            # Try multiple field names for employee_id
+            employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
+            if employee_id:
+                logger.info(f"Found Odoo employee_id {employee_id} for email {email}")
+                return int(employee_id)
+        
+        logger.warning(f"No Odoo employee found for email: {email}")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error looking up employee_id for {email}: {str(e)}")
+        return None
+
+
 class MicrosoftCompleteRequest(BaseModel):
     access_token: str
     id_token: Optional[str] = None
