@@ -721,7 +721,8 @@ class OdooConnector(BaseConnector):
             raise RuntimeError("Cannot connect to Odoo")
         
         model = 'res.partner'
-        fields = ['id', 'name', 'email', 'phone', 'mobile', 'function', 'title',
+        # Note: 'title' field removed for Odoo 19.0 compatibility (field renamed/deprecated)
+        fields = ['id', 'name', 'email', 'phone', 'mobile', 'function',
                   'parent_id', 'street', 'city', 'country_id', 'is_company',
                   'user_id', 'create_date', 'write_date']
         # Only fetch individual contacts (not companies)
