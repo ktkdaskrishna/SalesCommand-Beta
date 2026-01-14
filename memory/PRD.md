@@ -67,6 +67,25 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - **Background Sync Service:** Created `BackgroundSyncService` with APScheduler for 5-minute automatic sync intervals. Implements soft-delete pattern for removed Odoo records (is_active=false)
 - **Test Coverage:** 11/11 backend tests passed for new features
 
+### January 14, 2026 - P0 Critical Bug Fixes (MS SSO & Data Security) ✅
+- **MS SSO User Mapping FIXED:** Critical security bug where users could see other users' data
+  - New `lookup_odoo_user_data()` function retrieves ALL Odoo enrichment fields (user_id, salesperson_name, team_id, department)
+  - Uses STRICT email matching (exact match, not substring) to prevent cross-user data leaks
+  - All Odoo fields refreshed on every MS SSO login to ensure accurate mapping
+- **Data Access Control Hardened:** 
+  - `user_has_access_to_record()` now uses strict equality matching (==) instead of substring matching ('in')
+  - Prevents scenarios where "user@domain.com" could see data for "user@domain.com.au"
+  - Strict matching for salesperson_id, salesperson_name, and team_id
+- **360° Account View FIXED:** Now works for all account types including opportunity-derived accounts
+  - Handles synthetic IDs (e.g., "opp_techcorp_industri") by extracting name and searching
+  - Returns complete data with Opportunities, Invoices, Activities, Contacts sections
+- **Activities & Contacts Sync Added:** Background sync now includes these entity types
+  - `fetch_activities()` method added to Odoo connector (mail.activity)
+  - `fetch_contacts()` method added to Odoo connector (res.partner with is_company=False)
+  - Both integrated into background sync service with graceful error handling
+- **Odoo 19.0 Compatibility:** Removed 'title' field from contacts query (field deprecated in Odoo 19)
+- **Test Coverage:** 15/15 backend tests passed, all frontend features verified
+
 ---
 
 ## Domain User Authorization Flow
