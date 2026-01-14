@@ -1362,22 +1362,38 @@ async def get_real_dashboard(
     odoo_team_id = user_doc.get("odoo_team_id") if user_doc else None
     
     def user_has_access_to_record(record_data):
-        """Check if current user has access to a record based on Odoo assignment"""
+        """
+        Check if current user has access to a record based on Odoo assignment.
+        
+        CRITICAL: Uses strict matching to prevent cross-user data leaks:
+        - salesperson_id must EXACTLY match odoo_user_id
+        - OR salesperson_name must EXACTLY match odoo_salesperson_name (case-insensitive)
+        - OR team_id must EXACTLY match odoo_team_id
+        
+        Substring matching is intentionally AVOIDED for security.
+        """
         if is_super_admin:
             return True
         
-        salesperson_name = (record_data.get("salesperson_name") or "").lower()
+        salesperson_name = (record_data.get("salesperson_name") or "").lower().strip()
         salesperson_id = record_data.get("salesperson_id")
         record_team_id = record_data.get("team_id")
         
-        # Match by email, salesperson name, user ID, or team
-        if user_email and salesperson_name and user_email in salesperson_name:
+        # STRICT matching by salesperson ID (most reliable)
+        if odoo_user_id and salesperson_id and int(odoo_user_id) == int(salesperson_id):
             return True
-        if odoo_salesperson_name and salesperson_name and odoo_salesperson_name in salesperson_name:
+        
+        # STRICT matching by salesperson name (exact, case-insensitive)
+        if odoo_salesperson_name and salesperson_name and odoo_salesperson_name == salesperson_name:
             return True
-        if odoo_user_id and salesperson_id and odoo_user_id == salesperson_id:
+        
+        # STRICT matching by team
+        if odoo_team_id and record_team_id and int(odoo_team_id) == int(record_team_id):
             return True
-        if odoo_team_id and record_team_id and odoo_team_id == record_team_id:
+        
+        # Fallback: Check if user's email is the salesperson's email (for records with email field)
+        record_email = (record_data.get("salesperson_email") or "").lower().strip()
+        if user_email and record_email and user_email == record_email:
             return True
         
         return False
