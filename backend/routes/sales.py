@@ -1040,6 +1040,56 @@ async def get_activities(
     activities = await db.activities.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return activities
 
+
+@router.get("/activities/stats")
+async def get_activity_stats(
+    token_data: dict = Depends(require_approved())
+):
+    """Get activity statistics - counts by type"""
+    db = Database.get_db()
+    
+    # System event types to separate
+    system_event_types = ["user_login", "data_synced", "system"]
+    
+    # Count total
+    total = await db.activities.count_documents({})
+    
+    # Count business activities (non-system)
+    business = await db.activities.count_documents({
+        "activity_type": {"$nin": system_event_types}
+    })
+    
+    # Count system events
+    system = await db.activities.count_documents({
+        "activity_type": {"$in": system_event_types}
+    })
+    
+    # Count by type
+    pipeline = [
+        {"$group": {"_id": "$activity_type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    type_counts = {}
+    async for doc in db.activities.aggregate(pipeline):
+        type_counts[doc["_id"] or "unknown"] = doc["count"]
+    
+    # Count today's activities
+    from datetime import datetime, timezone, timedelta
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_business = await db.activities.count_documents({
+        "activity_type": {"$nin": system_event_types},
+        "created_at": {"$gte": today_start}
+    })
+    
+    return {
+        "total": total,
+        "business_activities": business,
+        "system_events": system,
+        "today_business": today_business,
+        "by_type": type_counts
+    }
+
+
 @router.post("/activities")
 async def create_activity(
     data: ActivityCreate,
