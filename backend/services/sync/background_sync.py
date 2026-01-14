@@ -1,12 +1,13 @@
 """
 Background Sync Service
 Automated synchronization of Odoo data with configurable intervals
-Handles: accounts, opportunities, invoices, employees/users
+Handles: accounts, opportunities, invoices, employees/users, activities, contacts
 Implements soft-delete for removed Odoo records
+Features: Retry logic with exponential backoff, health monitoring, alerts
 """
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 import uuid
 
@@ -17,6 +18,13 @@ from core.database import Database
 from core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Sync configuration
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY_SECONDS = 30
+MAX_RETRY_DELAY_SECONDS = 300
+HEALTH_CHECK_FAILURE_THRESHOLD = 3
+CRITICAL_FAILURE_THRESHOLD = 6
 
 
 class OdooReconciler:
