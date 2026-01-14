@@ -447,7 +447,7 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "mobile_phone": mobile_phone,
                 "business_phones": business_phones,
                 "company_name": company_name,
-                # Odoo enrichment fields
+                # Odoo enrichment fields (including manager_odoo_id)
                 "odoo_user_id": odoo_data.get("odoo_user_id") if odoo_data else None,
                 "odoo_employee_id": odoo_data.get("odoo_employee_id") if odoo_data else None,
                 "odoo_salesperson_name": odoo_data.get("odoo_salesperson_name") if odoo_data else None,
@@ -456,6 +456,7 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "odoo_team_id": odoo_data.get("odoo_team_id") if odoo_data else None,
                 "odoo_team_name": odoo_data.get("odoo_team_name") if odoo_data else None,
                 "odoo_job_title": odoo_data.get("odoo_job_title") if odoo_data else None,
+                "manager_odoo_id": odoo_data.get("manager_odoo_id") if odoo_data else None,  # ADD manager
                 "odoo_matched": bool(odoo_data),
                 "odoo_match_email": email.lower() if odoo_data else None,
                 # Timestamps
