@@ -1441,6 +1441,7 @@ async def get_real_dashboard(
     subordinate_user_ids = set()
     subordinate_employee_ids = set()
     subordinate_salesperson_names = set()
+    subordinate_emails = set()  # ADD: Track subordinate emails
     
     if odoo_employee_id:
         # Find all users where manager_odoo_id matches current user's employee_id
@@ -1458,8 +1459,9 @@ async def get_real_dashboard(
                 subordinate_salesperson_names.add(sub["odoo_salesperson_name"].lower())
             if sub.get("email"):
                 subordinate_salesperson_names.add(sub["email"].lower())
+                subordinate_emails.add(sub["email"].lower())  # ADD: Store email separately
         
-        logger.info(f"User {user_email} (emp_id={odoo_employee_id}) manages {len(subordinates)} subordinates: user_ids={subordinate_user_ids}, names={subordinate_salesperson_names}")
+        logger.info(f"User {user_email} (emp_id={odoo_employee_id}) manages {len(subordinates)} subordinates: user_ids={subordinate_user_ids}, emails={subordinate_emails}")
     
     def user_has_access_to_record(record_data):
         """
