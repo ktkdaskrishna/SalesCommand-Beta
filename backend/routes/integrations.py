@@ -1129,3 +1129,18 @@ async def get_sync_logs(
     
     return {"logs": logs, "count": len(logs)}
 
+
+@router.get("/sync/{job_id}")
+async def get_sync_job(
+    job_id: str,
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """Get details of a specific sync job"""
+    db = Database.get_db()
+    
+    job = await db.sync_jobs.find_one({"id": job_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Sync job not found")
+    
+    return job
+
