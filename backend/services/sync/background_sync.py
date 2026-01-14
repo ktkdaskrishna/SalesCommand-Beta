@@ -300,9 +300,10 @@ class BackgroundSyncService:
                 logger.info(f"Invoices: {stats['invoices']}")
                 
                 # Sync Users/Employees (hr.employee)
+                # Note: Use odoo_employee_id as the ID field since fetch_users returns hr.employee data
                 logger.info("Syncing users/employees...")
                 users = await connector.fetch_users()
-                stats["users"] = await reconciler.reconcile_entity("user", users)
+                stats["users"] = await reconciler.reconcile_entity("user", users, id_field="odoo_employee_id")
                 logger.info(f"Users: {stats['users']}")
                 
                 # Sync Activities (mail.activity) - business activities like calls, meetings
