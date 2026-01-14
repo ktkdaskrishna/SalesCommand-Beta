@@ -101,7 +101,7 @@ The user (CTO) mandated a shift from feature development to a full architectural
 
 ### P0 (Critical - Must Fix)
 - [x] ~~Production-ready CRM List View (sorting, filtering, column customization)~~ ✅ Completed
-- [x] ~~360° Account View~~ ✅ Completed
+- [x] ~~360° Account View~~ ✅ Completed Jan 14, 2026
 - [x] ~~Expandable Kanban Pipeline Board~~ ✅ Completed
 - [x] ~~Goals Dashboard with KPI tracking~~ ✅ Completed
 - [x] ~~Activity Timeline~~ ✅ Completed
@@ -109,7 +109,11 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~UAT Bug Fix: Account cards missing data~~ ✅ Fixed Jan 13, 2026
 - [x] ~~UAT Bug Fix: KPI charts not rendering~~ ✅ Fixed Jan 13, 2026
 - [x] ~~UAT Bug Fix: KPI metrics showing zero~~ ✅ Fixed Jan 13, 2026
+- [x] ~~MS SSO User Mapping Bug~~ ✅ Fixed Jan 14, 2026 (CRITICAL SECURITY)
+- [x] ~~Data Access Control~~ ✅ Fixed Jan 14, 2026 (strict matching instead of substring)
+- [x] ~~Activities & Contacts Sync~~ ✅ Fixed Jan 14, 2026
 - [ ] MS365 refresh token flow (recurring login issue)
+- [ ] Deletion sync from Odoo (logic exists, needs verification with real deletions)
 
 ### P1 (High Priority)
 - [x] ~~Sales user pipeline display~~ ✅ Fixed Jan 13, 2026 (was already working)
