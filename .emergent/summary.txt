@@ -1,128 +1,107 @@
 <analysis>**original_problem_statement:**
-The user, acting as a CTO, is guiding the development of a Sales Intelligence Platform. The initial goal was an architectural audit, which has since evolved into feature development and bug fixing based on the user's continuous UAT feedback.
+The user is guiding the development of a Sales Intelligence Platform. The primary goal is to resolve a series of critical, high-priority bugs identified during extensive User Acceptance Testing (UAT). While the agent has fixed several UI and data aggregation issues, fundamental architectural problems remain, particularly with the Odoo and Microsoft 365 integrations.
 
-Most recently, the user provided a detailed Quality Assurance (QA) report identifying numerous critical and high-priority bugs after the agent implemented several new features. The core of the problem is that while the UI for new features has been built, the underlying data is not being fetched, calculated, or displayed correctly.
-
-The main requirements are now to:
-1.  **Fix the application's broken state**, addressing the long list of bugs provided by the user, starting with the most critical ones related to data visibility on account cards and KPI dashboards.
-2.  Implement a robust, **automated background data sync** from Odoo to ensure data freshness for all users, as the current manual, admin-only sync is insufficient.
-3.  Ensure the **AD User to Odoo User linking** is fully functional and can be initiated by the user themselves, as this is critical for the role-based data visibility to work correctly.
-4.  Address the long-standing **MS365 refresh token issue** causing frequent re-logins.
+The user has provided a detailed, multi-point report outlining the required fixes, which include:
+1.  **Critical Bug Fixes:**
+    *   **Microsoft Login & User Mapping:** A critical bug where one user (Nabisheb) logs in via Microsoft SSO but sees another user's (Ravi's) data.
+    *   **Deletion Sync Failure:** Opportunities deleted in Odoo are not removed from the application's dashboard, leading to stale and inaccurate pipeline data.
+    *   **Contact Sync Failures:** Odoo contacts are not syncing correctly.
+2.  **Workflow Redesign:**
+    *   **Sales Target Workflow:** The current role-based logic is incorrect and needs a complete redesign to be user-centric (based on the salesperson).
+    *   **KPI Dashboard Logic:** The logic for assigning and tracking KPIs is missing and needs to be implemented.
+3.  **Global Rule Enforcement:**
+    *   **Employee Hierarchy:** The entire system must enforce the Odoo employee hierarchy for data visibility and approval flows.
+4.  **Activity Sync Logic:**
+    *   The Activities feed is cluttered with system-generated logs () instead of showing only business-relevant activities from Odoo (calls, meetings, etc.).
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack Sales Intelligence Platform (React/FastAPI/MongoDB) with Odoo and MS365 integrations. In the last session, the agent built the UI and basic backend endpoints for several major features, including a 360° Account View, an expandable Kanban board, an enhanced data table with sorting/filtering, a Goals dashboard, and an Activity Timeline. A background sync service using APScheduler was also added.
+The application is a full-stack Sales Intelligence Platform using React, FastAPI, and MongoDB, with integrations for Odoo (data source), Microsoft 365 (SSO), and APScheduler (background jobs).
 
-However, a detailed user review revealed that most of these new features are in a **highly buggy state**. While the UI components render, they are not correctly connected to the data layer. Key data points like pipeline value, won revenue, industry, and contacts are missing or incorrect across the application. The KPI dashboards are entirely non-functional.
+Several features have been built, including a dashboard with a Kanban board, an accounts page with a 360° view, and a goals/KPI section. The agent has successfully fixed initial critical bugs related to missing data on account cards and non-rendering KPI charts. The UI for the admin panel's user deletion feature has also been fixed.
+
+However, the application is still not production-ready due to deep-seated architectural flaws in its integrations. The most recent user reports have revealed that Microsoft SSO user mapping is broken, data deletion from Odoo is not synced, and core business workflows for sales targets and KPIs are either incorrect or completely missing.
 
 **Last working item**:
-- Last item agent was working: The agent had just received a comprehensive and critical bug report from the user after a series of UI-focused implementations. The agent acknowledged the severity of the issues and was formulating a plan to start fixing the most critical bugs.
-- Status: NOT STARTED
-- Agent Testing Done: Y (The agent performed superficial UI-level testing via screenshots and invoked the testing agent. However, these tests failed to validate the correctness of the data and missed all critical bugs reported by the user.)
-- Which testing method agent to use? backend testing agent. After fixing a batch of critical bugs, the agent should use the testing agent to perform deep data validation and regression testing, verifying that backend endpoints return correct and aggregated data. Manual  and  scripts will be essential for debugging individual aggregation queries.
-- User Testing Done: Y (The user's UAT was exhaustive and is the source of truth for the current list of issues.)
+- Last item agent was working: Addressing the user's multi-point bug report, starting with the **Activity Sync Logic**. The agent identified that Odoo business activities were not being synced at all and added  to the list of entities to be processed by the background sync service in .
+- Status: IN PROGRESS
+- Agent Testing Done: N
+- Which testing method agent to use? backend testing agent. The agent should verify that Odoo activities (from ) are now being pulled into the  collection in MongoDB. This can be followed by a  test on the  endpoint to ensure they are returned.
+- User Testing Done: N
 
 **All Pending/In progress Issue list**:
-The following issues were identified by the user and are pending fixes. They are prioritized as per the user's report.
+This list is compiled from the user's latest detailed bug reports and is prioritized accordingly.
 
-  Issue 1: (P0 CRITICAL) Account Cards Show Missing Data (Industry, Pipeline, Won Revenue).
-  Issue 2: (P0 CRITICAL) KPI Charts on the dashboard are not rendering any data.
-  Issue 3: (P0 CRITICAL) KPI metrics (Average Achievement, On Track, At Risk) are all zero.
-  Issue 4: (P1 HIGH) The Contacts section in the 360° Account View shows No contacts found.
-  Issue 5: (P1 HIGH) The industry filter on the Accounts page is not working.
-  Issue 6: (P1 MEDIUM) Account names are missing in the list/table view on the Accounts page.
-  Issue 7: (P1 MEDIUM) The Activities and Invoices sections in the 360° view always show a count of 0.
-  Issue 8: (P2 LOW) The 360° View shows all opportunities instead of filtering for the selected account.
-  Issue 9: (P2 LOW) The MS365 integration requires frequent re-logins due to a missing token refresh mechanism.
+  Issue 1: (P0 CRITICAL) Microsoft Login & User Mapping Issue: When a user logs in with Microsoft SSO (e.g., Nabisheb), they are incorrectly mapped to another user's profile and data (e.g., Ravi's).
+  Issue 2: (P0 CRITICAL) Deletion Sync Failure: When an opportunity is deleted in Odoo, it remains visible on the dashboard, making pipeline data inaccurate.
+  Issue 3: (P1 HIGH) Account 360° View Broken: Clicking the 360° View button results in an Account not found error, blocking users from seeing account details.
+  Issue 4: (P1 HIGH) Contact Sync Failures: Contacts from Odoo are not being synced into the application, leaving the Contacts sections empty.
+  Issue 5: (P2 MEDIUM) MS365 Token Refresh: Users are frequently logged out due to the lack of a refresh token mechanism for the MS365 integration.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: None. This was just discovered by the user.
+     - Attempted fixes: The agent previously added Odoo-related fields to the  Pydantic model in  and restored a corrupted  file. However, the root cause of the cross-user data mapping was not resolved.
      - Next debug checklist:
-        1.  Examine the backend aggregation query for accounts in . It's likely failing to correctly  and  data from the opportunities collection.
-        2.  Verify that  is being correctly fetched from Odoo and stored in .
-        3.  Check the data binding in the frontend component () to ensure the props are being passed and rendered.
-     - Why fix this issue and what will be achieved with the fix? This is critical for business value. Account managers cannot assess account health or value at a glance, making the main Accounts page unusable.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
-  - Issue 2: 
-     - Attempted fixes: None.
-     - Next debug checklist:
-        1.  Investigate the backend endpoints for KPIs in . Check if they are returning empty data.
-        2.  Debug the KPI calculation logic. It may not be correctly aggregating data based on the defined goals.
-        3.  Inspect the frontend chart components on the dashboard and KPIs page to ensure they are receiving data in the correct format.
-     - Why fix this issue and what will be achieved with the fix? The entire KPI tracking feature is currently non-functional. Fixing this is essential for performance management.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
-  - Issue 3: 
-     - Attempted fixes: None.
-     - Next debug checklist: This is directly related to Issue 2. The classification logic (e.g., , ) in the backend KPI calculation service is likely broken or not implemented. Review the filtering and status assignment logic in .
-     - Why fix this issue and what will be achieved with the fix? Provides visibility into which goals or team members need attention.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on other issue: Issue 2
-  - Issue 9: 
-     - Attempted fixes: None in this session. This is a recurring issue from a previous fork.
-     - Next debug checklist: Implement a proper OAuth refresh token flow in  to silently refresh the access token in the background. Store the refresh token securely.
-     - Why fix this issue and what will be achieved with the fix? This is a critical enterprise UX issue. Fixing it will prevent user frustration and improve adoption.
+        1.  Investigate the  endpoint in .
+        2.  Trace how the Microsoft user's object ID or email is used to find or create a user in the local  collection.
+        3.  Verify the logic that links this local user to an Odoo employee record. It is likely overwriting or incorrectly looking up user data.
+        4.  Add extensive logging to track the incoming MS token, the identified user, and the data being updated.
+     - Why fix this issue and what will be achieved with the fix? This is a critical data security and integrity bug. Fixing it ensures users can only see their own data.
      - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
+  - Issue 2: 
+     - Attempted fixes: The agent reviewed the soft-delete logic in  and added the  filter to more queries. The fix was insufficient.
+     - Next debug checklist:
+        1.  Review the  method in . The logic to identify deleted records (present in local DB but not in the latest Odoo fetch) is likely flawed or missing.
+        2.  Implement a specific step that takes the set of all Odoo IDs from a fetch and compares it against the set of local IDs for that entity type, marking any differences as .
+     - Why fix this issue and what will be achieved with the fix? This is essential for data accuracy. Sales dashboards and pipelines must reflect the current state of the ERP.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? backend
+     - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: (P0) System-wide Bug Squashing Sprint
-     - Where to resume: Start by fixing the most critical data aggregation bugs. The top priority is **Issue 1**: fixing the missing  and  on the Account cards. This requires debugging the backend queries in .
-     - What will be achieved with this? This will restore basic functionality to the application, making key data points visible and allowing the user to trust the system again.
-     - Status:  NOT STARTED
+  - Task 1: (P0) System-wide Bug Fix & Redesign
+     - Where to resume: The agent just modified  to include  in the sync process. The next step is to test this change to see if Odoo activities are now populated in the database. After that, the agent must proceed to fix the critical bugs, starting with **Issue 1: Microsoft Login & User Mapping**.
+     - What will be achieved with this? This will stabilize the application, fix critical data integrity and security flaws, and implement correct business logic as specified by the user.
+     - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: None
 
 **Upcoming and Future Tasks**
 Upcoming Tasks:
-- **(P0) Fix All Critical/High Priority Bugs:** Systematically work through the user's QA report.
-- **(P0) Implement Robust Background Sync:** The user wants the automated sync to run every 5 minutes and for soft-deleted records to be completely hidden from the UI. The current implementation in  needs to be verified and hardened.
-- **(P1) Implement Real-time Webhooks:** The user asked for webhook integration with Odoo for real-time updates, which is a step beyond the 5-minute background sync.
+- **(P0) Redesign Sales Target Workflow:** Rebuild the workflow to be based on individual salespeople (users), not roles. This includes logic for sales numbers, tasks, and performance metrics.
+- **(P1) Implement KPI Dashboard Logic:** Design and implement the workflow for department heads to assign and track KPIs for their team members, which should be triggered after the employee sync from Odoo.
+- **(P1) Enforce Employee Hierarchy:** Globally apply the Odoo employee hierarchy to control data visibility and approval flows across the entire application.
 
 Future Tasks:
-- **(P2) Activity Logging:** The UI exists, but the backend middleware to automatically log user actions (CRUD on opportunities, accounts, etc.) needs to be implemented.
-- **(P2) Account Relationship Mapping:** Display parent/child account relationships in the 360° view.
-- **(P2) Enhance Account Metadata:** Add more fields like Annual Revenue, Employee Count, etc., to the 360° view.
+- Calendar UI improvements.
+- Dashboard customization options for users.
+- Add load testing with 1000+ opportunities.
 
 **Completed work in this session**
-The agent implemented the UI scaffolding and basic backend for several features. **Note:** All of these are considered buggy and incomplete by the user.
-
-- **Feature Scaffolding:**
-  - **360° Account View:** Created  and the  endpoint.
-  - **Expandable Kanban:** Modified  to allow columns to expand and collapse.
-  - **Enhanced Table:** Created  with sorting/filtering and used it on the Opportunities page.
-  - **Goals Dashboard:** Created the  page and  endpoints for creating and viewing goals.
-  - **Activity Timeline:** Created the  page placeholder.
-- **Backend Services:**
-  - **Background Sync:** Implemented a background sync service using APScheduler in .
-  - **Self-Service User Linking:** Created the  endpoint to allow users to link their own profiles.
-  - **Soft-Delete Logic:** Updated backend queries to filter by .
-- **Bug Fixes:**
-  - Corrected the Odoo connection URL in the configuration, which was blocking syncs.
+- **Critical Bug Fixes (Initial Batch):**
+  - Fixed account cards on the dashboard to show correct names, pipeline values, and active opportunity counts by moving data aggregation to the backend ().
+  - Fixed KPI/Goals page to display real data from the backend instead of mock data, resolving issues where charts were blank and metrics were zero.
+- **High-Priority Bug Fixes:**
+  - Implemented an activity logging middleware () and seeded initial data.
+  - Fixed the Activity Timeline page to filter out system events (like logins) by default, showing only business activities.
+  - Fixed the Industry filter on the Accounts page by inferring industry from opportunity data.
+- **User Management UI Fix:**
+  - Fixed the Admin Panel table layout to ensure the Actions column, including the Delete User button, is always visible and not truncated.
+- **Odoo Integration (Attempted Fixes):**
+  - Corrected the  model in  to include Odoo-specific fields.
+  - Created a new user-accessible endpoint () to allow non-admin users to trigger a manual data sync.
+  - Restored  from git history after it was corrupted and re-implemented Odoo employee mapping logic.
 
 **Earlier issues found/mentioned but not fixed**
-This section reflects the user's most recent bug report, which is now the top priority.
-- **CRITICAL:** Account cards missing data (industry, pipeline, revenue).
-- **CRITICAL:** KPI charts and metrics are blank/zero.
-- **HIGH:** Contacts section in 360° view is empty.
-- **HIGH:** Pipeline and Won Revenue values are - for all accounts.
-- **MEDIUM:** Account names and health indicators missing from list view.
-- **MEDIUM:** Activities and Invoices counts are always zero.
-- **LOW:** Opportunities in 360° view are not filtered by the current account.
+   - Issue 1: MS365 token expiration requires frequent user re-logins. The system lacks a token refresh mechanism. This is a recurring issue from previous forks.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: MS365 token expiration forces users to re-login frequently.
+  - Issue recurrence in previous fork: MS365 token expiration.
   - Recurrence count: High
   - Status: NOT STARTED
 
@@ -130,86 +109,496 @@ This section reflects the user's most recent bug report, which is now the top pr
 
 
 **Key Technical Concepts**
-- **Background Job Scheduling:** Used  to create a background service that runs periodically to sync data from Odoo. The service is initiated in .
-- **Self-Service API Design:** Created an endpoint () on a non-admin route to allow authenticated users to perform actions on their own profile without needing admin privileges.
-- **Soft Deletes:** Implemented a soft-delete pattern where records are not removed from the database but are marked with . All data-fetching queries were updated to filter for .
+- **Backend Data Aggregation:** Extensive use of MongoDB aggregation pipelines in  and  to calculate metrics like pipeline value, won revenue, and KPI achievement. This was a major focus of bug fixing.
+- **Background Job Scheduling:** Use of  in  to periodically sync data from Odoo.
+- **Role-Based Access Control (RBAC):** Middleware and endpoint dependencies (, ) control data access for different user roles (admin vs. sales user).
+- **Soft Deletes:** Records are marked with  instead of being physically deleted. All queries are expected to filter for .
 
 **key DB schema**
--   **data_lake_serving**: A new boolean field, , has been added to all documents. It defaults to  and is set to  by the background sync if a record is deleted in Odoo.
--   **goals**: A new collection to store KPI definitions and user-assigned goals. Includes fields like , , , , etc.
+  - **data_lake_serving**: Main collection for all Odoo-synced data (, , , etc.), distinguished by . Contains  boolean for soft deletes.
+  - **activities**: New collection for logging user and system events. Contains  to distinguish business from system events.
+  - **users**: Contains user profiles, including , , and other Odoo-related fields for mapping.
 
 **changes in tech stack**
--   **APScheduler**: Added to the backend dependencies to handle background job scheduling.
+  - No new technologies were added. The focus was on fixing bugs within the existing React/FastAPI/MongoDB/APScheduler stack.
 
 **All files of reference**
--   **/app/backend/routes/sales.py**: Contains the core (and currently broken) logic for fetching and aggregating account and opportunity data.
--   **/app/backend/routes/goals.py**: Contains the (currently broken) logic for calculating KPI and goal progress.
--   **/app/backend/services/sync/background_sync.py**: The new background sync service that needs to be validated and hardened.
--   **/app/frontend/src/pages/Accounts.js**: The main page where critical data is missing from cards and the list view.
--   **/app/frontend/src/pages/Goals.js**: The main UI for the broken KPI feature.
--   **/app/frontend/src/components/Account360Panel.js**: The component for the 360° view, which is showing incorrect/unfiltered data.
+-   : Central to the critical MS SSO user mapping bug. Has been corrupted and restored.
+-   : Core of the Odoo data sync logic. Key to fixing deletion and activity sync issues.
+-   : Contains data aggregation logic for accounts, opportunities, and the 360° view.
+-   : Location of the user management UI, where the delete button layout was fixed.
+-   : Frontend for the activity feed, which was updated to filter out system logs.
+-   : Main sales dashboard, where the non-admin sync button was added.
 
 **Areas that need refactoring**:
--   **Backend Data Aggregation:** The MongoDB aggregation pipelines in  and  are the primary source of the critical bugs. They need a complete review and debugging to correctly sum revenues, filter by account, and calculate KPIs.
--   **Frontend Data Binding:** Many components (, , ) need their data fetching and prop handling logic reviewed to ensure they correctly display the (once fixed) backend data and handle null/empty states gracefully.
+-   **Odoo Integration Logic:** The entire user linking () and data synchronization () flow is fragile and needs a comprehensive audit and refactor to be robust, especially concerning user identity mapping and deletion handling.
+-   **Sales Target & KPI Logic:** Per the user's request, this functionality needs a complete redesign and implementation from scratch, as the current logic is incorrect or missing.
 
 **key api endpoints**
--   : Fetches aggregated data for the 360° account view. **(BUGGY)**
--   : Fetches all goals and their progress. **(BUGGY)**
--   : Allows a user to re-attempt linking their account to an Odoo employee record. **(Functioning, but dependent on a working sync)**
--   : Manually triggers the background Odoo sync job.
--   : Gets the status of the background sync jobs.
+-   : Handles the Microsoft SSO callback. **(CRITICAL BUG HERE)**
+-   : Fetches the current user's profile. Was fixed to return Odoo fields.
+-   : New endpoint to allow non-admins to trigger a manual sync.
+-   : Fetches accounts with aggregated metrics. Was fixed.
+-   : Fetches data for the 360° view. **(BUGGY)**
+-   : Fetches activities. Was fixed to filter system events.
+-   : The user deletion endpoint.
 
 **Critical Info for New Agent**
--   **The Application Is Broken:** Do not trust that recently implemented features work. The user's last message is a detailed QA report that should be treated as the source of truth. The agent's own testing was insufficient.
--   **Focus on Data, Not Just UI:** The primary problem is incorrect data aggregation and display. Before touching the UI, first debug the backend endpoints (, test scripts) to ensure they return the correct data. The most critical files are  and .
--   **Follow the User's Priorities:** Address the CRITICAL ISSUES from the user's report first, starting with the missing data on the Account cards.
--   **The Sync Service is Key:** The user linking and data freshness issues all depend on the background sync service () working correctly. Ensure it syncs all required entities (especially ) and correctly handles the soft-delete reconciliation.
+-   **User's Latest Report is the Source of Truth:** Do not trust that features are working just because the code exists. The user has performed extensive UAT and identified critical, architectural flaws that previous automated tests missed. Prioritize the bugs listed in the user's latest, detailed messages.
+-   **Odoo Integration is Fundamentally Unstable:** The highest priority is fixing the Odoo integration.
+    1.  **MS User Mapping:** One user logging in should NEVER see another user's data. This is a critical security flaw in .
+    2.  **Deletion Sync:** Data must be accurately reconciled. Fix the logic in  to handle deletions from Odoo correctly.
+-   **Follow User's Redesign Instructions:** The user has explicitly stated that the Sales Target and KPI Assignment workflows need to be redesigned from the ground up, not just patched. Follow their requirements for user-centric logic.
+-   **File Corruption Happened:** The file  was severely corrupted during the last session. While it was restored from git, be extra careful when editing it.
 
 **documents and test reports created in this job**
--   /app/memory/SPRINT_PLAN.md
--   /app/test_reports/iteration_19.json
--   /app/test_reports/iteration_20.json
+  - 
+  - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages**
-- 10. User provides an extremely detailed bug report, listing numerous critical, high, and medium priority issues found during their UAT. (Status: Open, this is the new work plan).
-- 9. User asks the agent to test each UI feature by clicking on it. (Status: Completed, but agent's testing was superficial and missed the data issues).
-- 8. User confirms the sprint plan and gives specific instructions for the background sync (5 min interval, hidden records) and asks to proceed. (Status: Partially Implemented, but buggy).
-- 7. User reports that the relink feature still shows an error because Odoo users haven't been synced. (Status: Addressed by agent, who then manually synced users to prove the link works).
-- 6. Agent provides a detailed agile sprint plan to fix the data sync and user-linking challenges and asks for confirmation. (Status: User approved in next message).
-- 5. User states that the agent's previous answers are wrong and there are still issues with data sync for domain users and permission errors on the user-link feature. Asks for a detailed agile sprint plan. (Status: Addressed by agent).
-- 4. Agent finishes the implementation of Goals, Activity, and User Linking Fix, and updates the PRD. (Status: The implementation was buggy, leading to the user's detailed bug report).
-- 3. Agent asks for confirmation on implementing the SME-recommended solutions (Employee Sync, Background Sync, KPI board). (Status: User provided screenshots as confirmation).
-- 2. User provides reference screenshots for a KPI Goal Board and an Activity Timeline. (Status: Agent implemented UI based on these).
-- 1. User asks the agent to think like an SME and answer complex architectural questions about data sync for non-admins, AD/Odoo user linking, and non-functional KPI settings. (Status: Addressed by agent).
+- 10. User provides a highly detailed, multi-point report of critical bugs and required workflow redesigns, including the MS SSO mapping issue, deletion sync failure, and incorrect sales target logic. (Status: This is the current P0 task list).
+- 9. User states that for them, the delete user button is not showing in the admin panel. (Status: Resolved, it was a UI layout issue).
+- 8. User reports that user deletion was working but is no longer visible for the super admin. (Status: Investigated, agent found it was a UI cutoff issue).
+- 7. User reports file corruption in  after a series of failed edits. (Status: Resolved, agent restored the file from git).
+- 6. User provides a comprehensive PRD summary and asks the agent to proceed. (Status: Completed).
+- 5. User asks the agent to create a comprehensive PRD document based on a detailed template. (Status: Completed).
+- 4. User provides a comprehensive testing and architecture analysis plan and asks the agent to confirm understanding. (Status: Completed).
+- 3. Agent finishes fixing the initial batch of high-priority bugs (Activity Timeline, Industry Filter, etc.). (Status: Completed, but led to discovery of deeper issues).
+- 2. Agent finishes fixing the top 3 critical bugs (Account Cards, KPI charts). (Status: Completed).
+- 1. User approves the plan to fix the top 3 critical bugs immediately. (Status: Completed).
 
 **Project Health Check:**
--   **Working:** Basic UI rendering, navigation, page routing, search functionality, Kanban/Table view toggles. The design and layout are well-received.
+-   **Working:**
+    -   Basic UI rendering and navigation.
+    -   Data aggregation for accounts and opportunities (for create/update).
+    -   Kanban board UI.
+    -   Goals page data display.
+    -   Activity timeline (with system events filtered).
 -   **Broken:**
-    -   **Data Aggregation:** All account-level metrics (pipeline, won revenue) are broken.
-    -   **KPI Feature:** The entire KPI/Goals feature is non-functional.
-    -   **360° Account View:** Shows unfiltered, incomplete data (missing contacts, activities, invoices).
-    -   **Accounts List View:** Missing key data points (name, health).
--   **Mocked:** No mocked data is used, but the inability to display real data correctly is the core problem.
+    -   **Microsoft SSO User Mapping:** Critical security/data integrity failure.
+    -   **Odoo Deletion Sync:** Pipeline data becomes stale and inaccurate.
+    -   **Account 360° View:** Fails with Account not found error.
+    -   **Contact Sync:** Not functional.
+-   **Mocked:** No mocked data, but the core business logic for Sales Targets and KPI assignment is missing and needs to be built.
 
 **3rd Party Integrations**
--   **Odoo ERP:** Primary data source. Connection was fixed, but data sync logic is still buggy.
+-   **Odoo ERP:** Primary data source. Key integration for data sync (opportunities, accounts, employees, contacts, activities). **(BUGGY)**
+-   **Microsoft 365:** Used for SSO. **(CRITICAL BUG in user mapping, missing token refresh)**
 -   **Emergent LLM Key (OpenAI GPT-4o):** Used for Deal Confidence feature.
--   **Microsoft 365:** Used for SSO. Still has a pending high-priority token refresh issue.
--   **APScheduler:** New dependency for running background sync jobs.
+-   **APScheduler:** Used for running background sync jobs from Odoo.
 
 **Testing status**
--   Testing agent used after significant changes: YES. However, the tests were not comprehensive enough to catch the data-related bugs. The test reports (, ) show passing grades but are misleading.
--   Troubleshoot agent used after agent stuck in loop: NO
--   Test files created: None
--   Known regressions: Most of the newly developed features have regressed to a non-functional state due to data issues.
+  - Testing agent used after significant changes: YES. However, the tests were not deep enough to catch the architectural flaws in the Odoo/MS365 integrations.
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: The testing agent generated test scripts, but no persistent ============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+plugins: anyio-4.12.0
+collected 46 items / 18 errors
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting backend/tests/unit/test_core.py _______________
+backend/tests/unit/test_core.py:8: in <module>
+    from core.base import BaseEntity, RawRecord, SourceReference
+backend/core/__init__.py:2: in <module>
+    from .config import settings
+backend/core/config.py:58: in <module>
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+backend/core/config.py:54: in get_settings
+    return Settings()
+           ^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pydantic_settings/main.py:194: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E   MONGO_URL
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+_________ ERROR collecting backend/tests/unit/test_data_lake_models.py _________
+backend/tests/unit/test_data_lake_models.py:8: in <module>
+    from data_lake.models import (
+backend/data_lake/__init__.py:6: in <module>
+    from .manager import DataLakeManager
+backend/data_lake/manager.py:11: in <module>
+    from core.enums import EntityType, IntegrationSource, VisibilityScope, UserRole
+backend/core/__init__.py:2: in <module>
+    from .config import settings
+backend/core/config.py:58: in <module>
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+backend/core/config.py:54: in get_settings
+    return Settings()
+           ^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pydantic_settings/main.py:194: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E   MONGO_URL
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+_______________ ERROR collecting tests/test_admin_panel_rbac.py ________________
+ImportError while importing test module '/app/tests/test_admin_panel_rbac.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_admin_panel_rbac'
+______________ ERROR collecting tests/test_beta_stabilization.py _______________
+ImportError while importing test module '/app/tests/test_beta_stabilization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_beta_stabilization'
+____________ ERROR collecting tests/test_bug_fixes_iteration_23.py _____________
+ImportError while importing test module '/app/tests/test_bug_fixes_iteration_23.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_bug_fixes_iteration_23'
+________________ ERROR collecting tests/test_goals_activity.py _________________
+ImportError while importing test module '/app/tests/test_goals_activity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_goals_activity'
+____________ ERROR collecting tests/test_high_priority_bug_fixes.py ____________
+ImportError while importing test module '/app/tests/test_high_priority_bug_fixes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_high_priority_bug_fixes'
+________________ ERROR collecting tests/test_integration_hub.py ________________
+ImportError while importing test module '/app/tests/test_integration_hub.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_integration_hub'
+_________________ ERROR collecting tests/test_microsoft_sso.py _________________
+ImportError while importing test module '/app/tests/test_microsoft_sso.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_microsoft_sso'
+_______________ ERROR collecting tests/test_odoo_integration.py ________________
+ImportError while importing test module '/app/tests/test_odoo_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_odoo_integration'
+__________________ ERROR collecting tests/test_p0_features.py __________________
+ImportError while importing test module '/app/tests/test_p0_features.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_p0_features'
+________________ ERROR collecting tests/test_phase2_enhanced.py ________________
+ImportError while importing test module '/app/tests/test_phase2_enhanced.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_phase2_enhanced'
+________________ ERROR collecting tests/test_sales_dashboard.py ________________
+ImportError while importing test module '/app/tests/test_sales_dashboard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_sales_dashboard'
+______________ ERROR collecting tests/test_super_admin_config.py _______________
+ImportError while importing test module '/app/tests/test_super_admin_config.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_super_admin_config'
+________________ ERROR collecting tests/test_sync_modal_api.py _________________
+ImportError while importing test module '/app/tests/test_sync_modal_api.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_sync_modal_api'
+___________ ERROR collecting tests/test_trust_beta_stabilization.py ____________
+ImportError while importing test module '/app/tests/test_trust_beta_stabilization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_trust_beta_stabilization'
+_________________ ERROR collecting tests/test_uat_bug_fixes.py _________________
+ImportError while importing test module '/app/tests/test_uat_bug_fixes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_uat_bug_fixes'
+__________ ERROR collecting tests/test_user_department_assignment.py ___________
+ImportError while importing test module '/app/tests/test_user_department_assignment.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_user_department_assignment'
+=============================== warnings summary ===============================
+backend/core/config.py:11
+backend/core/config.py:11
+  /app/backend/core/config.py:11: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Settings(BaseSettings):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR backend/tests/unit/test_core.py - pydantic_core._pydantic_core.Validati...
+ERROR backend/tests/unit/test_data_lake_models.py - pydantic_core._pydantic_c...
+ERROR tests/test_admin_panel_rbac.py
+ERROR tests/test_beta_stabilization.py
+ERROR tests/test_bug_fixes_iteration_23.py
+ERROR tests/test_goals_activity.py
+ERROR tests/test_high_priority_bug_fixes.py
+ERROR tests/test_integration_hub.py
+ERROR tests/test_microsoft_sso.py
+ERROR tests/test_odoo_integration.py
+ERROR tests/test_p0_features.py
+ERROR tests/test_phase2_enhanced.py
+ERROR tests/test_sales_dashboard.py
+ERROR tests/test_super_admin_config.py
+ERROR tests/test_sync_modal_api.py
+ERROR tests/test_trust_beta_stabilization.py
+ERROR tests/test_uat_bug_fixes.py
+ERROR tests/test_user_department_assignment.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 18 errors during collection !!!!!!!!!!!!!!!!!!!
+======================== 2 warnings, 18 errors in 0.58s ======================== files were created by the main agent.
+  - Known regressions: The entire Odoo integration is revealed to be more broken than previously thought.
 
 **Credentials to test flow:**
 -   **Super Admin:**  / 
 -   **Account Manager:**  / 
--   **Domain User (for SSO testing):** , 
+-   **Domain User (for SSO testing):** , , 
 
 **What agent forgot to execute**
--   **Data Validation:** The agent repeatedly failed to validate the *correctness* of the data being displayed in the UI. It focused on whether the UI rendered without crashing, not whether it was showing the right numbers.
--   **Thorough Testing:** The agent's testing methodology (both manual and via the testing agent) was too superficial. It did not include checks for data aggregation, filtering, and correctness, which led to the current broken state.
--   **Address Root Causes:** The agent implemented a self-service re-link button but didn't fully solve the underlying problem (Odoo users not being synced), which required further user prompting to address.</analysis>
+-   The agent did not perform deep root cause analysis on the Odoo integration issues. It applied surface-level fixes (like adding fields to a Pydantic model) that did not solve the underlying architectural problem of how user identities are mapped and reconciled between Microsoft, the local DB, and Odoo.
+-   The agent did not create robust, persistent regression tests (============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+plugins: anyio-4.12.0
+collected 46 items / 18 errors
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting backend/tests/unit/test_core.py _______________
+backend/tests/unit/test_core.py:8: in <module>
+    from core.base import BaseEntity, RawRecord, SourceReference
+backend/core/__init__.py:2: in <module>
+    from .config import settings
+backend/core/config.py:58: in <module>
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+backend/core/config.py:54: in get_settings
+    return Settings()
+           ^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pydantic_settings/main.py:194: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E   MONGO_URL
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+_________ ERROR collecting backend/tests/unit/test_data_lake_models.py _________
+backend/tests/unit/test_data_lake_models.py:8: in <module>
+    from data_lake.models import (
+backend/data_lake/__init__.py:6: in <module>
+    from .manager import DataLakeManager
+backend/data_lake/manager.py:11: in <module>
+    from core.enums import EntityType, IntegrationSource, VisibilityScope, UserRole
+backend/core/__init__.py:2: in <module>
+    from .config import settings
+backend/core/config.py:58: in <module>
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+backend/core/config.py:54: in get_settings
+    return Settings()
+           ^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pydantic_settings/main.py:194: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E   MONGO_URL
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+_______________ ERROR collecting tests/test_admin_panel_rbac.py ________________
+ImportError while importing test module '/app/tests/test_admin_panel_rbac.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_admin_panel_rbac'
+______________ ERROR collecting tests/test_beta_stabilization.py _______________
+ImportError while importing test module '/app/tests/test_beta_stabilization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_beta_stabilization'
+____________ ERROR collecting tests/test_bug_fixes_iteration_23.py _____________
+ImportError while importing test module '/app/tests/test_bug_fixes_iteration_23.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_bug_fixes_iteration_23'
+________________ ERROR collecting tests/test_goals_activity.py _________________
+ImportError while importing test module '/app/tests/test_goals_activity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_goals_activity'
+____________ ERROR collecting tests/test_high_priority_bug_fixes.py ____________
+ImportError while importing test module '/app/tests/test_high_priority_bug_fixes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_high_priority_bug_fixes'
+________________ ERROR collecting tests/test_integration_hub.py ________________
+ImportError while importing test module '/app/tests/test_integration_hub.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_integration_hub'
+_________________ ERROR collecting tests/test_microsoft_sso.py _________________
+ImportError while importing test module '/app/tests/test_microsoft_sso.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_microsoft_sso'
+_______________ ERROR collecting tests/test_odoo_integration.py ________________
+ImportError while importing test module '/app/tests/test_odoo_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_odoo_integration'
+__________________ ERROR collecting tests/test_p0_features.py __________________
+ImportError while importing test module '/app/tests/test_p0_features.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_p0_features'
+________________ ERROR collecting tests/test_phase2_enhanced.py ________________
+ImportError while importing test module '/app/tests/test_phase2_enhanced.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_phase2_enhanced'
+________________ ERROR collecting tests/test_sales_dashboard.py ________________
+ImportError while importing test module '/app/tests/test_sales_dashboard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_sales_dashboard'
+______________ ERROR collecting tests/test_super_admin_config.py _______________
+ImportError while importing test module '/app/tests/test_super_admin_config.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_super_admin_config'
+________________ ERROR collecting tests/test_sync_modal_api.py _________________
+ImportError while importing test module '/app/tests/test_sync_modal_api.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_sync_modal_api'
+___________ ERROR collecting tests/test_trust_beta_stabilization.py ____________
+ImportError while importing test module '/app/tests/test_trust_beta_stabilization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_trust_beta_stabilization'
+_________________ ERROR collecting tests/test_uat_bug_fixes.py _________________
+ImportError while importing test module '/app/tests/test_uat_bug_fixes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_uat_bug_fixes'
+__________ ERROR collecting tests/test_user_department_assignment.py ___________
+ImportError while importing test module '/app/tests/test_user_department_assignment.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'tests.test_user_department_assignment'
+=============================== warnings summary ===============================
+backend/core/config.py:11
+backend/core/config.py:11
+  /app/backend/core/config.py:11: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Settings(BaseSettings):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR backend/tests/unit/test_core.py - pydantic_core._pydantic_core.Validati...
+ERROR backend/tests/unit/test_data_lake_models.py - pydantic_core._pydantic_c...
+ERROR tests/test_admin_panel_rbac.py
+ERROR tests/test_beta_stabilization.py
+ERROR tests/test_bug_fixes_iteration_23.py
+ERROR tests/test_goals_activity.py
+ERROR tests/test_high_priority_bug_fixes.py
+ERROR tests/test_integration_hub.py
+ERROR tests/test_microsoft_sso.py
+ERROR tests/test_odoo_integration.py
+ERROR tests/test_p0_features.py
+ERROR tests/test_phase2_enhanced.py
+ERROR tests/test_sales_dashboard.py
+ERROR tests/test_super_admin_config.py
+ERROR tests/test_sync_modal_api.py
+ERROR tests/test_trust_beta_stabilization.py
+ERROR tests/test_uat_bug_fixes.py
+ERROR tests/test_user_department_assignment.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 18 errors during collection !!!!!!!!!!!!!!!!!!!
+======================== 2 warnings, 18 errors in 0.40s ========================) for the backend, relying instead on one-off  commands and the testing agent, which failed to catch the critical bugs.</analysis>
