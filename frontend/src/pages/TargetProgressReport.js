@@ -25,6 +25,7 @@ import {
   ArrowDownRight,
   Loader2,
   ChevronDown,
+  Award,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
