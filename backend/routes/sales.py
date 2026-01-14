@@ -1000,16 +1000,34 @@ async def get_activities(
     status: Optional[str] = None,
     opportunity_id: Optional[str] = None,
     account_id: Optional[str] = None,
+    include_system: bool = False,
+    activity_type: Optional[str] = None,
     token_data: dict = Depends(require_approved())
 ):
-    """Get activities with filters"""
+    """
+    Get activities with filters.
+    By default, excludes system events (user_login, data_synced).
+    Use include_system=true to see all activities.
+    """
     db = Database.get_db()
     user_id = token_data["id"]
     user_role = token_data.get("role", "")
+    is_super_admin = token_data.get("is_super_admin", False)
     
     query = {}
-    if user_role == "account_manager":
-        query["$or"] = [{"created_by_id": user_id}, {"assigned_to_id": user_id}]
+    
+    # Role-based filtering (admins see all, others see their own)
+    if not is_super_admin and user_role == "account_manager":
+        query["$or"] = [{"created_by_id": user_id}, {"assigned_to_id": user_id}, {"user_id": user_id}]
+    
+    # Exclude system events by default (login, sync events)
+    system_event_types = ["user_login", "data_synced", "system"]
+    if not include_system:
+        query["activity_type"] = {"$nin": system_event_types}
+    
+    # Filter by specific activity type if provided
+    if activity_type:
+        query["activity_type"] = activity_type
     
     if status:
         query["status"] = status
@@ -1018,7 +1036,8 @@ async def get_activities(
     if account_id:
         query["account_id"] = account_id
     
-    activities = await db.activities.find(query, {"_id": 0}).sort("due_date", 1).to_list(1000)
+    # Sort by created_at descending (most recent first), fallback to due_date
+    activities = await db.activities.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return activities
 
 @router.post("/activities")
