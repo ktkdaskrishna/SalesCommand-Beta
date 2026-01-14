@@ -136,8 +136,8 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~MS SSO User Mapping Bug~~ ✅ Fixed Jan 14, 2026 (CRITICAL SECURITY)
 - [x] ~~Data Access Control~~ ✅ Fixed Jan 14, 2026 (strict matching instead of substring)
 - [x] ~~Activities & Contacts Sync~~ ✅ Fixed Jan 14, 2026
-- [ ] MS365 refresh token flow (recurring login issue)
-- [ ] Deletion sync from Odoo (logic exists, needs verification with real deletions)
+- [x] ~~MS365 Token Refresh Flow~~ ✅ Fixed Jan 14, 2026 (auto-refresh interceptors)
+- [x] ~~Deletion Sync from Odoo~~ ✅ Enhanced Jan 14, 2026 (soft-delete with logging)
 
 ### P1 (High Priority)
 - [x] ~~Sales user pipeline display~~ ✅ Fixed Jan 13, 2026 (was already working)
