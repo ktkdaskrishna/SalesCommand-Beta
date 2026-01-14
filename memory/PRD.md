@@ -108,6 +108,32 @@ The user (CTO) mandated a shift from feature development to a full architectural
   - Added to sidebar navigation as "Target Report"
   - Period and Role filter dropdowns, refresh button
   - Visual progress bars and variance indicators
+- **Test Coverage:** 18/18 backend tests passed
+
+### January 14, 2026 - P1/P2 Features Batch ✅
+- **Background Sync Hardening (P1):**
+  - Added retry logic with exponential backoff (MAX_RETRIES=3, INITIAL_RETRY_DELAY=30s)
+  - New `/api/integrations/background-sync/health` endpoint with comprehensive metrics
+  - Health status classification: healthy, degraded (3+ failures), critical (6+ failures), stale (>1hr since success)
+  - Tracks success_rate_24h, avg_duration_seconds, last_success/failure details
+  - New `/api/integrations/sync/logs` endpoint for sync history with status/limit filters
+- **Sales Leaderboard (Enhancement):**
+  - Added to Target Progress Report page
+  - Shows top 5 salespeople with medals (🥇🥈🥉)
+  - Visual ranking with status badges, progress bars, revenue display
+- **Activities in Opportunity Panel (P2):**
+  - New `/api/activities/opportunity/{opp_id}` endpoint
+  - Fetches activities from both local collection and Odoo data_lake_serving
+  - Supports both numeric Odoo IDs and UUIDs
+  - OpportunityDetailPanel now queries both sources for complete activity history
+- **Calendar UI Improvements (P2):**
+  - Events grouped by day with "Today", "Tomorrow", and formatted date labels
+  - Summary cards showing Total Events, Online Meetings, Today count
+  - Sticky date headers for better navigation
+- **Odoo 19.0 Full Compatibility:**
+  - Removed 'title' field from res.partner in both _get_model_fields() and fetch_contacts()
+  - Fixed sync failures caused by deprecated field
+- **Test Coverage:** 16/16 backend tests passed (iteration_25)
 - **Test Coverage:** 18/18 backend tests passed, frontend verified
 
 ---
