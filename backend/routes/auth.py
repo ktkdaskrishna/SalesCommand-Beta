@@ -87,7 +87,7 @@ async def login(credentials: UserLogin):
             id=user["id"],
             email=user["email"],
             name=user["name"],
-            role=user["role"],
+            role=user.get("role") or user.get("role_id"),
             department=user.get("department"),
             product_line=user.get("product_line"),
             is_active=user.get("is_active", True),
