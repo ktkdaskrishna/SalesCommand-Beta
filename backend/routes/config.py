@@ -1007,7 +1007,6 @@ async def get_target_progress_report(
         # Get user's Odoo data for matching
         odoo_user_id = user.get("odoo_user_id")
         odoo_salesperson_name = user.get("odoo_salesperson_name", "").lower()
-        user_email = user.get("email", "").lower()
         
         # Calculate actual performance from data_lake_serving
         # Won opportunities (revenue)
