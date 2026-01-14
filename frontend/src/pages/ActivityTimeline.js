@@ -152,52 +152,48 @@ const ActivityTimeline = () => {
 
   const fetchActivities = async () => {
     try {
+      // Fetch business activities (excludes system events like logins by default)
       const response = await api.get('/activities');
       const data = response.data || [];
-      setActivities(data);
+      
+      // Also fetch activity stats
+      try {
+        const statsResponse = await api.get('/activities/stats');
+        console.log('Activity stats:', statsResponse.data);
+      } catch (e) {
+        console.log('Could not fetch activity stats');
+      }
+      
+      // If no business activities, show helpful message instead of mock data
+      if (data.length === 0) {
+        setActivities([
+          {
+            id: 'placeholder-1',
+            title: 'No business activities yet',
+            activity_type: 'info',
+            description: 'Business activities like opportunity updates, deal confidence analysis, and goal creation will appear here.',
+            timestamp: new Date().toISOString(),
+            type_label: 'Info',
+            user_name: 'System',
+          }
+        ]);
+      } else {
+        setActivities(data);
+      }
     } catch (error) {
       console.error('Error fetching activities:', error);
-      // Use mock data if API fails
+      // Use helpful placeholder instead of mock data
       setActivities([
         {
-          id: '1',
-          title: 'New lead created: TechStart Inc',
-          activity_type: 'lead_created',
+          id: 'error-1',
+          title: 'Could not load activities',
+          activity_type: 'error',
+          description: 'Please refresh the page to try again.',
           timestamp: new Date().toISOString(),
-          type_label: 'Lead',
-        },
-        {
-          id: '2',
-          title: 'Started Q1 Security Compliance Review',
-          activity_type: 'audit',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Audit',
-        },
-        {
-          id: '3',
-          title: 'Called Lisa Wong at DataFlow Systems',
-          activity_type: 'call',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Lead',
-        },
-        {
-          id: '4',
-          title: 'Closed deal with CloudFirst for $85,000',
-          activity_type: 'opportunity_won',
-          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Lead',
-        },
-        {
-          id: '5',
-          title: 'Sent proposal to Global Solutions',
-          activity_type: 'proposal',
-          timestamp: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Lead',
-        },
-        {
-          id: '6',
-          title: 'Completed Vendor Risk Assessment audit',
-          activity_type: 'audit',
+          type_label: 'Error',
+          user_name: 'System',
+        }
+      ]);
           timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
           type_label: 'Audit',
         },
