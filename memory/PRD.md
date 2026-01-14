@@ -122,9 +122,8 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - [x] ~~Non-admin sync button~~ ✅ Fixed Jan 14, 2026 (new /user-sync/refresh endpoint with rate limiting)
 - [x] ~~360° View "Account not found" error~~ ✅ Fixed Jan 14, 2026 (synthetic ID support added)
 - [x] ~~Odoo user profile fields not showing~~ ✅ Fixed Jan 14, 2026 (UserResponse model updated)
-- [ ] Deletion sync from Odoo (soft-delete logic exists but needs Odoo 19 field compatibility)
-- [ ] Automated background sync hardening (5-min intervals verified working)
 - [ ] Target Reporting UI (aggregate progress against role-based targets)
+- [ ] Automated background sync hardening (5-min intervals verified working)
 
 ### P2 (Medium Priority)
 - [ ] Calendar UI improvements in `MyOutlook.js`
