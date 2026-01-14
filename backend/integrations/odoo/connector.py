@@ -750,7 +750,6 @@ class OdooConnector(BaseConnector):
                     'phone': rec.get('phone') if rec.get('phone') != False else None,
                     'mobile': rec.get('mobile') if rec.get('mobile') != False else None,
                     'job_title': rec.get('function') if rec.get('function') != False else None,
-                    'title': rec.get('title')[1] if rec.get('title') else None,
                     'account_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
                     'account_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
                     'street': rec.get('street') if rec.get('street') != False else None,
