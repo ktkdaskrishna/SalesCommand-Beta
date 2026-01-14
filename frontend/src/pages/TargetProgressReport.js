@@ -250,6 +250,7 @@ export default function TargetProgressReport() {
 
   useEffect(() => {
     fetchReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodFilter, roleFilter]);
 
   if (loading) {
