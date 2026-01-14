@@ -1416,7 +1416,11 @@ async def get_real_dashboard(
     """
     Get dashboard data from data_lake_serving (real Odoo-synced data).
     This is the source of truth for beta.
-    Access is controlled by Odoo salesperson/team assignment.
+    Access is controlled by Odoo salesperson/team assignment AND manager hierarchy.
+    
+    Manager visibility:
+    - Managers can see all records assigned to their direct reports
+    - This is based on the manager_odoo_id field in users collection
     """
     db = Database.get_db()
     user_id = token_data["id"]
@@ -1430,18 +1434,44 @@ async def get_real_dashboard(
     # Get Odoo identifiers for filtering
     odoo_salesperson_name = (user_doc.get("odoo_salesperson_name") or "").lower() if user_doc else ""
     odoo_user_id = user_doc.get("odoo_user_id") if user_doc else None
+    odoo_employee_id = user_doc.get("odoo_employee_id") if user_doc else None
     odoo_team_id = user_doc.get("odoo_team_id") if user_doc else None
+    
+    # Build list of subordinate employee IDs (people this user manages)
+    subordinate_user_ids = set()
+    subordinate_employee_ids = set()
+    subordinate_salesperson_names = set()
+    
+    if odoo_employee_id:
+        # Find all users where manager_odoo_id matches current user's employee_id
+        subordinates = await db.users.find(
+            {"manager_odoo_id": odoo_employee_id},
+            {"odoo_user_id": 1, "odoo_employee_id": 1, "odoo_salesperson_name": 1, "email": 1}
+        ).to_list(100)
+        
+        for sub in subordinates:
+            if sub.get("odoo_user_id"):
+                subordinate_user_ids.add(sub["odoo_user_id"])
+            if sub.get("odoo_employee_id"):
+                subordinate_employee_ids.add(sub["odoo_employee_id"])
+            if sub.get("odoo_salesperson_name"):
+                subordinate_salesperson_names.add(sub["odoo_salesperson_name"].lower())
+            if sub.get("email"):
+                subordinate_salesperson_names.add(sub["email"].lower())
+        
+        logger.info(f"User {user_email} (emp_id={odoo_employee_id}) manages {len(subordinates)} subordinates: user_ids={subordinate_user_ids}, names={subordinate_salesperson_names}")
     
     def user_has_access_to_record(record_data):
         """
         Check if current user has access to a record based on Odoo assignment.
         
-        CRITICAL: Uses strict matching to prevent cross-user data leaks:
-        - salesperson_id must EXACTLY match odoo_user_id
-        - OR salesperson_name must EXACTLY match odoo_salesperson_name (case-insensitive)
-        - OR team_id must EXACTLY match odoo_team_id
+        Access granted if:
+        1. User is super admin
+        2. User is the assigned salesperson (by ID, name, or email)
+        3. User is on the same team
+        4. User is the MANAGER of the assigned salesperson (hierarchy visibility)
         
-        Substring matching is intentionally AVOIDED for security.
+        CRITICAL: Uses strict matching to prevent cross-user data leaks.
         """
         if is_super_admin:
             return True
@@ -1451,20 +1481,35 @@ async def get_real_dashboard(
         record_team_id = record_data.get("team_id")
         
         # STRICT matching by salesperson ID (most reliable)
-        if odoo_user_id and salesperson_id and int(odoo_user_id) == int(salesperson_id):
-            return True
+        if odoo_user_id and salesperson_id:
+            try:
+                if int(odoo_user_id) == int(salesperson_id):
+                    return True
+            except (ValueError, TypeError):
+                pass
         
         # STRICT matching by salesperson name (exact, case-insensitive)
         if odoo_salesperson_name and salesperson_name and odoo_salesperson_name == salesperson_name:
             return True
         
         # STRICT matching by team
-        if odoo_team_id and record_team_id and int(odoo_team_id) == int(record_team_id):
+        if odoo_team_id and record_team_id:
+            try:
+                if int(odoo_team_id) == int(record_team_id):
+                    return True
+            except (ValueError, TypeError):
+                pass
+        
+        # Fallback: Check if user's email is the salesperson's email
+        record_email = (record_data.get("salesperson_email") or salesperson_name or "").lower().strip()
+        if user_email and record_email and user_email == record_email:
             return True
         
-        # Fallback: Check if user's email is the salesperson's email (for records with email field)
-        record_email = (record_data.get("salesperson_email") or "").lower().strip()
-        if user_email and record_email and user_email == record_email:
+        # MANAGER HIERARCHY: Check if current user manages the salesperson
+        if salesperson_id and salesperson_id in subordinate_user_ids:
+            return True
+        
+        if salesperson_name and salesperson_name in subordinate_salesperson_names:
             return True
         
         return False
