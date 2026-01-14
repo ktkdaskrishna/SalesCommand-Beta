@@ -86,6 +86,30 @@ The user (CTO) mandated a shift from feature development to a full architectural
 - **Odoo 19.0 Compatibility:** Removed 'title' field from contacts query (field deprecated in Odoo 19)
 - **Test Coverage:** 15/15 backend tests passed, all frontend features verified
 
+### January 14, 2026 - P0/P1 Token Refresh & Target Progress Report ✅
+- **MS365 Token Refresh (P0):**
+  - New `/api/auth/refresh` endpoint returns fresh JWT tokens
+  - Frontend `api.js` now has automatic token refresh interceptors
+  - Proactive refresh when < 30 mins remaining on token
+  - 401 responses trigger automatic retry with refreshed token
+  - Prevents frequent user logouts
+- **Deletion Sync Logic Enhanced (P0):**
+  - `reconcile_entity()` in background_sync.py now handles soft-delete with logging
+  - Sets `is_active=False`, `deleted_at`, `delete_reason='removed_from_odoo'`
+  - Only affects records with `source='odoo'` to preserve manually created data
+  - `active_entity_filter()` excludes only `is_active=False` (not `None` or missing)
+- **Target Progress Report (P1):**
+  - New `/api/config/target-progress-report` endpoint aggregates role-based targets with actual performance
+  - Returns team-wide totals, progress percentages, and individual user breakdowns
+  - Supports `period_type` and `role_id` filters
+  - Status classification: achieved (>=100%), on_track (>=70%), at_risk (>=40%), behind (<40%)
+- **Target Progress Report UI:**
+  - New `/target-progress` page with summary cards, status distribution, individual performance cards
+  - Added to sidebar navigation as "Target Report"
+  - Period and Role filter dropdowns, refresh button
+  - Visual progress bars and variance indicators
+- **Test Coverage:** 18/18 backend tests passed, frontend verified
+
 ---
 
 ## Domain User Authorization Flow
