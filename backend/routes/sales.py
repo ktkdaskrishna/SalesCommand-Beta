@@ -26,13 +26,16 @@ def active_entity_filter(entity_type: str, additional_filters: dict = None) -> d
     """
     Create a filter for active (non-deleted) records from data_lake_serving.
     Soft-deleted records (is_active=False) are completely hidden from users.
+    
+    Handles three cases:
+    - is_active=True: explicitly active
+    - is_active=None: not yet set (legacy/seeded data, treated as active)
+    - is_active does not exist: old records (treated as active)
     """
     base_filter = {
         "entity_type": entity_type,
-        "$or": [
-            {"is_active": True},
-            {"is_active": {"$exists": False}}  # Legacy records without is_active field
-        ]
+        # Exclude only explicitly deleted records (is_active=False)
+        "is_active": {"$ne": False}
     }
     if additional_filters:
         base_filter.update(additional_filters)
