@@ -65,8 +65,20 @@ async def login(credentials: UserLogin):
             detail="Account is disabled"
         )
     
-    # Get role - use role field or role_id, default to None
-    user_role = user.get("role") or user.get("role_id")
+    # Get role name - lookup from role_id if needed
+    user_role = user.get("role")
+    role_name = None
+    if not user_role and user.get("role_id"):
+        role_doc = await db.roles.find_one({"id": user.get("role_id")})
+        if role_doc:
+            role_name = role_doc.get("name")
+            # Try to match to UserRole enum
+            role_key = role_name.lower().replace(" ", "_") if role_name else None
+            try:
+                user_role = UserRole(role_key) if role_key else None
+            except ValueError:
+                user_role = None  # Role not in enum, leave as None
+    
     token = create_access_token(user["id"], user["email"], user_role)
     
     # Log login activity (non-blocking)
@@ -87,8 +99,12 @@ async def login(credentials: UserLogin):
             id=user["id"],
             email=user["email"],
             name=user["name"],
-            role=user.get("role") or user.get("role_id"),
+            role=user_role,
+            role_id=user.get("role_id"),
+            role_name=role_name,
             department=user.get("department"),
+            department_id=user.get("department_id"),
+            department_name=user.get("department_name"),
             product_line=user.get("product_line"),
             is_active=user.get("is_active", True),
             is_super_admin=user.get("is_super_admin", False),
