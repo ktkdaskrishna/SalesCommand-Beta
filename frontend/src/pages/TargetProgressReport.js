@@ -296,13 +296,13 @@ export default function TargetProgressReport() {
         
         <div className="flex items-center gap-3">
           {/* Period Filter */}
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
+          <Select value={periodFilter || "all"} onValueChange={(val) => setPeriodFilter(val === "all" ? "" : val)}>
             <SelectTrigger className="w-36 bg-white">
               <Filter className="w-4 h-4 mr-2 text-slate-400" />
               <SelectValue placeholder="All Periods" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Periods</SelectItem>
+              <SelectItem value="all">All Periods</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
               <SelectItem value="quarterly">Quarterly</SelectItem>
               <SelectItem value="yearly">Yearly</SelectItem>
@@ -310,13 +310,13 @@ export default function TargetProgressReport() {
           </Select>
           
           {/* Role Filter */}
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <Select value={roleFilter || "all"} onValueChange={(val) => setRoleFilter(val === "all" ? "" : val)}>
             <SelectTrigger className="w-40 bg-white">
               <Users className="w-4 h-4 mr-2 text-slate-400" />
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Roles</SelectItem>
+              <SelectItem value="all">All Roles</SelectItem>
               {roles.map(role => (
                 <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
               ))}
