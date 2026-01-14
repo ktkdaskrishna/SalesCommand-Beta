@@ -165,36 +165,70 @@ async def get_microsoft_config():
 
 # ===================== HELPER: ODOO EMPLOYEE MAPPING =====================
 
-async def lookup_employee_id_from_odoo(db, email: str) -> Optional[int]:
+async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
     """
-    Look up Odoo employee_id by email from the data_lake.
-    Returns employee_id if found, None otherwise.
+    Look up full Odoo user data by email from the data_lake.
+    Returns dict with all Odoo enrichment fields needed for data access control.
+    
+    IMPORTANT: This uses EXACT email matching to prevent cross-user data leaks.
     """
     try:
-        # Search Odoo data_lake for user by email (case-insensitive)
+        email_lower = email.lower().strip()
+        
+        # Search Odoo data_lake for user by EXACT email match (case-insensitive)
         odoo_user_doc = await db.data_lake_serving.find_one({
             "entity_type": "user",
             "$or": [
-                {"data.email": {"$regex": f"^{email}$", "$options": "i"}},
-                {"data.login": {"$regex": f"^{email}$", "$options": "i"}},
-                {"data.work_email": {"$regex": f"^{email}$", "$options": "i"}}
+                {"data.email": {"$regex": f"^{email_lower}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{email_lower}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{email_lower}$", "$options": "i"}}
             ]
         })
         
         if odoo_user_doc:
             odoo_data = odoo_user_doc.get("data", {})
-            # Try multiple field names for employee_id
-            employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
-            if employee_id:
-                logger.info(f"Found Odoo employee_id {employee_id} for email {email}")
-                return int(employee_id)
+            
+            # CRITICAL: Verify the email actually matches to prevent cross-user mapping
+            found_email = (odoo_data.get("email") or odoo_data.get("login") or odoo_data.get("work_email") or "").lower()
+            if found_email != email_lower:
+                logger.warning(f"Email mismatch! Requested: {email_lower}, Found: {found_email}. Rejecting match.")
+                return None
+            
+            # Extract all relevant Odoo fields for data access control
+            result = {
+                "odoo_user_id": odoo_data.get("id"),
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id"),
+                "odoo_salesperson_name": odoo_data.get("name"),
+                "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "odoo_matched": True,
+                "odoo_match_email": email_lower,
+            }
+            
+            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, name={result['odoo_salesperson_name']}")
+            return result
         
-        logger.warning(f"No Odoo employee found for email: {email}")
+        logger.warning(f"No Odoo user found for email: {email}")
         return None
         
     except Exception as e:
-        logger.error(f"Error looking up employee_id for {email}: {str(e)}")
+        logger.error(f"Error looking up Odoo user for {email}: {str(e)}")
         return None
+
+
+async def lookup_employee_id_from_odoo(db, email: str) -> Optional[int]:
+    """
+    Legacy function for backward compatibility.
+    Look up Odoo employee_id by email from the data_lake.
+    Returns employee_id if found, None otherwise.
+    """
+    odoo_data = await lookup_odoo_user_data(db, email)
+    if odoo_data and odoo_data.get("odoo_employee_id"):
+        return int(odoo_data["odoo_employee_id"])
+    return None
 
 
 class MicrosoftCompleteRequest(BaseModel):
