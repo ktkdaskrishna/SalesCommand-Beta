@@ -252,6 +252,8 @@ class BackgroundSyncService:
                 "opportunities": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
                 "invoices": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
                 "users": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "activities": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "contacts": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
             }
             
             reconciler = OdooReconciler(db)
