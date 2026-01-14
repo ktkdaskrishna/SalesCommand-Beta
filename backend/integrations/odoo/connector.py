@@ -650,3 +650,121 @@ class OdooConnector(BaseConnector):
         except Exception as e:
             logger.error(f"Failed to fetch invoices from Odoo: {e}")
             raise
+
+
+    async def fetch_activities(self) -> List[Dict[str, Any]]:
+        """
+        Fetch activities from Odoo mail.activity model.
+        These are business activities like calls, meetings, tasks, etc.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'mail.activity'
+        fields = ['id', 'activity_type_id', 'summary', 'note', 'date_deadline', 
+                  'user_id', 'res_model', 'res_id', 'res_name', 'state',
+                  'create_date', 'write_date']
+        domain = []  # Fetch all activities
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 1000}
+                )
+            )
+            
+            activities = []
+            for rec in records:
+                activities.append({
+                    'id': rec.get('id'),
+                    'activity_type': rec.get('activity_type_id')[1] if rec.get('activity_type_id') else 'Task',
+                    'activity_type_id': rec.get('activity_type_id')[0] if rec.get('activity_type_id') else None,
+                    'summary': rec.get('summary'),
+                    'note': rec.get('note') if rec.get('note') != False else None,
+                    'due_date': rec.get('date_deadline'),
+                    'user_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'user_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'res_model': rec.get('res_model'),
+                    'res_id': rec.get('res_id'),
+                    'res_name': rec.get('res_name'),
+                    'state': rec.get('state'),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(activities)} activities from Odoo")
+            return activities
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch activities from Odoo: {e}")
+            # Return empty list instead of raising - activities are optional
+            return []
+
+    async def fetch_contacts(self) -> List[Dict[str, Any]]:
+        """
+        Fetch contacts from Odoo res.partner model.
+        Contacts are individuals (not companies) linked to accounts.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'res.partner'
+        fields = ['id', 'name', 'email', 'phone', 'mobile', 'function', 'title',
+                  'parent_id', 'street', 'city', 'country_id', 'is_company',
+                  'user_id', 'create_date', 'write_date']
+        # Only fetch individual contacts (not companies)
+        domain = [('is_company', '=', False), ('parent_id', '!=', False)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 2000}
+                )
+            )
+            
+            contacts = []
+            for rec in records:
+                contacts.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email': rec.get('email') if rec.get('email') != False else None,
+                    'phone': rec.get('phone') if rec.get('phone') != False else None,
+                    'mobile': rec.get('mobile') if rec.get('mobile') != False else None,
+                    'job_title': rec.get('function') if rec.get('function') != False else None,
+                    'title': rec.get('title')[1] if rec.get('title') else None,
+                    'account_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'account_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'street': rec.get('street') if rec.get('street') != False else None,
+                    'city': rec.get('city') if rec.get('city') != False else None,
+                    'country': rec.get('country_id')[1] if rec.get('country_id') else None,
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(contacts)} contacts from Odoo")
+            return contacts
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch contacts from Odoo: {e}")
+            # Return empty list instead of raising - contacts are optional
+            return []
