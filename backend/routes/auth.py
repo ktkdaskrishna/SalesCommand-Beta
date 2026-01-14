@@ -75,7 +75,7 @@ async def login(credentials: UserLogin):
             user_name=user.get("name", user["email"]),
             user_email=user["email"]
         )
-    except Exception as e:
+    except Exception:
         # Don't fail login if activity logging fails
         pass
     
