@@ -580,7 +580,7 @@ const AdminPanel = () => {
                               {u.is_active !== false ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right w-32 min-w-[120px]">
                             {u.approval_status === 'pending' ? (
                               <div className="flex justify-end gap-2">
                                 <Button 
@@ -611,8 +611,8 @@ const AdminPanel = () => {
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex justify-end gap-2">
-                                <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900">
+                              <div className="flex justify-end gap-2 flex-nowrap">
+                                <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900" title="Edit user">
                                   <Edit2 className="w-4 h-4" />
                                 </Button>
                                 <Button 
