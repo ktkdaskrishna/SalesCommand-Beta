@@ -202,6 +202,7 @@ const Header = ({ onMenuClick, user, onLogout }) => {
     if (path === '/opportunities') return 'Opportunities';
     if (path === '/goals') return 'Goals';
     if (path === '/activity') return 'Activity';
+    if (path === '/target-progress') return 'Target Progress Report';
     if (path === '/kpis') return 'KPIs';
     if (path === '/my-outlook') return 'Email & Calendar';
     if (path === '/sales-dashboard') return 'Sales Dashboard';
