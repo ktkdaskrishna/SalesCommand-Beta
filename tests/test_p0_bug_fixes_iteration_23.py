@@ -133,16 +133,16 @@ class TestDataAccessControl:
             print(f"  - {opp.get('name')}: owner={owner}")
     
     def test_dashboard_data_access_control(self, admin_token, am_token):
-        """Test dashboard endpoint respects data access control"""
+        """Test dashboard/real endpoint respects data access control"""
         # Admin dashboard
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
-        admin_response = requests.get(f"{BASE_URL}/api/dashboard", headers=admin_headers)
+        admin_response = requests.get(f"{BASE_URL}/api/dashboard/real", headers=admin_headers)
         assert admin_response.status_code == 200
         admin_data = admin_response.json()
         
         # AM dashboard
         am_headers = {"Authorization": f"Bearer {am_token}"}
-        am_response = requests.get(f"{BASE_URL}/api/dashboard", headers=am_headers)
+        am_response = requests.get(f"{BASE_URL}/api/dashboard/real", headers=am_headers)
         assert am_response.status_code == 200
         am_data = am_response.json()
         
