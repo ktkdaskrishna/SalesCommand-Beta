@@ -258,6 +258,16 @@ async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
             odoo_user_id = odoo_data.get("odoo_user_id") or odoo_data.get("id")
             odoo_employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
             
+            # CRITICAL: Extract manager_id for hierarchy support
+            # In hr.employee records, manager is stored as parent_id or manager_id
+            manager_id = odoo_data.get("manager_id")
+            if not manager_id:
+                manager_id = odoo_data.get("parent_id")
+            
+            # If manager_id is a list/tuple (Odoo relational field format), extract ID
+            if isinstance(manager_id, (list, tuple)) and len(manager_id) > 0:
+                manager_id = manager_id[0]  # First element is the ID
+            
             result = {
                 "odoo_user_id": odoo_user_id,
                 "odoo_employee_id": odoo_employee_id,
@@ -267,11 +277,12 @@ async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
                 "odoo_team_id": odoo_data.get("team_id"),
                 "odoo_team_name": odoo_data.get("team_name"),
                 "odoo_job_title": odoo_data.get("job_title"),
+                "manager_odoo_id": manager_id,  # ADD manager for hierarchy
                 "odoo_matched": True,
                 "odoo_match_email": email_lower,
             }
             
-            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, employee_id={result['odoo_employee_id']}, name={result['odoo_salesperson_name']}")
+            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, employee_id={result['odoo_employee_id']}, manager_id={manager_id}, name={result['odoo_salesperson_name']}")
             return result
         
         logger.warning(f"No Odoo user found for email: {email}")
@@ -376,7 +387,7 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             # Always refresh Odoo mapping to ensure correct user-to-data association
             odoo_data = await lookup_odoo_user_data(db, email)
             if odoo_data:
-                # Update with ALL Odoo enrichment fields
+                # Update with ALL Odoo enrichment fields (including manager_odoo_id)
                 update_data.update({
                     "odoo_user_id": odoo_data.get("odoo_user_id"),
                     "odoo_employee_id": odoo_data.get("odoo_employee_id"),
@@ -386,20 +397,16 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                     "odoo_team_id": odoo_data.get("odoo_team_id"),
                     "odoo_team_name": odoo_data.get("odoo_team_name"),
                     "odoo_job_title": odoo_data.get("odoo_job_title"),
+                    "manager_odoo_id": odoo_data.get("manager_odoo_id"),  # ADD manager hierarchy
                     "odoo_matched": True,
                     "odoo_match_email": email.lower(),
                 })
-                logger.info(f"Mapped SSO user {email} to Odoo: user_id={odoo_data.get('odoo_user_id')}, salesperson={odoo_data.get('odoo_salesperson_name')}")
+                logger.info(f"Mapped SSO user {email} to Odoo: user_id={odoo_data.get('odoo_user_id')}, employee_id={odoo_data.get('odoo_employee_id')}, manager_id={odoo_data.get('manager_odoo_id')}")
             else:
-                # Clear any stale Odoo mapping to prevent cross-user data access
-                update_data.update({
-                    "odoo_matched": False,
-                    "odoo_user_id": None,
-                    "odoo_employee_id": None,
-                    "odoo_salesperson_name": None,
-                    "odoo_team_id": None,
-                })
-                logger.warning(f"No Odoo match for SSO user {email} - cleared Odoo fields to prevent data leaks")
+                # CRITICAL FIX: Don't overwrite existing Odoo fields with None!
+                # Only mark as unmatched for monitoring - preserve existing data
+                update_data["odoo_matched"] = False
+                logger.warning(f"No Odoo match for SSO user {email} - preserving existing Odoo fields to prevent data loss")
                 
             await db.users.update_one(
                 {"email": email},
