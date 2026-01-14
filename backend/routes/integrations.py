@@ -1100,3 +1100,47 @@ async def stop_background_sync_service(
     await sync_service.stop()
     return {"message": "Background sync stopped"}
 
+
+@router.get("/background-sync/health")
+async def get_background_sync_health(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get comprehensive health status of the background sync service.
+    Includes metrics, failure counts, and health assessment.
+    Available to all authenticated users.
+    """
+    from services.sync.background_sync import sync_service
+    return await sync_service.get_sync_health()
+
+
+@router.get("/sync/logs")
+async def get_sync_logs(
+    limit: int = 20,
+    status: Optional[str] = None,
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get recent sync logs for monitoring.
+    Optional status filter: 'completed', 'failed', 'running'
+    """
+    db = Database.get_db()
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    logs = await db.sync_logs.find(
+        query,
+        {"_id": 0}
+    ).sort("started_at", -1).limit(limit).to_list(limit)
+    
+    # Convert datetime to ISO strings
+    for log in logs:
+        if log.get("started_at"):
+            log["started_at"] = log["started_at"].isoformat()
+        if log.get("completed_at"):
+            log["completed_at"] = log["completed_at"].isoformat()
+    
+    return {"logs": logs, "count": len(logs)}
+
