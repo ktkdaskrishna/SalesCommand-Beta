@@ -194,38 +194,6 @@ const ActivityTimeline = () => {
           user_name: 'System',
         }
       ]);
-          timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Audit',
-        },
-        {
-          id: '7',
-          title: 'Scheduled demo with Innovation Labs for next week',
-          activity_type: 'demo',
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Lead',
-        },
-        {
-          id: '8',
-          title: 'Created account: Enterprise Corp',
-          activity_type: 'account_created',
-          timestamp: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Account',
-        },
-        {
-          id: '9',
-          title: 'Meeting with stakeholders at SecureNet',
-          activity_type: 'meeting',
-          timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Meeting',
-        },
-        {
-          id: '10',
-          title: 'Email follow-up sent to 5 prospects',
-          activity_type: 'email',
-          timestamp: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(),
-          type_label: 'Email',
-        },
-      ]);
     } finally {
       setLoading(false);
     }
