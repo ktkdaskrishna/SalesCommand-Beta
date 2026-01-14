@@ -529,7 +529,11 @@ const MyOutlook = () => {
                   </div>
                 </div>
               </div>
-            ))}
+                      ))}
+                    </div>
+                  );
+                });
+              })()}
             </>
           )}
         </div>
