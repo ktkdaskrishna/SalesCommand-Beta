@@ -321,6 +321,18 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "last_login": now
             }
             await db.users.insert_one(user)
+            
+            # Map to Odoo employee for new users
+            employee_id = await lookup_employee_id_from_odoo(db, email)
+            if employee_id:
+                await db.users.update_one(
+                    {"id": user_id},
+                    {"$set": {"odoo_employee_id": employee_id}}
+                )
+                logger.info(f"Mapped new SSO user {email} to Odoo employee_id: {employee_id}")
+            else:
+                logger.warning(f"No Odoo employee found for new SSO user {email}")
+            
             approval_status = "pending"
             logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
         
