@@ -289,12 +289,12 @@ class OdooConnector(BaseConnector):
         base_fields = ['id', 'name', 'create_date', 'write_date', 'active']
         
         if model == 'res.partner':
-            # Note: 'title' field removed for Odoo 19.0 compatibility (field renamed/deprecated)
+            # Note: 'title' and 'team_id' fields removed for Odoo 19.0 compatibility
             return base_fields + [
                 'email', 'phone', 'website',
                 'street', 'city', 'state_id', 'country_id', 'zip',
                 'is_company', 'parent_id', 'function',
-                'user_id', 'team_id', 'category_id',
+                'user_id', 'category_id',
                 'comment', 'industry_id', 'employee'
             ]
         
