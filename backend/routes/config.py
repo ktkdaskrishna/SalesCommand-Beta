@@ -942,6 +942,219 @@ async def get_user_effective_targets(
     }
 
 
+@router.get("/target-progress-report")
+async def get_target_progress_report(
+    period_type: Optional[str] = Query(default=None, description="monthly, quarterly, yearly"),
+    role_id: Optional[str] = Query(default=None, description="Filter by specific role"),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get aggregated target progress report for all salespeople.
+    Shows each user's progress against their role-based targets.
+    
+    Returns:
+    - Individual progress per salesperson
+    - Team-wide aggregated metrics
+    - Variance analysis (above/below target)
+    """
+    db = Database.get_db()
+    
+    now = datetime.now(timezone.utc)
+    
+    # Get active role targets
+    target_query = {"period_end": {"$gte": now}}
+    if period_type:
+        target_query["period_type"] = period_type
+    if role_id:
+        target_query["role_id"] = role_id
+    
+    role_targets = await db.role_targets.find(target_query, {"_id": 0}).to_list(100)
+    
+    # Create a map of role_id to target
+    role_target_map = {t["role_id"]: t for t in role_targets}
+    
+    # Get roles
+    roles = await db.roles.find({}, {"_id": 0}).to_list(100)
+    role_map = {r["id"]: r for r in roles}
+    
+    # Get all sales users (users with roles that have targets)
+    role_ids_with_targets = list(role_target_map.keys())
+    users_query = {"is_active": True}
+    if role_ids_with_targets:
+        users_query["role_id"] = {"$in": role_ids_with_targets}
+    
+    users = await db.users.find(users_query, {"_id": 0, "password_hash": 0}).to_list(500)
+    
+    # Calculate actual performance for each user
+    user_progress = []
+    team_totals = {
+        "target_revenue": 0,
+        "actual_revenue": 0,
+        "target_deals": 0,
+        "actual_deals": 0,
+        "target_activities": 0,
+        "actual_activities": 0,
+    }
+    
+    for user in users:
+        user_role_id = user.get("role_id")
+        if not user_role_id or user_role_id not in role_target_map:
+            continue
+        
+        target = role_target_map[user_role_id]
+        role = role_map.get(user_role_id, {})
+        
+        # Get user's Odoo data for matching
+        odoo_user_id = user.get("odoo_user_id")
+        odoo_salesperson_name = user.get("odoo_salesperson_name", "").lower()
+        user_email = user.get("email", "").lower()
+        
+        # Calculate actual performance from data_lake_serving
+        # Won opportunities (revenue)
+        won_match = {
+            "entity_type": "opportunity",
+            "is_active": {"$ne": False},
+            "$or": [
+                {"data.stage_name": {"$regex": "won", "$options": "i"}},
+                {"data.stage_id": {"$in": [4, "won"]}}  # Common won stage IDs
+            ]
+        }
+        
+        # Add user filter
+        if odoo_user_id:
+            won_match["data.salesperson_id"] = odoo_user_id
+        elif odoo_salesperson_name:
+            won_match["data.salesperson_name"] = {"$regex": f"^{odoo_salesperson_name}$", "$options": "i"}
+        else:
+            continue  # Skip users without Odoo mapping
+        
+        won_opps = await db.data_lake_serving.find(won_match, {"data.amount": 1}).to_list(1000)
+        actual_revenue = sum(o.get("data", {}).get("amount", 0) or 0 for o in won_opps)
+        
+        # Active opportunities (deals in pipeline)
+        active_match = {
+            "entity_type": "opportunity",
+            "is_active": {"$ne": False},
+        }
+        if odoo_user_id:
+            active_match["data.salesperson_id"] = odoo_user_id
+        elif odoo_salesperson_name:
+            active_match["data.salesperson_name"] = {"$regex": f"^{odoo_salesperson_name}$", "$options": "i"}
+        
+        actual_deals = await db.data_lake_serving.count_documents(active_match)
+        
+        # Activities count
+        activity_match = {
+            "entity_type": "activity",
+            "is_active": {"$ne": False},
+        }
+        if odoo_user_id:
+            activity_match["data.user_id"] = odoo_user_id
+        
+        actual_activities = await db.data_lake_serving.count_documents(activity_match)
+        
+        # Calculate progress percentages
+        target_revenue = target.get("target_revenue", 0)
+        target_deals = target.get("target_deals", 0)
+        target_activities = target.get("target_activities", 0)
+        
+        revenue_progress = round((actual_revenue / target_revenue * 100), 1) if target_revenue > 0 else 0
+        deals_progress = round((actual_deals / target_deals * 100), 1) if target_deals > 0 else 0
+        activities_progress = round((actual_activities / target_activities * 100), 1) if target_activities > 0 else 0
+        
+        # Overall progress (weighted average)
+        weights = {"revenue": 0.5, "deals": 0.3, "activities": 0.2}
+        overall_progress = round(
+            revenue_progress * weights["revenue"] +
+            deals_progress * weights["deals"] +
+            activities_progress * weights["activities"],
+            1
+        )
+        
+        # Determine status
+        if overall_progress >= 100:
+            status = "achieved"
+        elif overall_progress >= 70:
+            status = "on_track"
+        elif overall_progress >= 40:
+            status = "at_risk"
+        else:
+            status = "behind"
+        
+        user_progress.append({
+            "user_id": user["id"],
+            "user_name": user.get("name", "Unknown"),
+            "user_email": user.get("email"),
+            "role_id": user_role_id,
+            "role_name": role.get("name", "Unknown"),
+            "target": {
+                "revenue": target_revenue,
+                "deals": target_deals,
+                "activities": target_activities,
+                "period_type": target.get("period_type"),
+                "period_start": target.get("period_start"),
+                "period_end": target.get("period_end"),
+            },
+            "actual": {
+                "revenue": actual_revenue,
+                "deals": actual_deals,
+                "activities": actual_activities,
+            },
+            "progress": {
+                "revenue": revenue_progress,
+                "deals": deals_progress,
+                "activities": activities_progress,
+                "overall": overall_progress,
+            },
+            "variance": {
+                "revenue": actual_revenue - target_revenue,
+                "deals": actual_deals - target_deals,
+                "activities": actual_activities - target_activities,
+            },
+            "status": status,
+        })
+        
+        # Aggregate team totals
+        team_totals["target_revenue"] += target_revenue
+        team_totals["actual_revenue"] += actual_revenue
+        team_totals["target_deals"] += target_deals
+        team_totals["actual_deals"] += actual_deals
+        team_totals["target_activities"] += target_activities
+        team_totals["actual_activities"] += actual_activities
+    
+    # Calculate team-level progress
+    team_progress = {
+        "revenue": round((team_totals["actual_revenue"] / team_totals["target_revenue"] * 100), 1) if team_totals["target_revenue"] > 0 else 0,
+        "deals": round((team_totals["actual_deals"] / team_totals["target_deals"] * 100), 1) if team_totals["target_deals"] > 0 else 0,
+        "activities": round((team_totals["actual_activities"] / team_totals["target_activities"] * 100), 1) if team_totals["target_activities"] > 0 else 0,
+    }
+    
+    # Sort users by overall progress (descending)
+    user_progress.sort(key=lambda x: x["progress"]["overall"], reverse=True)
+    
+    # Calculate summary stats
+    achieved_count = sum(1 for u in user_progress if u["status"] == "achieved")
+    on_track_count = sum(1 for u in user_progress if u["status"] == "on_track")
+    at_risk_count = sum(1 for u in user_progress if u["status"] == "at_risk")
+    behind_count = sum(1 for u in user_progress if u["status"] == "behind")
+    
+    return {
+        "generated_at": now.isoformat(),
+        "period_filter": period_type,
+        "role_filter": role_id,
+        "summary": {
+            "total_salespeople": len(user_progress),
+            "achieved": achieved_count,
+            "on_track": on_track_count,
+            "at_risk": at_risk_count,
+            "behind": behind_count,
+        },
+        "team_totals": team_totals,
+        "team_progress": team_progress,
+        "individual_progress": user_progress,
+    }
+
+
 # Legacy endpoints - kept for backwards compatibility
 @router.get("/targets")
 async def get_targets(
