@@ -397,6 +397,96 @@ export default function TargetProgressReport() {
         </div>
       </div>
 
+      {/* Leaderboard */}
+      {individual_progress && individual_progress.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-500" />
+              Sales Leaderboard
+            </h2>
+            <span className="text-sm text-slate-500">Top performers by overall progress</span>
+          </div>
+          
+          <div className="space-y-3">
+            {individual_progress.slice(0, 5).map((user, index) => {
+              const rank = index + 1;
+              const rankStyles = {
+                1: { bg: 'bg-gradient-to-r from-amber-50 to-yellow-50', border: 'border-amber-200', medal: '🥇' },
+                2: { bg: 'bg-gradient-to-r from-slate-50 to-gray-50', border: 'border-slate-300', medal: '🥈' },
+                3: { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', border: 'border-orange-200', medal: '🥉' },
+              };
+              const style = rankStyles[rank] || { bg: 'bg-slate-50', border: 'border-slate-200', medal: null };
+              const statusConfig = STATUS_CONFIG[user.status] || STATUS_CONFIG.behind;
+              
+              return (
+                <div
+                  key={user.user_id}
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-sm",
+                    style.bg,
+                    style.border
+                  )}
+                  data-testid={`leaderboard-rank-${rank}`}
+                >
+                  {/* Rank */}
+                  <div className="flex-shrink-0 w-10 text-center">
+                    {style.medal ? (
+                      <span className="text-2xl">{style.medal}</span>
+                    ) : (
+                      <span className="text-lg font-bold text-slate-400">#{rank}</span>
+                    )}
+                  </div>
+                  
+                  {/* User Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-800 truncate">{user.user_name}</span>
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
+                        statusConfig.color
+                      )}>
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500">{user.role_name}</p>
+                  </div>
+                  
+                  {/* Progress */}
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-2xl font-bold text-slate-800">{user.progress.overall}%</p>
+                    <p className="text-xs text-slate-500">
+                      {formatCurrency(user.actual.revenue)} revenue
+                    </p>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="flex-shrink-0 w-24">
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-2 rounded-full transition-all",
+                          user.progress.overall >= 100 ? 'bg-emerald-500' :
+                          user.progress.overall >= 70 ? 'bg-blue-500' :
+                          user.progress.overall >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                        )}
+                        style={{ width: `${Math.min(user.progress.overall, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {individual_progress.length > 5 && (
+            <p className="text-center text-sm text-slate-400 mt-4">
+              Showing top 5 of {individual_progress.length} salespeople
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Individual Progress Grid */}
       <div>
         <h2 className="text-lg font-semibold text-slate-800 mb-4">Individual Performance</h2>
