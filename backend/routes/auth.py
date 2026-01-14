@@ -352,6 +352,10 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             # Create new user for SSO - PENDING APPROVAL
             # All Azure AD profile data is synced
             user_id = str(uuid.uuid4())
+            
+            # Look up Odoo data for new user
+            odoo_data = await lookup_odoo_user_data(db, email)
+            
             user = {
                 "id": user_id,
                 "email": email,
@@ -373,6 +377,17 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "mobile_phone": mobile_phone,
                 "business_phones": business_phones,
                 "company_name": company_name,
+                # Odoo enrichment fields
+                "odoo_user_id": odoo_data.get("odoo_user_id") if odoo_data else None,
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") if odoo_data else None,
+                "odoo_salesperson_name": odoo_data.get("odoo_salesperson_name") if odoo_data else None,
+                "odoo_department_id": odoo_data.get("odoo_department_id") if odoo_data else None,
+                "odoo_department_name": odoo_data.get("odoo_department_name") if odoo_data else None,
+                "odoo_team_id": odoo_data.get("odoo_team_id") if odoo_data else None,
+                "odoo_team_name": odoo_data.get("odoo_team_name") if odoo_data else None,
+                "odoo_job_title": odoo_data.get("odoo_job_title") if odoo_data else None,
+                "odoo_matched": bool(odoo_data),
+                "odoo_match_email": email.lower() if odoo_data else None,
                 # Timestamps
                 "created_at": now,
                 "updated_at": now,
@@ -380,16 +395,10 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             }
             await db.users.insert_one(user)
             
-            # Map to Odoo employee for new users
-            employee_id = await lookup_employee_id_from_odoo(db, email)
-            if employee_id:
-                await db.users.update_one(
-                    {"id": user_id},
-                    {"$set": {"odoo_employee_id": employee_id}}
-                )
-                logger.info(f"Mapped new SSO user {email} to Odoo employee_id: {employee_id}")
+            if odoo_data:
+                logger.info(f"New SSO user {email} mapped to Odoo: user_id={odoo_data.get('odoo_user_id')}, salesperson={odoo_data.get('odoo_salesperson_name')}")
             else:
-                logger.warning(f"No Odoo employee found for new SSO user {email}")
+                logger.warning(f"No Odoo match for new SSO user {email}")
             
             approval_status = "pending"
             logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
