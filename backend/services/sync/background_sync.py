@@ -283,6 +283,26 @@ class BackgroundSyncService:
                 stats["users"] = await reconciler.reconcile_entity("user", users)
                 logger.info(f"Users: {stats['users']}")
                 
+                # Sync Activities (mail.activity) - business activities like calls, meetings
+                logger.info("Syncing activities...")
+                try:
+                    activities = await connector.fetch_activities()
+                    stats["activities"] = await reconciler.reconcile_entity("activity", activities)
+                    logger.info(f"Activities: {stats['activities']}")
+                except Exception as e:
+                    logger.warning(f"Activity sync skipped (optional): {e}")
+                    stats["activities"] = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0, "skipped": True}
+                
+                # Sync Contacts (res.partner individuals)
+                logger.info("Syncing contacts...")
+                try:
+                    contacts = await connector.fetch_contacts()
+                    stats["contacts"] = await reconciler.reconcile_entity("contact", contacts)
+                    logger.info(f"Contacts: {stats['contacts']}")
+                except Exception as e:
+                    logger.warning(f"Contact sync skipped (optional): {e}")
+                    stats["contacts"] = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0, "skipped": True}
+                
             finally:
                 await connector.disconnect()
             
