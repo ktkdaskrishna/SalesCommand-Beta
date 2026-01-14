@@ -127,6 +127,47 @@ async def get_current_user(token_data: dict = Depends(get_current_user_from_toke
     return UserResponse(**user)
 
 
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(token_data: dict = Depends(get_current_user_from_token)):
+    """
+    Refresh the JWT token before it expires.
+    Returns a new token with extended expiration.
+    
+    This endpoint allows users to stay logged in without re-authenticating,
+    as long as their current token is still valid.
+    """
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": token_data["id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is disabled"
+        )
+    
+    # Create new token with fresh expiration
+    new_token = create_access_token(user["id"], user["email"], user.get("role"))
+    
+    # Update last_login timestamp
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_login": datetime.now(timezone.utc)}}
+    )
+    
+    logger.info(f"Token refreshed for user: {user['email']}")
+    
+    return TokenResponse(
+        access_token=new_token,
+        user=UserResponse(**user)
+    )
+
+
 @router.get("/users", response_model=List[UserResponse])
 async def get_users(
     token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))
