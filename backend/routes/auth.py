@@ -163,49 +163,9 @@ async def get_microsoft_config():
     }
 
 
-def jls_extract_def():
-    
-# ===================== HELPER: ODOO EMPLOYEE MAPPING =====================
-# 
-(db, emailasync def lookup_employee_id_from_odoo: str) -> Optional[int]:
-    """
-        Look up Odoo employee_id by email from the data_lake.
-            Returns employee_id if found, None otherwise.
-                """
-                    try:
-                            # Search Odoo data_lake for user by email (case-insensitive)
-                                    odoo_user_doc = await db.data_lake_serving.find_one({
-                                                "entity_type": "user",
-                                                            "$or": [
-                                                                            {"data.email": {"$regex": f"^{email}$", "$options": "i"}},
-                                                                                            {"data.login": {"$regex": f"^{email}$", "$options": "i"}},
-                                                                                                            {"data.work_email": {"$regex": f"^{email}$", "$options": "i"}}
-                                                                                                                        ]
-                                                                                                                                })
-                                                                                                                                        
-                                                                                                                                                if odoo_user_doc:
-                                                                                                                                                            odoo_data = odoo_user_doc.get("data", {})
-                                                                                                                                                                        # Try multiple field names for employee_id
-                                                                                                                                                                                    employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
-                                                                                                                                                                                                if employee_id:
-                                                                                                                                                                                                                logger.info(f"Found Odoo employee_id {employee_id} for email {email}")
-                                                                                                                                                                                                                                return int(employee_id)
-                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                logger.warning(f"No Odoo employee found for email: {email}")
-                                                                                                                                                                                                                                                        return None
-                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                    except Exception as e:
-                                                                                                                                                                                                                                                                            logger.error(f"Error looking up employee_id for {email}: {str(e)}")
-                                                                                                                                                                                                                                                                                    return None
-                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                    clas    s MicrosoftCompleteRequest(BaseModel):
-        access_token: str
-        account: dict
-    return MicrosoftCompleteRequest, access_token
-
-
-MicrosoftCompleteRequest, access_token = jls_extract_def()ional[str] = None
+class MicrosoftCompleteRequest(BaseModel):
+    access_token: str
+    id_token: Optional[str] = None
     account: dict
 
 
@@ -280,14 +240,6 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 update_data["business_phones"] = business_phones
             if company_name:
                 update_data["company_name"] = company_name
-
-                        # Map to Odoo employee if not already mapped
-                                if not existing_user.get("employee_id"):
-                                            employee_id = await lookup_employee_id_from_odoo(db, email)
-                                                        if employee_id:
-                                                                        update_data["employee_id"] = employee_id
-                                                                                        logger.info(f"Mapped existing SSO user {email} to Odoo employee_id: {employee_id}")
-
                 
             await db.users.update_one(
                 {"email": email},
@@ -328,18 +280,6 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "last_login": now
             }
             await db.users.insert_one(user)
-
-                    # Map to Odoo employee
-                            employee_id = await lookup_employee_id_from_odoo(db, email)
-                                    if employee_id:
-                                                await db.users.update_one(
-                                                                {"id": user_id},
-                                                                                {"$set": {"employee_id": employee_id}}
-                                                                                            )
-                                                                                                        logger.info(f"Mapped new SSO user {email} to Odoo employee_id: {employee_id}")
-                                                                                                                else:
-                                                                                                                            logger.warning(f"No Odoo employee found for SSO user {email}")
-
             approval_status = "pending"
             logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
         
