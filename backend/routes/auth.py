@@ -274,6 +274,13 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 update_data["business_phones"] = business_phones
             if company_name:
                 update_data["company_name"] = company_name
+            
+            # Map to Odoo employee if not already mapped
+            if not existing_user.get("odoo_employee_id"):
+                employee_id = await lookup_employee_id_from_odoo(db, email)
+                if employee_id:
+                    update_data["odoo_employee_id"] = employee_id
+                    logger.info(f"Mapped existing SSO user {email} to Odoo employee_id: {employee_id}")
                 
             await db.users.update_one(
                 {"email": email},
