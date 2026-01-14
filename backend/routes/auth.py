@@ -65,7 +65,9 @@ async def login(credentials: UserLogin):
             detail="Account is disabled"
         )
     
-    token = create_access_token(user["id"], user["email"], user["role"])
+    # Get role - use role field or role_id, default to None
+    user_role = user.get("role") or user.get("role_id")
+    token = create_access_token(user["id"], user["email"], user_role)
     
     # Log login activity (non-blocking)
     try:
