@@ -4,7 +4,7 @@ Authentication endpoints for the API
 """
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
 import aiohttp
