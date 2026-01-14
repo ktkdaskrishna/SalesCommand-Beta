@@ -411,10 +411,53 @@ const MyOutlook = () => {
             </div>
           ) : (
             <>
+              {/* Calendar Summary */}
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Total Events</p>
+                  <p className="text-2xl font-bold text-white">{filteredCalendar.length}</p>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Online Meetings</p>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {filteredCalendar.filter(e => e.online_meeting_url).length}
+                  </p>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Today</p>
+                  <p className="text-2xl font-bold text-emerald-400">
+                    {filteredCalendar.filter(e => new Date(e.start_time).toDateString() === new Date().toDateString()).length}
+                  </p>
+                </div>
+              </div>
+              
               <p className="text-sm text-zinc-500">
                 Showing {filteredCalendar.length} of {calendar.length} events
               </p>
-              {filteredCalendar.map((event, idx) => (
+              
+              {/* Group events by date */}
+              {(() => {
+                const grouped = filteredCalendar.reduce((acc, event) => {
+                  const date = new Date(event.start_time).toDateString();
+                  if (!acc[date]) acc[date] = [];
+                  acc[date].push(event);
+                  return acc;
+                }, {});
+                
+                return Object.entries(grouped).map(([dateStr, events]) => {
+                  const date = new Date(dateStr);
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                  const dayLabel = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+                  
+                  return (
+                    <div key={dateStr} className="space-y-2">
+                      <div className={`sticky top-0 z-10 py-2 px-3 rounded-lg ${isToday ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-300'}`}>
+                        <span className="font-semibold">{dayLabel}</span>
+                        <span className="text-sm opacity-70 ml-2">({events.length} event{events.length !== 1 ? 's' : ''})</span>
+                      </div>
+                      
+                      {events.map((event, idx) => (
               <div
                 key={event.ms_event_id || idx}
                 className={`bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors ${
