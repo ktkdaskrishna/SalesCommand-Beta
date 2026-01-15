@@ -11,6 +11,7 @@ import { Toaster } from './components/ui/sonner';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AccountManagerDashboard from './pages/AccountManagerDashboard';
+import SalesDashboard from './pages/SalesDashboard';  // NEW: CQRS v2 Dashboard
 import Accounts from './pages/Accounts';
 import Opportunities from './pages/Opportunities';
 import KPIs from './pages/KPIs';
@@ -33,12 +34,9 @@ import Layout from './components/Layout';
 const RoleBasedDashboard = () => {
   const { user, isSuperAdmin } = useAuth();
   
-  // All users now see the CRM-focused AccountManagerDashboard
-  // Super Admin gets additional admin controls on that dashboard
-  // The old technical Dashboard is available at /admin-dashboard for system monitoring
-  
-  // Show AccountManagerDashboard for everyone (CRM data)
-  return <AccountManagerDashboard />;
+  // Use new CQRS v2 SalesDashboard for everyone
+  // This provides manager visibility and optimized performance
+  return <SalesDashboard />;
 };
 
 // Protected Route Component
