@@ -190,6 +190,11 @@ export const integrationsAPI = {
   syncAllFromOdoo: () => api.post('/integrations/odoo/sync-all'),
   getSyncStatus: () => api.get('/integrations/sync/status'),
   getSyncJob: (jobId) => api.get(`/integrations/sync/${jobId}`),
+  
+  // CQRS Sync
+  triggerCQRSSync: () => api.post('/integrations/cqrs/sync/trigger'),
+  getCQRSSyncStatus: (jobId) => api.get(`/integrations/cqrs/sync/status/${jobId}`),
+  getCQRSHealth: () => api.get('/integrations/cqrs/health'),
 };
 
 // ===================== OPPORTUNITIES API =====================
