@@ -38,9 +38,17 @@ async def get_dashboard_v2(
         # Cache miss - rebuild
         logger.warning(f"Access matrix cache miss for user {user_id}, rebuilding...")
         from projections.access_matrix_projection import AccessMatrixProjection
+        from event_store.store import EventStore
+        
         projection = AccessMatrixProjection(db)
+        projection.event_store = EventStore(db)
         await projection.rebuild_for_user(user_id)
         access = await db.user_access_matrix.find_one({"user_id": user_id}, {"_id": 0})
+        
+        if not access:
+            # Still no access - user might not exist in new system
+            logger.error(f"Cannot build access matrix for user {user_id}")
+            raise HTTPException(status_code=500, detail="Access matrix not available. User may need to re-sync from Odoo.")
     
     # STEP 2: Get accessible opportunity IDs
     accessible_opp_ids = access.get("accessible_opportunities", [])
