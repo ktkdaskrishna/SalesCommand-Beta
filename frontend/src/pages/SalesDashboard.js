@@ -7,6 +7,7 @@ import { dashboardAPI, integrationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
+import OpportunityDetailPanel from '../components/OpportunityDetailPanel';  // NEW: Detail panel
 import {
   TrendingUp,
   DollarSign,
@@ -28,6 +29,7 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [useV2, setUseV2] = useState(true); // Use CQRS v2 by default
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null); // NEW: For detail panel
 
   useEffect(() => {
     fetchDashboard();
@@ -237,6 +239,16 @@ const SalesDashboard = () => {
                       <div className="flex items-center gap-4 text-sm text-slate-600">
                         <span>
                           <User className="w-3.5 h-3.5 inline mr-1" />
+
+
+      {/* Opportunity Detail Panel - Slide-over */}
+      {selectedOpportunity && (
+        <OpportunityDetailPanel
+          opportunity={selectedOpportunity}
+          onClose={() => setSelectedOpportunity(null)}
+        />
+      )}
+
                           {salesperson.name || 'Unassigned'}
                         </span>
                         <span>•</span>
