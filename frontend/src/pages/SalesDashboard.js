@@ -36,23 +36,17 @@ const SalesDashboard = () => {
   const fetchDashboard = async () => {
     setLoading(true);
     try {
+      console.log('Fetching v2 dashboard...');
       // Use CQRS v2 endpoint
       const response = await dashboardAPI.getV2Dashboard();
+      console.log('V2 Dashboard response:', response.data);
       setDashboardData(response.data);
-      toast.success('Dashboard loaded (CQRS v2)');
+      setUseV2(true);
+      toast.success('Dashboard loaded successfully');
     } catch (error) {
-      console.error('Failed to fetch dashboard:', error);
-      toast.error('Failed to load dashboard data');
-      
-      // Fallback to v1 if v2 fails
-      try {
-        const fallback = await dashboardAPI.getDashboard();
-        setDashboardData(fallback.data);
-        setUseV2(false);
-        toast.warning('Using legacy dashboard (v1)');
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-      }
+      console.error('V2 Dashboard error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.detail || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
