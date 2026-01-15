@@ -295,7 +295,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All CQRS backend tests completed"
+    - "All CQRS frontend and backend tests completed"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
