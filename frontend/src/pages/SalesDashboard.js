@@ -278,6 +278,14 @@ const SalesDashboard = () => {
           </p>
         </div>
       )}
+      
+      {/* Opportunity Detail Panel */}
+      {selectedOpportunity && (
+        <OpportunityDetailPanel
+          opportunity={selectedOpportunity}
+          onClose={() => setSelectedOpportunity(null)}
+        />
+      )}
     </div>
   );
 };
