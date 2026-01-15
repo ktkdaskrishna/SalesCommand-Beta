@@ -1,0 +1,6 @@
+"""
+Event Store Models - Add Activity Event Type
+"""
+# Add to existing EventType enum in event_store/models.py
+
+# ODOO_ACTIVITY_SYNCED = "OdooActivitySynced"  # Add this line to EventType enum

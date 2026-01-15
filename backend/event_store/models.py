@@ -40,7 +40,7 @@ class EventType(str, Enum):
     ODOO_INVOICE_SYNCED = "OdooInvoiceSynced"
     
     # Activity events
-    ODOO_ACTIVITY_SYNCED = "OdooActivitySynced"
+    ODOO_ACTIVITY_SYNCED = "OdooActivitySynced"  # NEW: Activity sync event
 
 
 class EventMetadata(BaseModel):

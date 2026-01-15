@@ -95,6 +95,12 @@ class OdooSyncHandler:
             stats["accounts"] = len(acc_events)
             stats["total_events"] += len(acc_events)
             
+            # Sync activities (NEW)
+            logger.info("Syncing activities...")
+            activity_events = await self._sync_activities(connector, sync_job_id)
+            stats["activities"] = len(activity_events)
+            stats["total_events"] += len(activity_events)
+            
             logger.info(f"Sync complete: {stats['total_events']} events generated in {(datetime.now(timezone.utc) - started_at).total_seconds():.1f}s")
             
             return stats
@@ -232,6 +238,64 @@ class OdooSyncHandler:
         accounts = await connector.fetch_accounts()
         events = []
         
+    
+    async def _sync_activities(self, connector, sync_job_id: str) -> List[Event]:
+        """Sync activities and generate events"""
+        activities = await connector.fetch_activities()
+        events = []
+        
+        for activity_data in activities:
+            activity_id = activity_data.get("id")
+            if not activity_id:
+                continue
+            
+            # Check if changed
+            checksum = self._calculate_checksum(activity_data)
+            existing = await self.db.odoo_raw_data.find_one({
+                "entity_type": "activity",
+                "odoo_id": activity_id,
+                "is_latest": True
+            })
+            
+            if existing and existing.get("checksum") == checksum:
+                continue  # No change
+            
+            # Mark old as not latest
+            await self.db.odoo_raw_data.update_many(
+                {"entity_type": "activity", "odoo_id": activity_id, "is_latest": True},
+                {"$set": {"is_latest": False}}
+            )
+            
+            # Store new
+            await self.db.odoo_raw_data.insert_one({
+                "id": str(uuid.uuid4()),
+                "entity_type": "activity",
+                "odoo_id": activity_id,
+                "raw_data": activity_data,
+                "fetched_at": datetime.now(timezone.utc),
+                "sync_job_id": sync_job_id,
+                "is_latest": True,
+                "checksum": checksum
+            })
+            
+            # Generate event
+            event = Event(
+                event_type=EventType.ODOO_ACTIVITY_SYNCED,
+                aggregate_type=AggregateType.ACTIVITY,
+                aggregate_id=f"activity-{activity_id}",
+                payload=activity_data,
+                metadata=EventMetadata(
+                    source="odoo_sync",
+                    correlation_id=sync_job_id
+                )
+            )
+            
+            await self.event_store.append(event)
+            await event_bus.publish(event)
+            events.append(event)
+        
+        return events
+
         for acc_data in accounts:
             odoo_id = acc_data.get("id")
             if not odoo_id:
