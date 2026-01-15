@@ -166,14 +166,14 @@ class EventStore:
     
     async def get_event_count(
         self,
-        event_type: Optional[EventType] = None,
+        event_type: Optional[str] = None,
         since: Optional[datetime] = None
     ) -> int:
         """
         Get count of events.
         
         Args:
-            event_type: Filter by event type (optional)
+            event_type: Filter by event type (string value)
             since: Only count events after this time
         
         Returns:
@@ -181,7 +181,8 @@ class EventStore:
         """
         query = {}
         if event_type:
-            query["event_type"] = event_type.value
+            # event_type is already a string value
+            query["event_type"] = event_type
         if since:
             query["timestamp"] = {"$gte": since}
         

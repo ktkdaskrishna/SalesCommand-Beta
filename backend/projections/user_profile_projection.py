@@ -147,7 +147,6 @@ class UserProfileProjection(BaseProjection):
             {"email": email_lower},
             {
                 "$set": update_doc,
-                "$inc": {"version": 1},
                 "$setOnInsert": {
                     "id": str(uuid.uuid4()),
                     "created_at": datetime.now(timezone.utc),
