@@ -151,14 +151,16 @@ const ActivityTimeline = () => {
   }, []);
 
   const fetchActivities = async () => {
+    setLoading(true);
     try {
-      // Fetch business activities (excludes system events like logins by default)
-      const response = await api.get('/activities');
+      // FIXED: Use CQRS v2 endpoint
+      const response = await api.get('/v2/activities/');
       const data = response.data || [];
       
-      // Also fetch activity stats
+      // Also fetch activity stats from v2
       try {
-        const statsResponse = await api.get('/activities/stats');
+        const statsResponse = await api.get('/v2/activities/stats');
+        setStats(statsResponse.data);
         console.log('Activity stats:', statsResponse.data);
       } catch (e) {
         console.log('Could not fetch activity stats');
