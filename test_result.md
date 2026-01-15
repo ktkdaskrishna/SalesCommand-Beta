@@ -289,9 +289,9 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
-  run_ui: false
-  last_tested: "2026-01-15T13:18:38+00:00"
+  test_sequence: 2
+  run_ui: true
+  last_tested: "2026-01-15T13:28:00+00:00"
 
 test_plan:
   current_focus:
