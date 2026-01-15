@@ -69,7 +69,7 @@ async def trigger_cqrs_sync(
 @router.get("/sync/{job_id}")
 async def get_cqrs_sync_status(
     job_id: str,
-    token_data: dict = Depends(require_permission("manage_integrations"))
+    token_data: dict = Depends(require_approved())  # All approved users
 ):
     """Get status of a CQRS sync job"""
     db = Database.get_db()
