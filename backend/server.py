@@ -134,7 +134,7 @@ api_router.include_router(personal_router)
 api_router.include_router(sales_router)
 api_router.include_router(config_router)
 api_router.include_router(goals_router)
-api_router.include_router(v2_dashboard_router)  # NEW: CQRS v2 endpoints
+api_router.include_router(v2_dashboard_router, prefix="/v2/dashboard")  # CQRS v2 with explicit prefix
 
 # Mount API router
 app.include_router(api_router)

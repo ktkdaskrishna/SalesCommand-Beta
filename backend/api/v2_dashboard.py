@@ -10,7 +10,7 @@ import logging
 from core.database import Database
 from middleware.rbac import require_approved
 
-router = APIRouter(prefix="/api/v2/dashboard", tags=["Dashboard V2"])
+router = APIRouter(tags=["Dashboard V2"])
 logger = logging.getLogger(__name__)
 
 
