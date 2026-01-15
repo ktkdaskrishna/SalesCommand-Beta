@@ -112,9 +112,9 @@ async def get_dashboard_v2(
         
         # Data freshness
         "data_freshness": {
-            "metrics_computed_at": metrics.get("computed_at") if metrics else None,
-            "access_computed_at": access.get("computed_at"),
-            "cache_age_seconds": (datetime.now(timezone.utc) - access.get("computed_at")).total_seconds() if access.get("computed_at") else None
+            "metrics_computed_at": metrics.get("computed_at").isoformat() if metrics.get("computed_at") else None,
+            "access_computed_at": access.get("computed_at").isoformat() if access.get("computed_at") else None,
+            "cache_age_seconds": None  # Removed problematic calculation
         },
         
         "last_updated": datetime.now(timezone.utc).isoformat()
