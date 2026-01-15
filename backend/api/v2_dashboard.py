@@ -61,4 +61,123 @@ async def get_dashboard_v2(
         # Cache miss - compute on demand
         logger.info(f"Metrics cache miss for user {user_id}, computing...")
         metrics = await _compute_metrics_on_demand(user_id, opportunities)
-    \n    # STEP 5: Get user profile for hierarchy context\n    user_profile = await db.user_profiles.find_one(\n        {\"id\": user_id},\n        {\"_id\": 0, \"hierarchy\": 1, \"odoo\": 1, \"name\": 1, \"email\": 1}\n    )\n    \n    return {\n        \"source\": \"cqrs_v2\",\n        \"performance\": \"materialized_views\",\n        \n        # Metrics (pre-computed)\n        \"metrics\": {\n            \"pipeline_value\": metrics.get(\"pipeline_value\", 0),\n            \"won_revenue\": metrics.get(\"won_revenue\", 0),\n            \"active_opportunities\": metrics.get(\"active_opportunities\", 0),\n            \"total_opportunities\": len(opportunities),\n            \"by_stage\": metrics.get(\"by_stage\", {})\n        },\n        \n        # Opportunities (denormalized - all relationships included!)\n        \"opportunities\": opportunities,\n        \n        # Hierarchy context\n        \"hierarchy\": {\n            \"is_manager\": access.get(\"is_manager\", False),\n            \"subordinate_count\": access.get(\"subordinate_count\", 0),\n            \"subordinates\": user_profile.get(\"hierarchy\", {}).get(\"subordinates\", []) if user_profile else []\n        },\n        \n        # Data freshness\n        \"data_freshness\": {\n            \"metrics_computed_at\": metrics.get(\"computed_at\") if metrics else None,\n            \"access_computed_at\": access.get(\"computed_at\"),\n            \"cache_age_seconds\": (datetime.now(timezone.utc) - access.get(\"computed_at\")).total_seconds() if access.get(\"computed_at\") else None\n        },\n        \n        \"last_updated\": datetime.now(timezone.utc).isoformat()\n    }\n\n\nasync def _compute_metrics_on_demand(user_id: str, opportunities: List[dict]) -> dict:\n    \"\"\"Compute metrics on cache miss\"\"\"\n    active = [o for o in opportunities if o[\"stage\"] not in [\"Won\", \"Lost\", \"Closed Won\", \"Closed Lost\"]]\n    won = [o for o in opportunities if o[\"stage\"] in [\"Won\", \"Closed Won\"]]\n    \n    return {\n        \"user_id\": user_id,\n        \"pipeline_value\": sum(o[\"value\"] for o in active),\n        \"won_revenue\": sum(o[\"value\"] for o in won),\n        \"active_opportunities\": len(active),\n        \"computed_at\": datetime.now(timezone.utc)\n    }\n\n\n@router.get(\"/opportunities\")\nasync def get_opportunities_v2(\n    token_data: dict = Depends(require_approved())\n):\n    \"\"\"\n    Get opportunities using CQRS.\n    Uses pre-computed visible_to_user_ids for instant access control.\n    \"\"\"\n    db = Database.get_db()\n    user_id = token_data[\"id\"]\n    \n    # Simple query - access control already pre-computed!\n    opportunities = await db.opportunity_view.find({\n        \"visible_to_user_ids\": user_id,\n        \"is_active\": True\n    }, {\"_id\": 0}).to_list(1000)\n    \n    return {\n        \"opportunities\": opportunities,\n        \"count\": len(opportunities),\n        \"source\": \"cqrs_v2\"\n    }\n\n\n@router.get(\"/users/profile\")\nasync def get_user_profile_v2(\n    token_data: dict = Depends(require_approved())\n):\n    \"\"\"\n    Get current user's denormalized profile.\n    Includes hierarchy, subordinates, team info.\n    \"\"\"\n    db = Database.get_db()\n    user_id = token_data[\"id\"]\n    \n    profile = await db.user_profiles.find_one(\n        {\"id\": user_id},\n        {\"_id\": 0, \"password_hash\": 0, \"ms_access_token\": 0}\n    )\n    \n    if not profile:\n        raise HTTPException(status_code=404, detail=\"Profile not found\")\n    \n    return profile\n\n\n@router.get(\"/users/hierarchy\")\nasync def get_user_hierarchy_v2(\n    token_data: dict = Depends(require_approved())\n):\n    \"\"\"\n    Get user's organizational hierarchy.\n    \"\"\"\n    db = Database.get_db()\n    user_id = token_data[\"id\"]\n    \n    profile = await db.user_profiles.find_one(\n        {\"id\": user_id},\n        {\"_id\": 0, \"hierarchy\": 1}\n    )\n    \n    if not profile:\n        raise HTTPException(status_code=404, detail=\"User not found\")\n    \n    return profile.get(\"hierarchy\", {})\n
+    
+    # STEP 5: Get user profile for hierarchy context
+    user_profile = await db.user_profiles.find_one(
+        {"id": user_id},
+        {"_id": 0, "hierarchy": 1, "odoo": 1, "name": 1, "email": 1}
+    )
+    
+    return {
+        "source": "cqrs_v2",
+        "performance": "materialized_views",
+        
+        # Metrics (pre-computed)
+        "metrics": {
+            "pipeline_value": metrics.get("pipeline_value", 0),
+            "won_revenue": metrics.get("won_revenue", 0),
+            "active_opportunities": metrics.get("active_opportunities", 0),
+            "total_opportunities": len(opportunities),
+            "by_stage": metrics.get("by_stage", {})
+        },
+        
+        # Opportunities (denormalized - all relationships included!)
+        "opportunities": opportunities,
+        
+        # Hierarchy context
+        "hierarchy": {
+            "is_manager": access.get("is_manager", False),
+            "subordinate_count": access.get("subordinate_count", 0),
+            "subordinates": user_profile.get("hierarchy", {}).get("subordinates", []) if user_profile else []
+        },
+        
+        # Data freshness
+        "data_freshness": {
+            "metrics_computed_at": metrics.get("computed_at") if metrics else None,
+            "access_computed_at": access.get("computed_at"),
+            "cache_age_seconds": (datetime.now(timezone.utc) - access.get("computed_at")).total_seconds() if access.get("computed_at") else None
+        },
+        
+        "last_updated": datetime.now(timezone.utc).isoformat()
+    }
+
+
+async def _compute_metrics_on_demand(user_id: str, opportunities: List[dict]) -> dict:
+    """Compute metrics on cache miss"""
+    active = [o for o in opportunities if o.get("stage") not in ["Won", "Lost", "Closed Won", "Closed Lost"]]
+    won = [o for o in opportunities if o.get("stage") in ["Won", "Closed Won"]]
+    
+    return {
+        "user_id": user_id,
+        "pipeline_value": sum(o.get("value", 0) for o in active),
+        "won_revenue": sum(o.get("value", 0) for o in won),
+        "active_opportunities": len(active),
+        "computed_at": datetime.now(timezone.utc)
+    }
+
+
+@router.get("/opportunities")
+async def get_opportunities_v2(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get opportunities using CQRS.
+    Uses pre-computed visible_to_user_ids for instant access control.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    # Simple query - access control already pre-computed!
+    opportunities = await db.opportunity_view.find({
+        "visible_to_user_ids": user_id,
+        "is_active": True
+    }, {"_id": 0}).to_list(1000)
+    
+    return {
+        "opportunities": opportunities,
+        "count": len(opportunities),
+        "source": "cqrs_v2"
+    }
+
+
+@router.get("/users/profile")
+async def get_user_profile_v2(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get current user's denormalized profile.
+    Includes hierarchy, subordinates, team info.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    profile = await db.user_profiles.find_one(
+        {"id": user_id},
+        {"_id": 0, "password_hash": 0, "ms_access_token": 0}
+    )
+    
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    return profile
+
+
+@router.get("/users/hierarchy")
+async def get_user_hierarchy_v2(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get user's organizational hierarchy.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    profile = await db.user_profiles.find_one(
+        {"id": user_id},
+        {"_id": 0, "hierarchy": 1}
+    )
+    
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return profile.get("hierarchy", {})
