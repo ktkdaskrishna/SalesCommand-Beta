@@ -154,7 +154,8 @@ async def get_presales_summary(
         "by_state": await self._count_by_state(activities)
     }
     
-    async def _count_by_state(self, activities):
+    
+    def _count_by_state(self, activities):
         """Count activities by state"""
         by_state = {"planned": 0, "today": 0, "overdue": 0, "done": 0}
         

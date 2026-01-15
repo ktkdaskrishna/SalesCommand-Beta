@@ -28,8 +28,12 @@ def initialize_cqrs_system():
     access_matrix_proj = AccessMatrixProjection(db)
     metrics_proj = DashboardMetricsProjection(db)
     
+    # NEW: Activity projection
+    from projections.activity_projection import ActivityProjection
+    activity_proj = ActivityProjection(db)
+    
     # Register with event bus
-    for projection in [user_profile_proj, opportunity_proj, access_matrix_proj, metrics_proj]:
+    for projection in [user_profile_proj, opportunity_proj, access_matrix_proj, metrics_proj, activity_proj]:
         for event_type in projection.subscribes_to():
             event_bus.subscribe(event_type, projection.handle)
     
@@ -39,5 +43,6 @@ def initialize_cqrs_system():
         "user_profile": user_profile_proj,
         "opportunity": opportunity_proj,
         "access_matrix": access_matrix_proj,
-        "metrics": metrics_proj
+        "metrics": metrics_proj,
+        "activity": activity_proj  # NEW
     }
