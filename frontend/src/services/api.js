@@ -237,6 +237,15 @@ export const activitiesAPI = {
 
 export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
+  
+  // CQRS v2 endpoints (new, optimized)
+  getV2Dashboard: () => api.get('/v2/dashboard/'),
+  getV2Opportunities: () => api.get('/v2/dashboard/opportunities'),
+  getV2Profile: () => api.get('/v2/dashboard/users/profile'),
+  getV2Hierarchy: () => api.get('/v2/dashboard/users/hierarchy'),
+  
+  // Legacy v1 endpoints (fallback)
+  getDashboard: () => api.get('/sales/dashboard/real'),
 };
 
 // ===================== SALES METRICS API =====================
