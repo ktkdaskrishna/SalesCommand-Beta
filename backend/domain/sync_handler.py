@@ -31,8 +31,25 @@ class OdooSyncHandler:
     """
     
     def __init__(self, db=None):
-        self.db = db or Database.get_db()
-        self.event_store = EventStore(self.db)
+        # Use proper None check for MongoDB database objects
+        if db is not None:
+            self._db = db
+        else:
+            self._db = None
+    
+    @property
+    def db(self):
+        if self._db is None:
+            from core.database import Database
+            self._db = Database.get_db()
+        return self._db
+    
+    @property
+    def event_store(self):
+        if not hasattr(self, '_event_store'):
+            from event_store.store import EventStore
+            self._event_store = EventStore(self.db)
+        return self._event_store
     
     async def handle_sync_command(self, sync_job_id: str, odoo_config: dict):
         """
