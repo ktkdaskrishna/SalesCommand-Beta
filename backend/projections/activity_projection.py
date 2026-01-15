@@ -1,167 +1,164 @@
 """
-Activity API - Enhanced with CQRS Support
+Activity Projection - CQRS Read Model for Activities
+Builds denormalized activity_view with inherited authorization from opportunities
 """
-from fastapi import APIRouter, Depends, Query
-from typing import Optional, List
+from typing import List
 from datetime import datetime, timezone
+import uuid
 import logging
 
-from core.database import Database
-from middleware.rbac import require_approved
+from projections.base import BaseProjection
+from event_store.models import Event, EventType
 
-router = APIRouter(prefix="/api/v2/activities", tags=["Activities V2"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/")
-async def get_activities_v2(
-    opportunity_id: Optional[int] = None,
-    presales_category: Optional[str] = None,
-    state: Optional[str] = None,
-    token_data: dict = Depends(require_approved())
-):
+class ActivityProjection(BaseProjection):
     """
-    Get activities using CQRS with inherited authorization.
+    Builds activity_view collection.
     
-    Authorization:
-    - Activities inherit visibility from opportunities
-    - Managers see subordinate activities automatically
-    - Pre-computed visible_to_user_ids for O(1) access
-    
-    Query Params:
-        opportunity_id: Filter by opportunity (Odoo ID)
-        presales_category: Filter by category (POC, Demo, etc.)
-        state: Filter by state (planned, today, overdue, done)
+    CRITICAL: Activities inherit visibility from linked opportunities.
     """
-    db = Database.get_db()
-    user_id = token_data["id"]
     
-    # Build query
-    query = {
-        "visible_to_user_ids": user_id,  # Authorization via visibility
-        "is_active": True
-    }
+    def __init__(self, db):
+        super().__init__(db, "ActivityProjection")
+        self.collection = db.activity_view
+        self.opportunity_view = db.opportunity_view
+        self.user_profiles = db.user_profiles
     
-    if opportunity_id:
-        query["opportunity.odoo_id"] = opportunity_id
+    def subscribes_to(self) -> List[str]:
+        return [EventType.ODOO_ACTIVITY_SYNCED.value]
     
-    if presales_category:
-        query["presales_category"] = presales_category
+    async def handle(self, event: Event):
+        """Process activity sync event"""
+        if event.event_type == EventType.ODOO_ACTIVITY_SYNCED:
+            await self._handle_activity_synced(event)
     
-    if state:
-        query["state"] = state
-    
-    # Query activity_view (CQRS)
-    activities = await db.activity_view.find(query, {"_id": 0}).to_list(1000)
-    
-    # Group by presales category for KPI summary
-    by_category = {}
-    for activity in activities:
-        category = activity.get("presales_category", "Other")
-        if category not in by_category:
-            by_category[category] = []
-        by_category[category].append(activity)
-    
-    return {
-        "activities": activities,
-        "count": len(activities),
-        "by_category": {k: len(v) for k, v in by_category.items()},
-        "source": "cqrs_activity_view"
-    }
-
-
-@router.get("/opportunity/{opportunity_id}")
-async def get_activities_for_opportunity(
-    opportunity_id: int,
-    token_data: dict = Depends(require_approved())
-):
-    """
-    Get all activities for a specific opportunity.
-    Verifies user has access to the opportunity first.
-    """
-    db = Database.get_db()
-    user_id = token_data["id"]
-    
-    # Verify user can see this opportunity
-    opportunity = await db.opportunity_view.find_one({
-        "odoo_id": opportunity_id,
-        "visible_to_user_ids": user_id
-    })
-    
-    if not opportunity:
-        return {
-            "activities": [],
-            "count": 0,
-            "message": "Opportunity not accessible"
+    async def _handle_activity_synced(self, event: Event):
+        """Build denormalized activity with inherited authorization"""
+        payload = event.payload
+        activity_id = payload.get("id")
+        res_model = payload.get("res_model")
+        res_id = payload.get("res_id")
+        
+        # Only process opportunity activities
+        if res_model != "crm.lead":
+            logger.debug(f"Skipping non-opportunity activity: {activity_id}")
+            return
+        
+        # Find linked opportunity
+        opportunity = await self.opportunity_view.find_one({"odoo_id": res_id})
+        
+        if not opportunity:
+            logger.warning(f"Activity {activity_id} links to unknown opportunity {res_id}")
+            return
+        
+        # Find assigned user
+        user_odoo_id = payload.get("user_id")
+        assigned_user = None
+        
+        if user_odoo_id:
+            user_profile = await self.user_profiles.find_one({"odoo.user_id": user_odoo_id})
+            
+            if user_profile:
+                assigned_user = {
+                    "user_id": user_profile["id"],
+                    "odoo_user_id": user_profile["odoo"]["user_id"],
+                    "name": user_profile["name"],
+                    "email": user_profile["email"]
+                }
+            else:
+                assigned_user = {
+                    "user_id": None,
+                    "odoo_user_id": user_odoo_id,
+                    "name": payload.get("user_name"),
+                    "email": None
+                }
+        
+        # Categorize for presales
+        presales_category = self._categorize_for_presales(
+            payload.get("summary", ""),
+            payload.get("activity_type", "")
+        )
+        
+        # Build activity document
+        activity_doc = {
+            "odoo_id": activity_id,
+            "activity_type": payload.get("activity_type"),
+            "summary": payload.get("summary"),
+            "note": payload.get("note"),
+            "due_date": payload.get("date_deadline"),
+            "state": payload.get("state"),
+            "presales_category": presales_category,
+            
+            # Denormalized opportunity
+            "opportunity": {
+                "id": opportunity["id"],
+                "odoo_id": opportunity["odoo_id"],
+                "name": opportunity["name"],
+                "salesperson": opportunity.get("salesperson")
+            },
+            
+            # Denormalized user
+            "assigned_to": assigned_user,
+            
+            # INHERIT VISIBILITY FROM OPPORTUNITY
+            "visible_to_user_ids": opportunity.get("visible_to_user_ids", []),
+            
+            # Metadata
+            "is_active": True,
+            "last_synced": datetime.now(timezone.utc),
+            "source": "odoo",
+            "event_version": event.version
         }
-    
-    # Get activities (already filtered by visibility)
-    activities = await db.activity_view.find({
-        "opportunity.odoo_id": opportunity_id,
-        "visible_to_user_ids": user_id,
-        "is_active": True
-    }, {"_id": 0}).to_list(1000)
-    
-    return {
-        "opportunity": {
-            "id": opportunity["id"],
-            "name": opportunity["name"]
-        },
-        "activities": activities,
-        "count": len(activities)
-    }
-
-
-@router.get("/presales-summary")
-async def get_presales_summary(
-    token_data: dict = Depends(require_approved())
-):
-    """
-    Get presales activity summary for KPI dashboard.
-    Counts activities by category for the current user.
-    """
-    db = Database.get_db()
-    user_id = token_data["id"]
-    
-    # Get all accessible activities
-    activities = await db.activity_view.find({
-        "visible_to_user_ids": user_id,
-        "is_active": True
-    }).to_list(10000)
-    
-    # Count by category
-    summary = {
-        "POC": 0,
-        "Demo": 0,
-        "Presentation": 0,
-        "RFP_Influence": 0,
-        "Lead": 0,
-        "Meeting": 0,
-        "Call": 0,
-        "Other": 0
-    }
-    
-    for activity in activities:
-        category = activity.get("presales_category", "Other")
-        if category in summary:
-            summary[category] += 1
-        else:
-            summary["Other"] += 1
-    
-    return {
-        "summary": summary,
-        "total_activities": len(activities),
-        "by_state": await self._count_by_state(activities)
-    }
-    
-    
-    def _count_by_state(self, activities):
-        """Count activities by state"""
-        by_state = {"planned": 0, "today": 0, "overdue": 0, "done": 0}
         
-        for act in activities:
-            state = act.get("state", "planned")
-            if state in by_state:
-                by_state[state] += 1
+        # Upsert
+        await self.collection.update_one(
+            {"odoo_id": activity_id},
+            {
+                "$set": activity_doc,
+                "$setOnInsert": {
+                    "id": str(uuid.uuid4()),
+                    "created_at": datetime.now(timezone.utc),
+                    "version": 1
+                }
+            },
+            upsert=True
+        )
         
-        return by_state
+        logger.info(f"Activity {activity_id} linked to opportunity {res_id}, visible to {len(activity_doc['visible_to_user_ids'])} users")
+        
+        await self.mark_processed(event.id)
+    
+    def _categorize_for_presales(self, summary: str, activity_type: str) -> str:
+        """Categorize activity for Presales KPI tracking"""
+        summary_lower = (summary or "").lower()
+        type_lower = (activity_type or "").lower()
+        
+        # POC
+        if any(kw in summary_lower for kw in ["poc", "proof of concept", "pilot"]):
+            return "POC"
+        
+        # Demo
+        if any(kw in summary_lower for kw in ["demo", "demonstration", "walkthrough"]):
+            return "Demo"
+        
+        # Presentation
+        if any(kw in summary_lower for kw in ["presentation", "pitch", "deck"]):
+            return "Presentation"
+        
+        # RFP
+        if any(kw in summary_lower for kw in ["rfp", "tender", "proposal", "bid"]):
+            return "RFP_Influence"
+        
+        # Lead
+        if any(kw in summary_lower for kw in ["lead", "qualification", "discovery"]):
+            return "Lead"
+        
+        # By type
+        if "meeting" in type_lower:
+            return "Meeting"
+        if "call" in type_lower:
+            return "Call"
+        
+        return "Other"
