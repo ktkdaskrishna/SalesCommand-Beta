@@ -73,16 +73,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add error handling middleware
-from middleware.error_handler import error_handler_middleware, http_exception_handler, validation_exception_handler
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-app.middleware("http")(error_handler_middleware)
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
-
-# CORS Middleware
+# CORS Middleware (add before error handlers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS != "*" else ["*"],
