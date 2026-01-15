@@ -73,6 +73,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add error handling middleware
+from middleware.error_handler import error_handler_middleware, http_exception_handler, validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+app.middleware("http")(error_handler_middleware)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -118,6 +127,7 @@ from routes.data_lake import router as data_lake_router
 from routes.integrations import router as integrations_router
 from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
+from routes.admin_logs import router as admin_logs_router  # NEW: Admin logging
 from routes.personal import router as personal_router
 from routes.sales import router as sales_router
 from routes.config import router as config_router
@@ -131,6 +141,7 @@ api_router.include_router(data_lake_router)
 api_router.include_router(integrations_router)
 api_router.include_router(webhooks_router)
 api_router.include_router(admin_router)
+api_router.include_router(admin_logs_router)  # Admin logging endpoints
 api_router.include_router(personal_router)
 api_router.include_router(sales_router)
 api_router.include_router(config_router)
