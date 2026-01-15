@@ -7,7 +7,6 @@ import { dashboardAPI, integrationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
-import OpportunityDetailPanel from '../components/OpportunityDetailPanel';
 import {
   TrendingUp,
   DollarSign,
@@ -28,8 +27,7 @@ const SalesDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [useV2, setUseV2] = useState(true);
-  const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [useV2, setUseV2] = useState(true); // Use CQRS v2 by default
 
   useEffect(() => {
     fetchDashboard();
@@ -224,7 +222,7 @@ const SalesDashboard = () => {
                       ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-300' 
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
-                  onClick={() => setSelectedOpportunity(opp)}
+                  onClick={() => navigate(`/opportunities/${opp.id}`)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
