@@ -1001,6 +1001,780 @@ Implement interface for Product Directors to assign Goals and Activities (POCs, 
 
 ---
 
+## 🆕 NEW UAT ITEMS - Activity Enhancements (User Request)
+
+### 🟢 UAT-013: Activity Detail Expansion View
+
+**Priority:** P2 (Enhancement)  
+**Status:** 📝 LOGGED  
+**Assigned To:** TBD  
+**Estimated Effort:** 4-6 hours  
+**Added:** 2025-01-15
+
+**Description:**
+Implement click-to-expand functionality for activities in the Activity Timeline. When user clicks an activity, show a detailed expansion view with complete information.
+
+**Business Value:**
+- Better activity tracking
+- Quick access to full context
+- Supports presales KPI workflow
+- Improves user productivity
+
+---
+
+#### 🎯 REQUIRED FEATURES
+
+**Activity Detail Panel (Expandable Card)**
+
+When user clicks an activity in the timeline, expand to show:
+
+**1. Activity Metadata:**
+```
+┌─────────────────────────────────────────────────┐
+│ 🗓️  Meeting: SUPREME JUDICIARY Follow-up        │
+├─────────────────────────────────────────────────┤
+│ Status: Today                                   │
+│ Presales Category: Meeting                      │
+│ Priority: High                                  │
+└─────────────────────────────────────────────────┘
+```
+
+**2. Assignment Information:**
+```
+Created By:    Product Director (PD)
+Assigned To:   vinsha Nair (Account Manager)
+Department:    Sales - MSSP
+Team:          Enterprise Sales
+```
+
+**3. Dates & Timeline:**
+```
+Created:       Jan 10, 2026 2:30 PM
+Due Date:      Jan 20, 2026 5:00 PM
+Last Updated:  Jan 15, 2026 3:10 PM
+
+Status:        ⚠️  Due in 5 days
+```
+
+**4. Linked Opportunity:**
+```
+Related Opportunity:
+┌─────────────────────────────────────────────────┐
+│ SUPREME JUDICIARY COUNCIL's opportunity         │
+│ Value: $0                                       │
+│ Stage: Won                                      │
+│ Probability: 100%                               │
+│ [View Opportunity →]                           │
+└─────────────────────────────────────────────────┘
+```
+
+**5. Activity Notes/Description:**
+```
+Notes:
+─────────────────────────────────────
+Follow up on POC results from last week.
+Discuss next steps for deployment.
+Confirm budget allocation timeline.
+─────────────────────────────────────
+```
+
+**6. Action Buttons:**
+```
+[Mark as Complete]  [Edit]  [Delete]  [Close]
+```
+
+---
+
+#### 🎨 UI/UX DESIGN
+
+**Expansion Type:** Inline expandable card (not slide-over panel)
+
+**Interaction:**
+```
+Activity Timeline (Collapsed):
+┌─────────────────────────────────────────────────┐
+│ 🗓️  Meeting - SUPREME JUDICIARY    Today 3:10PM │
+│ vinsha Nair                         Meeting     │
+└─────────────────────────────────────────────────┘
+        ↓ CLICK ↓
+Activity Detail (Expanded):
+┌─────────────────────────────────────────────────┐
+│ 🗓️  Meeting: SUPREME JUDICIARY Follow-up        │
+├─────────────────────────────────────────────────┤
+│ ✓ Status: Today | Priority: High               │
+│                                                 │
+│ 👤 Assigned To: vinsha Nair                     │
+│ 📧 Email: vinsha.nair@securado.net              │
+│ 🏢 Department: Sales - MSSP                     │
+│                                                 │
+│ 📅 Due: Jan 20, 2026 (in 5 days)               │
+│ 🔗 Created: Jan 10, 2026                        │
+│                                                 │
+│ 🎯 Related Opportunity:                         │
+│ ┌─────────────────────────────────────────┐   │
+│ │ SUPREME JUDICIARY - $0 - Won (100%)     │   │
+│ │ [View Details →]                        │   │
+│ └─────────────────────────────────────────┘   │
+│                                                 │
+│ 📝 Notes:                                       │
+│ Follow up on POC results...                    │
+│                                                 │
+│ [✓ Mark Complete] [Edit] [× Close]             │
+└─────────────────────────────────────────────────┘
+```
+
+**Animation:**
+- Smooth height transition (300ms ease)
+- Fade in content
+- Highlight border when expanded
+
+---
+
+#### 💻 TECHNICAL IMPLEMENTATION
+
+**Frontend Component:**
+
+**File:** `/app/frontend/src/components/ActivityDetailCard.js` (NEW)
+
+```jsx
+import React, { useState } from 'react';
+import { X, CheckCircle, Edit, ArrowRight, Calendar, User, Building2 } from 'lucide-react';
+import { Button } from './ui/button';
+
+const ActivityDetailCard = ({ activity, onClose, onMarkComplete }) => {
+  const { opportunity, assigned_to, state, due_date, note, presales_category } = activity;
+  
+  // Calculate days until due
+  const daysUntilDue = due_date 
+    ? Math.ceil((new Date(due_date) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+  
+  const statusColor = 
+    state === 'done' ? 'text-emerald-600 bg-emerald-50' :
+    state === 'overdue' ? 'text-red-600 bg-red-50' :
+    state === 'today' ? 'text-orange-600 bg-orange-50' :
+    'text-blue-600 bg-blue-50';
+  
+  return (
+    <div className="border-l-4 border-indigo-500 bg-gradient-to-r from-indigo-50 to-white p-6 rounded-lg shadow-lg">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColor}`}>
+              {state.toUpperCase()}
+            </span>
+            {presales_category && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                {presales_category}
+              </span>
+            )}
+          </div>
+          <h3 className="text-xl font-bold text-slate-900">{activity.summary}</h3>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Assignment Info */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4 text-slate-500" />
+          <div>
+            <p className="text-xs text-slate-500">Assigned To</p>
+            <p className="font-medium text-slate-900">{assigned_to?.name || 'Unassigned'}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-slate-500" />
+          <div>
+            <p className="text-xs text-slate-500">Due Date</p>
+            <p className="font-medium text-slate-900">
+              {due_date ? new Date(due_date).toLocaleDateString() : 'Not set'}
+              {daysUntilDue !== null && (
+                <span className={`ml-2 text-xs ${daysUntilDue < 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                  ({daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} days overdue` : `in ${daysUntilDue} days`})
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Linked Opportunity */}
+      {opportunity && (
+        <div className="card p-4 bg-white mb-4">
+          <p className="text-xs text-slate-500 mb-2">Related Opportunity</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-slate-900">{opportunity.name}</p>
+              <p className="text-sm text-slate-600">
+                ${opportunity.value?.toLocaleString() || '0'} • {opportunity.stage}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm">
+              View <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {note && note !== false && (
+        <div className="mb-4">
+          <p className="text-xs text-slate-500 mb-1">Notes</p>
+          <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 p-3 rounded">
+            {note}
+          </p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {state !== 'done' && (
+          <Button 
+            onClick={() => onMarkComplete(activity.id)}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Mark Complete
+          </Button>
+        )}
+        <Button variant="outline">
+          <Edit className="w-4 h-4 mr-2" />
+          Edit
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default ActivityDetailCard;
+```
+
+**Integration with ActivityTimeline.js:**
+```jsx
+const [expandedActivityId, setExpandedActivityId] = useState(null);
+
+// In timeline rendering:
+{filteredActivities.map(activity => (
+  <div key={activity.id}>
+    {/* Collapsed view */}
+    <ActivityItem 
+      activity={activity}
+      onClick={() => setExpandedActivityId(activity.id)}
+    />
+    
+    {/* Expanded detail */}
+    {expandedActivityId === activity.id && (
+      <ActivityDetailCard
+        activity={activity}
+        onClose={() => setExpandedActivityId(null)}
+        onMarkComplete={handleMarkComplete}
+      />
+    )}
+  </div>
+))}
+```
+
+---
+
+### 🟢 UAT-014: Activity Dashboard with Risk Indicators
+
+**Priority:** P2  
+**Status:** 📝 LOGGED  
+**Estimated Effort:** 3-4 hours  
+
+**Description:**
+Add activity summary dashboard showing overdue, in-progress, at-risk activities with visual indicators.
+
+**Location:** Top of Activity Timeline page (above timeline)
+
+**Dashboard Layout:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Activity Overview                                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  🔴 Overdue        🟡 Due Today       🟢 In Progress   ✅ Done   │
+│      3                  2                  8              15     │
+│   (-2 days)         (urgent)          (on track)     (this week) │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ At Risk Activities: 2                                           │
+│  • POC for Ministry - Due 2 days ago                           │
+│  • RFP Response - Due tomorrow (not started)                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Metrics to Display:**
+
+**1. By Status:**
+- Overdue (state='overdue' OR due_date < today)
+- Due Today (due_date = today)
+- In Progress (state='today' OR state='planned')
+- Completed (state='done')
+
+**2. By Risk Level:**
+```python
+# Risk calculation
+def calculate_risk(activity):
+    if activity.state == 'overdue':
+        return 'high'
+    
+    days_until_due = (activity.due_date - datetime.now()).days
+    
+    if days_until_due < 0:
+        return 'high'  # Overdue
+    elif days_until_due <= 1:
+        return 'high'  # Due today/tomorrow
+    elif days_until_due <= 3:
+        return 'medium'  # Due soon
+    else:
+        return 'low'  # On track
+```
+
+**3. By Presales Category:**
+```
+POC Activities: 3 (2 complete, 1 pending)
+Demos: 5 (3 complete, 2 pending)
+Presentations: 2 (1 complete, 1 pending)
+RFP: 1 (overdue!)
+```
+
+**Implementation:**
+
+**Backend API:**
+```python
+# File: backend/api/v2_activities.py
+
+@router.get("/dashboard-summary")
+async def get_activity_dashboard_summary(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get activity dashboard summary with risk indicators.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    # Get all accessible activities
+    activities = await db.activity_view.find({
+        "visible_to_user_ids": user_id,
+        "is_active": True
+    }).to_list(10000)
+    
+    # Calculate metrics
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0)
+    today_end = now.replace(hour=23, minute=59, second=59)
+    
+    overdue = []
+    due_today = []
+    in_progress = []
+    completed = []
+    at_risk = []
+    
+    for activity in activities:
+        due_date = activity.get('due_date')
+        state = activity.get('state')
+        
+        # Parse due date
+        if due_date and isinstance(due_date, str):
+            try:
+                due_dt = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+            except:
+                due_dt = None
+        else:
+            due_dt = None
+        
+        # Categorize
+        if state == 'done':
+            completed.append(activity)
+        elif state == 'overdue' or (due_dt and due_dt < now):
+            overdue.append(activity)
+            at_risk.append(activity)
+        elif due_dt and today_start <= due_dt <= today_end:
+            due_today.append(activity)
+            if state != 'done':
+                at_risk.append(activity)
+        else:
+            in_progress.append(activity)
+        
+        # Risk assessment
+        if due_dt and state != 'done':
+            days_until = (due_dt - now).days
+            if days_until <= 1:
+                at_risk.append(activity)
+    
+    # Group by presales category
+    by_presales = {}
+    for activity in activities:
+        category = activity.get('presales_category', 'Other')
+        if category not in by_presales:
+            by_presales[category] = {'total': 0, 'completed': 0, 'pending': 0}
+        
+        by_presales[category]['total'] += 1
+        if activity.get('state') == 'done':
+            by_presales[category]['completed'] += 1
+        else:
+            by_presales[category]['pending'] += 1
+    
+    return {
+        "overview": {
+            "overdue": {
+                "count": len(overdue),
+                "activities": [format_activity_summary(a) for a in overdue[:5]]
+            },
+            "due_today": {
+                "count": len(due_today),
+                "activities": [format_activity_summary(a) for a in due_today]
+            },
+            "in_progress": {
+                "count": len(in_progress)
+            },
+            "completed": {
+                "count": len(completed)
+            }
+        },
+        "at_risk": {
+            "count": len(at_risk),
+            "activities": [format_activity_summary(a) for a in at_risk[:10]]
+        },
+        "by_presales_category": by_presales,
+        "total_activities": len(activities)
+    }
+
+def format_activity_summary(activity):
+    return {
+        "id": activity.get("id"),
+        "summary": activity.get("summary"),
+        "due_date": activity.get("due_date"),
+        "opportunity_name": activity.get("opportunity", {}).get("name"),
+        "state": activity.get("state")
+    }
+```
+
+**Frontend Component:**
+
+**File:** `/app/frontend/src/components/ActivityDashboard.js` (NEW)
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Clock, CheckCircle, TrendingUp } from 'lucide-react';
+import api from '../services/api';
+
+const ActivityDashboard = () => {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSummary();
+  }, []);
+
+  const fetchSummary = async () => {
+    try {
+      const response = await api.get('/v2/activities/dashboard-summary');
+      setSummary(response.data);
+    } catch (error) {
+      console.error('Failed to fetch activity summary:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !summary) return null;
+
+  const { overview, at_risk, by_presales_category } = summary;
+
+  return (
+    <div className="space-y-4 mb-6">
+      {/* Status Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <StatusCard
+          title="Overdue"
+          count={overview.overdue.count}
+          icon={AlertTriangle}
+          color="red"
+          subtitle={`${overview.overdue.count} need attention`}
+        />
+        <StatusCard
+          title="Due Today"
+          count={overview.due_today.count}
+          icon={Clock}
+          color="orange"
+          subtitle="Urgent"
+        />
+        <StatusCard
+          title="In Progress"
+          count={overview.in_progress.count}
+          icon={TrendingUp}
+          color="blue"
+          subtitle="On track"
+        />
+        <StatusCard
+          title="Completed"
+          count={overview.completed.count}
+          icon={CheckCircle}
+          color="emerald"
+          subtitle="This week"
+        />
+      </div>
+
+      {/* At Risk Activities */}
+      {at_risk.count > 0 && (
+        <div className="card p-4 border-l-4 border-red-500 bg-red-50">
+          <h3 className="font-semibold text-red-900 mb-2">
+            ⚠️ At Risk Activities ({at_risk.count})
+          </h3>
+          <div className="space-y-2">
+            {at_risk.activities.map((act, idx) => (
+              <div key={idx} className="text-sm">
+                <span className="font-medium text-slate-900">{act.summary}</span>
+                <span className="text-slate-600"> - </span>
+                <span className="text-red-600">
+                  {act.due_date ? `Due ${new Date(act.due_date).toLocaleDateString()}` : 'No due date'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Presales Category Breakdown */}
+      <div className="card p-4">
+        <h3 className="font-semibold text-slate-900 mb-3">Presales Activities</h3>
+        <div className="grid grid-cols-5 gap-3">
+          {Object.entries(by_presales_category).map(([category, stats]) => (
+            <div key={category} className="text-center">
+              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+              <p className="text-xs text-slate-600">{category}</p>
+              <p className="text-xs text-emerald-600">{stats.completed} done</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatusCard = ({ title, count, icon: Icon, color, subtitle }) => {
+  const colorClasses = {
+    red: 'bg-red-50 text-red-600 border-red-200',
+    orange: 'bg-orange-50 text-orange-600 border-orange-200',
+    blue: 'bg-blue-50 text-blue-600 border-blue-200',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200'
+  };
+
+  return (
+    <div className={`card p-4 border ${colorClasses[color]}`}>
+      <div className="flex items-center justify-between mb-2">
+        <Icon className="w-6 h-6" />
+        <span className="text-3xl font-bold text-slate-900">{count}</span>
+      </div>
+      <p className="font-medium text-slate-900">{title}</p>
+      <p className="text-xs opacity-75">{subtitle}</p>
+    </div>
+  );
+};
+
+export default ActivityDashboard;
+```
+
+**Integration with ActivityTimeline.js:**
+```jsx
+import ActivityDashboard from '../components/ActivityDashboard';
+
+// Add at top of timeline (after header, before timeline):
+<ActivityDashboard />
+
+{/* Activity Timeline section continues below */}
+```
+
+---
+
+#### 📋 IMPLEMENTATION CHECKLIST
+
+**Phase 1: Activity Detail Expansion (3 hours)**
+- [ ] Create ActivityDetailCard.js component
+- [ ] Add expandedActivityId state to ActivityTimeline
+- [ ] Update ActivityItem to be clickable
+- [ ] Integrate expansion animation
+- [ ] Test expand/collapse
+- [ ] Add Mark Complete functionality
+
+**Phase 2: Activity Dashboard (2 hours)**
+- [ ] Create ActivityDashboard.js component
+- [ ] Add dashboard-summary endpoint
+- [ ] Calculate overdue/due today/in progress
+- [ ] Implement risk assessment logic
+- [ ] Display presales category breakdown
+- [ ] Integrate into ActivityTimeline page
+
+**Phase 3: Testing (1 hour)**
+- [ ] Test expansion on click
+- [ ] Verify all activity details display
+- [ ] Test Mark Complete action
+- [ ] Verify dashboard calculations
+- [ ] Test manager sees team activities
+- [ ] Performance check
+
+---
+
+#### 🎯 ACCEPTANCE CRITERIA
+
+**Activity Detail Expansion:**
+- [ ] Click activity → Expands inline with smooth animation
+- [ ] Shows: Assigned to, Due date, Status, Priority
+- [ ] Shows: Linked opportunity (clickable)
+- [ ] Shows: Notes/description
+- [ ] "Mark Complete" button works
+- [ ] Close button collapses detail
+- [ ] Clicking another activity switches expansion
+
+**Activity Dashboard:**
+- [ ] Shows 4 status cards (Overdue, Due Today, In Progress, Done)
+- [ ] Displays at-risk activities list
+- [ ] Shows presales category breakdown
+- [ ] Counts are accurate
+- [ ] Updates in real-time
+- [ ] Risk indicators (red/orange/green) working
+
+**Manager Visibility:**
+- [ ] Manager sees subordinate activities in dashboard
+- [ ] Overdue count includes team activities
+- [ ] At-risk list includes team items
+
+---
+
+#### 📊 DATA FLOW
+
+**Activity Detail Data:**
+```
+activity_view collection:
+  ↓
+{
+  id, summary, note, due_date, state,
+  presales_category,
+  
+  opportunity: {
+    id, name, value, stage  // Pre-joined!
+  },
+  
+  assigned_to: {
+    user_id, name, email  // Pre-joined!
+  },
+  
+  visible_to_user_ids: [...]  // Authorization
+}
+  ↓
+API: GET /v2/activities/
+  ↓
+Frontend: Activity with all details (no additional queries needed)
+```
+
+---
+
+#### 🎨 DESIGN MOCKUPS
+
+**Collapsed Activity (Current):**
+```
+┌────────────────────────────────────────┐
+│ 🗓️  Meeting 3:10 PM      Meeting      │
+│ SUPREME JUDICIARY                      │
+└────────────────────────────────────────┘
+```
+
+**Expanded Activity (New):**
+```
+┌────────────────────────────────────────┐
+│ 🗓️  Meeting - SUPREME JUDICIARY        │
+│ ┌─ Status: Today | Category: Meeting ─┐│
+│ │                                      ││
+│ │ 👤 Assigned: vinsha Nair             ││
+│ │ 📧 vinsha.nair@securado.net          ││
+│ │                                      ││
+│ │ 📅 Due: Jan 20 (in 5 days)          ││
+│ │ 🎯 Opportunity: SUPREME JUDICIARY    ││
+│ │    $0 • Won • 100%                   ││
+│ │    [View Details →]                  ││
+│ │                                      ││
+│ │ 📝 Follow up on deployment timeline  ││
+│ │                                      ││
+│ │ [✓ Mark Complete] [Edit] [Close]    ││
+│ └──────────────────────────────────────┘│
+└────────────────────────────────────────┘
+```
+
+---
+
+**Related Files:**
+- `frontend/src/components/ActivityDetailCard.js` (NEW)
+- `frontend/src/components/ActivityDashboard.js` (NEW)
+- `frontend/src/pages/ActivityTimeline.js` (integrate components)
+- `backend/api/v2_activities.py` (add dashboard-summary endpoint)
+
+**Dependencies:**
+- Requires: activity_view with complete data (already exists ✅)
+- Requires: Presales categorization (already working ✅)
+- Requires: Opportunity linking (already implemented ✅)
+
+---
+
+## 📊 UPDATED UAT TRACKER
+
+| UAT ID | Title | Priority | Status | Effort |
+|--------|-------|----------|--------|--------|
+| UAT-013 | Activity Detail Expansion | P2 | 📝 Logged | 4-6 hrs |
+| UAT-014 | Activity Dashboard | P2 | 📝 Logged | 3-4 hrs |
+
+**Total UAT Items:** 14  
+**Completed:** 6/14 (43%)  
+**Remaining Effort:** ~40-45 hours
+
+---
+
+## 🎯 UPDATED PRIORITY PLAN
+
+### Phase 1: Critical Fixes (P0) - 14-17 hours
+1. ✅ UAT-006: Activity sync (COMPLETE)
+2. ✅ UAT-009: Toast fix (COMPLETE)
+3. **UAT-011:** Opportunity detail panel (needs browser refresh verification)
+4. **UAT-010:** Team opportunities filter (8 hrs)
+5. **UAT-005:** Granular RBAC (6 hrs)
+
+### Phase 2: Activity Enhancements (P2) - 7-10 hours
+6. **UAT-013:** Activity detail expansion (4-6 hrs)
+7. **UAT-014:** Activity dashboard with risk (3-4 hrs)
+
+### Phase 3: Other Enhancements (P1-P2) - 19 hours
+8. UAT-012: Probability calculation (4 hrs)
+9. UAT-004: Configurable sync (2 hrs)
+10. UAT-003: Refresh buttons (4 hrs)
+11. UAT-007: Target assignment (12 hrs)
+
+**Total Remaining:** ~40-45 hours (5-6 days)
+
+---
+
+## 📄 DOCUMENTATION UPDATES
+
+**Will Update:**
+1. `/app/docs/UAT_TRACKER.md` - Added UAT-013, UAT-014
+2. `/app/docs/TECHNICAL_REFERENCE.md` - Activity detail view architecture
+3. `/app/docs/ACTIVITY_AUTHORIZATION_STRATEGY.md` - Risk calculation logic
+4. `/app/docs/SECURADO_SALES_PROCESS_PLAN.md` - Activity tracking integration
+
+---
+
+
+---
+
 ## 🔴 NEW UAT ITEMS - User Feedback (2025-01-15)
 
 ### 🟡 UAT-009: Remove Repetitive Success Toast

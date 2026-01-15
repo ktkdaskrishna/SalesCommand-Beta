@@ -7,6 +7,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import { formatDate, cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import ActivityDashboard from '../components/ActivityDashboard';
+import ActivityDetailCard from '../components/ActivityDetailCard';
 import {
   Activity,
   Plus,
@@ -47,14 +49,15 @@ const ACTIVITY_TYPES = {
 };
 
 // Activity Item Component
-const ActivityItem = ({ activity }) => {
+const ActivityItem = ({ activity, onClick }) => {
   const config = ACTIVITY_TYPES[activity.activity_type] || ACTIVITY_TYPES.default;
   const Icon = config.icon;
   
   return (
     <div 
-      className="flex gap-4 py-4 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 px-2 -mx-2 rounded-lg transition-colors"
+      className="flex gap-4 py-4 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 px-2 -mx-2 rounded-lg transition-colors cursor-pointer"
       data-testid={`activity-item-${activity.id}`}
+      onClick={onClick}
     >
       {/* Icon */}
       <div className={cn(
@@ -323,6 +326,9 @@ const ActivityTimeline = () => {
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
+
+      {/* Activity Dashboard - Summary with Risk Indicators */}
+      <ActivityDashboard />
 
       {/* Activity Timeline */}
       <div className="card p-6">
