@@ -152,7 +152,6 @@ class OpportunityProjection(BaseProjection):
             {"odoo_id": odoo_id},
             {
                 "$set": opportunity_doc,
-                "$inc": {"version": 1},
                 "$setOnInsert": {
                     "id": str(uuid.uuid4()),
                     "created_at": datetime.now(timezone.utc),
