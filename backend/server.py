@@ -136,7 +136,7 @@ api_router.include_router(sales_router)
 api_router.include_router(config_router)
 api_router.include_router(goals_router)
 api_router.include_router(v2_dashboard_router, prefix="/v2/dashboard")  # CQRS v2
-api_router.include_router(cqrs_sync_router)  # CQRS sync endpoints
+api_router.include_router(cqrs_sync_router, prefix="/integrations/cqrs")  # CQRS sync with prefix
 
 # Mount API router
 app.include_router(api_router)

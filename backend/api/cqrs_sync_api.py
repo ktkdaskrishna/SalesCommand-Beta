@@ -12,7 +12,7 @@ from core.database import Database
 from middleware.rbac import require_permission
 from models.base import UserRole
 
-router = APIRouter(prefix="/api/integrations/cqrs", tags=["CQRS Sync"])
+router = APIRouter(tags=["CQRS Sync"])
 logger = logging.getLogger(__name__)
 
 
