@@ -2,7 +2,7 @@
 Event Publisher & Subscriber
 Event bus for pub/sub pattern in CQRS
 """
-from typing import Callable, List, Dict, Any
+from typing import Callable, List, Dict, Any, Optional
 import asyncio
 import logging
 from .models import Event

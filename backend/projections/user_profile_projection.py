@@ -2,7 +2,7 @@
 User Profile Projection
 Builds denormalized user_profiles materialized view
 """
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
 import uuid
 import logging
