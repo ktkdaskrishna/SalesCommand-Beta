@@ -92,7 +92,7 @@ class BaseProjection(ABC):
         subscribed_types = set(self.subscribes_to())
         relevant_events = [
             e for e in events 
-            if e.event_type.value in subscribed_types
+            if (e.event_type.value if hasattr(e.event_type, 'value') else e.event_type) in subscribed_types
         ]
         
         logger.info(f"Found {len(relevant_events)} relevant events for {self.projection_name}")
