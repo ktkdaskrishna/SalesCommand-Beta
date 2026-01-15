@@ -14,6 +14,7 @@ from models.base import (
 )
 from services.auth.jwt_handler import get_current_user_from_token, require_role
 from services.odoo.connector import OdooConnector
+from services.odoo.sync_pipeline import OdooSyncPipelineService
 from services.ai_mapping.mapper import AIFieldMapper, get_canonical_schema
 from services.data_lake.manager import DataLakeManager
 from core.database import Database
@@ -379,86 +380,18 @@ async def sync_departments_from_odoo(
     if not config.get("url"):
         raise HTTPException(status_code=400, detail="Odoo not configured")
     
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
-    
+    sync_service = OdooSyncPipelineService(db, config, token_data["id"])
     try:
-        departments = await connector.fetch_departments()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
-    finally:
-        await connector.disconnect()
-    
-    # Sync to CRM
-    created = 0
-    updated = 0
-    errors = []
-    odoo_ids = []
-    
-    for dept in departments:
-        odoo_ids.append(dept['odoo_id'])
-        
-        try:
-            existing = await db.departments.find_one({"odoo_id": dept['odoo_id']})
-            
-            if existing:
-                # Update existing
-                await db.departments.update_one(
-                    {"odoo_id": dept['odoo_id']},
-                    {"$set": {
-                        "name": dept['name'],
-                        "complete_name": dept.get('complete_name'),
-                        "parent_odoo_id": dept.get('parent_id'),
-                        "manager_odoo_id": dept.get('manager_id'),
-                        "active": dept.get('active', True),
-                        "synced_at": datetime.now(timezone.utc),
-                        "source": "odoo",
-                    }}
-                )
-                updated += 1
-            else:
-                # Create new
-                await db.departments.insert_one({
-                    "id": str(uuid.uuid4()),
-                    "odoo_id": dept['odoo_id'],
-                    "name": dept['name'],
-                    "complete_name": dept.get('complete_name'),
-                    "parent_odoo_id": dept.get('parent_id'),
-                    "manager_odoo_id": dept.get('manager_id'),
-                    "active": dept.get('active', True),
-                    "source": "odoo",
-                    "synced_at": datetime.now(timezone.utc),
-                    "created_at": datetime.now(timezone.utc),
-                })
-                created += 1
-        except Exception as e:
-            errors.append(f"Failed to sync department {dept.get('name')}: {str(e)}")
-    
-    # Deactivate departments no longer in Odoo
-    deactivated = 0
-    result = await db.departments.update_many(
-        {"source": "odoo", "odoo_id": {"$nin": odoo_ids}, "active": True},
-        {"$set": {"active": False, "deactivated_at": datetime.now(timezone.utc)}}
-    )
-    deactivated = result.modified_count
-    
-    # Log sync event
-    await db.audit_log.insert_one({
-        "id": str(uuid.uuid4()),
-        "action": "sync_departments",
-        "source": "odoo",
-        "user_id": token_data["id"],
-        "details": {"synced": len(departments), "created": created, "updated": updated, "deactivated": deactivated},
-        "timestamp": datetime.now(timezone.utc),
-    })
+        synced, created, updated, deactivated, errors = await sync_service.sync_departments()
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
     
     return DepartmentSyncResponse(
-        synced=len(departments),
+        synced=synced,
         created=created,
         updated=updated,
         deactivated=deactivated,
-        errors=errors
+        errors=errors,
     )
 
 
@@ -482,144 +415,18 @@ async def sync_users_from_odoo(
     if not config.get("url"):
         raise HTTPException(status_code=400, detail="Odoo not configured")
     
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
-    
+    sync_service = OdooSyncPipelineService(db, config, token_data["id"])
     try:
-        odoo_users = await connector.fetch_users()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
-    finally:
-        await connector.disconnect()
-    
-    # Sync to CRM
-    created = 0
-    updated = 0
-    errors = []
-    odoo_ids = []
-    
-    for odoo_user in odoo_users:
-        employee_id = odoo_user.get('odoo_employee_id')
-        user_id = odoo_user.get('odoo_user_id')
-        odoo_ids.append(employee_id or user_id)
-        
-        if not odoo_user.get('email'):
-            errors.append(f"Skipped user {odoo_user.get('name')}: no email")
-            continue
-        
-        try:
-            # Find by email ONLY (most reliable) - do NOT match by name or loose criteria
-            # This prevents cross-user data corruption
-            existing = await db.users.find_one({
-                "email": {"$regex": f"^{odoo_user['email']}$", "$options": "i"}
-            })
-            
-            # If not found by email, try by odoo_employee_id (for previously synced users)
-            if not existing and employee_id:
-                existing = await db.users.find_one({"odoo_employee_id": employee_id})
-            
-            # If still not found, try by odoo_user_id
-            if not existing and user_id:
-                existing = await db.users.find_one({"odoo_user_id": user_id})
-            
-            # Map department
-            dept = None
-            if odoo_user.get('department_odoo_id'):
-                dept = await db.departments.find_one({"odoo_id": odoo_user['department_odoo_id']})
-            
-            if existing:
-                # CRITICAL: Only update if email matches or if this is the same Odoo user
-                existing_email = existing.get('email', '').lower()
-                odoo_email = odoo_user['email'].lower()
-                existing_odoo_id = existing.get('odoo_employee_id') or existing.get('odoo_user_id')
-                
-                # Verify this is the correct match
-                if existing_email != odoo_email and existing_odoo_id != employee_id and existing_odoo_id != user_id:
-                    # This is a different user - don't update, create new instead
-                    logger.warning(f"Email mismatch: local={existing_email}, odoo={odoo_email}. Creating new user instead.")
-                    existing = None
-            
-            if existing:
-                # Update existing user - but don't overwrite name for super_admin
-                update_data = {
-                    "odoo_employee_id": employee_id,
-                    "odoo_user_id": user_id,
-                    "job_title": odoo_user.get('job_title'),
-                    "phone": odoo_user.get('phone'),
-                    "department_id": dept['id'] if dept else existing.get('department_id'),
-                    "department_name": odoo_user.get('department_name'),
-                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
-                    "synced_at": datetime.now(timezone.utc),
-                    "source": "odoo",
-                    "odoo_matched": True,
-                }
-                # Only update name if user isn't a super_admin (preserve admin names)
-                if not existing.get('is_super_admin'):
-                    update_data["name"] = odoo_user['name']
-                    
-                await db.users.update_one({"id": existing['id']}, {"$set": update_data})
-                updated += 1
-            else:
-                # Create new user (pending approval)
-                new_user = {
-                    "id": str(uuid.uuid4()),
-                    "email": odoo_user['email'],
-                    "name": odoo_user['name'],
-                    "hashed_password": None,  # SSO only - no password
-                    "odoo_employee_id": employee_id,
-                    "odoo_user_id": user_id,
-                    "job_title": odoo_user.get('job_title'),
-                    "phone": odoo_user.get('phone'),
-                    "department_id": dept['id'] if dept else None,
-                    "department_name": odoo_user.get('department_name'),
-                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
-                    "role": "pending",  # Needs admin approval to assign role
-                    "role_id": None,
-                    "is_approved": False,
-                    "approval_status": "pending",
-                    "is_super_admin": False,
-                    "source": "odoo",
-                    "synced_at": datetime.now(timezone.utc),
-                    "created_at": datetime.now(timezone.utc),
-                }
-                await db.users.insert_one(new_user)
-                created += 1
-                
-        except Exception as e:
-            errors.append(f"Failed to sync user {odoo_user.get('name')}: {str(e)}")
-    
-    # Deactivate users no longer in Odoo (only odoo-sourced users)
-    deactivated = 0
-    result = await db.users.update_many(
-        {
-            "source": "odoo",
-            "$and": [
-                {"odoo_employee_id": {"$nin": [u.get('odoo_employee_id') for u in odoo_users if u.get('odoo_employee_id')]}},
-                {"odoo_user_id": {"$nin": [u.get('odoo_user_id') for u in odoo_users if u.get('odoo_user_id')]}}
-            ],
-            "is_approved": True
-        },
-        {"$set": {"is_approved": False, "approval_status": "deactivated", "deactivated_at": datetime.now(timezone.utc)}}
-    )
-    deactivated = result.modified_count
-    
-    # Log sync event
-    await db.audit_log.insert_one({
-        "id": str(uuid.uuid4()),
-        "action": "sync_users",
-        "source": "odoo",
-        "user_id": token_data["id"],
-        "details": {"synced": len(odoo_users), "created": created, "updated": updated, "deactivated": deactivated},
-        "timestamp": datetime.now(timezone.utc),
-    })
+        synced, created, updated, deactivated, errors = await sync_service.sync_users()
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
     
     return UserSyncResponse(
-        synced=len(odoo_users),
+        synced=synced,
         created=created,
         updated=updated,
         deactivated=deactivated,
-        errors=errors
+        errors=errors,
     )
 
 
@@ -655,127 +462,26 @@ async def sync_all_from_odoo(
     if not config.get("url"):
         raise HTTPException(status_code=400, detail="Odoo not configured")
     
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
-    
-    synced_entities = {}
-    errors = []
-    
+    sync_service = OdooSyncPipelineService(db, config, token_data["id"])
     try:
-        # 1. Sync Accounts (res.partner)
-        try:
-            accounts = await connector.fetch_accounts()
-            for acc in accounts:
-                serving_doc = {
-                    "entity_type": "account",
-                    "serving_id": f"odoo_account_{acc.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": acc
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["accounts"] = len(accounts)
-        except Exception as e:
-            errors.append(f"Account sync error: {str(e)}")
-        
-        # 2. Sync Opportunities (crm.lead)
-        try:
-            opportunities = await connector.fetch_opportunities()
-            for opp in opportunities:
-                serving_doc = {
-                    "entity_type": "opportunity",
-                    "serving_id": f"odoo_opportunity_{opp.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": opp
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["opportunities"] = len(opportunities)
-        except Exception as e:
-            errors.append(f"Opportunity sync error: {str(e)}")
-        
-        # 3. Sync Invoices (account.move)
-        try:
-            invoices = await connector.fetch_invoices()
-            for inv in invoices:
-                serving_doc = {
-                    "entity_type": "invoice",
-                    "serving_id": f"odoo_invoice_{inv.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": inv
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["invoices"] = len(invoices)
-        except Exception as e:
-            errors.append(f"Invoice sync error: {str(e)}")
-        
-        # 4. Sync Users/Employees (for user matching on approval)
-        try:
-            users = await connector.fetch_users()
-            for usr in users:
-                serving_doc = {
-                    "entity_type": "user",
-                    "serving_id": f"odoo_user_{usr.get('odoo_user_id', usr.get('id'))}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": {
-                        "id": usr.get("odoo_user_id", usr.get("id")),
-                        "name": usr.get("name"),
-                        "email": usr.get("email", "").lower(),
-                        "login": usr.get("login", "").lower(),
-                        "work_email": usr.get("work_email", "").lower(),
-                        "job_title": usr.get("job_title"),
-                        "department_id": usr.get("department_odoo_id"),
-                        "department_name": usr.get("department_name"),
-                        "team_id": usr.get("team_id"),
-                        "team_name": usr.get("team_name"),
-                        "active": usr.get("active", True),
-                    }
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["users"] = len(users)
-        except Exception as e:
-            errors.append(f"User sync error: {str(e)}")
-        
-        # Update integration status
+        synced_entities, errors = await sync_service.sync_data_lake()
         await db.integrations.update_one(
             {"integration_type": "odoo"},
-            {"$set": {
-                "last_sync": datetime.now(timezone.utc),
-                "sync_status": "success" if not errors else "partial",
-                "error_message": "; ".join(errors) if errors else None
-            }}
+            {
+                "$set": {
+                    "last_sync": datetime.now(timezone.utc),
+                    "sync_status": "success" if not errors else "partial",
+                    "error_message": "; ".join(errors) if errors else None,
+                }
+            },
         )
-        
     except Exception as e:
-        errors.append(f"Connection error: {str(e)}")
+        errors = [f"Connection error: {str(e)}"]
+        synced_entities = {}
         await db.integrations.update_one(
             {"integration_type": "odoo"},
-            {"$set": {
-                "sync_status": "failed",
-                "error_message": str(e)
-            }}
+            {"$set": {"sync_status": "failed", "error_message": str(e)}},
         )
-    finally:
-        await connector.disconnect()
     
     duration = time.time() - start_time
     
@@ -1164,4 +870,3 @@ async def get_sync_job(
         raise HTTPException(status_code=404, detail="Sync job not found")
     
     return job
-
