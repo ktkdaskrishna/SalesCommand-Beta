@@ -117,6 +117,7 @@ async def complete_cqrs_setup():
     # STEP 4: Rebuild opportunities with correct visibility
     print("\nStep 4: Rebuilding opportunities with visibility...")
     await db.opportunity_view.delete_many({})
+    await db.opportunity_view.drop_indexes()  # Drop indexes to avoid conflicts
     
     opps_raw = await db.odoo_raw_data.find({
         "entity_type": "opportunity",
