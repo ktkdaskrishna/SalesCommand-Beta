@@ -224,7 +224,7 @@ const SalesDashboard = () => {
                       ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-300' 
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
-                  onClick={() => navigate(`/opportunities/${opp.id}`)}
+                  onClick={() => setSelectedOpportunity(opp)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
