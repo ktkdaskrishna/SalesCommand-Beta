@@ -19,7 +19,10 @@ class EventStore:
     """
     
     def __init__(self, db=None):
-        self.db = db or Database.get_db()
+        if db is not None:
+            self.db = db
+        else:
+            self.db = Database.get_db()
         self.collection = self.db.events
     
     async def append(self, event: Event) -> str:
