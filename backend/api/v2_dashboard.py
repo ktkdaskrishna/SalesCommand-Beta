@@ -31,50 +31,61 @@ async def get_dashboard_v2(
     db = Database.get_db()
     user_id = token_data["id"]
     
-    # STEP 1: Get access matrix (O(1) lookup!)
-    access = await db.user_access_matrix.find_one({"user_id": user_id}, {"_id": 0})
+    # STEP 1: Get user profile first (CQRS uses different collection than auth!)
+    user_profile = await db.user_profiles.find_one(
+        {"email": token_data["email"].lower()},
+        {"_id": 0}
+    )
+    
+    if not user_profile:
+        # User authenticated via old users collection but not in CQRS yet
+        # This happens when user was created before CQRS migration
+        logger.warning(f"User {token_data['email']} not in CQRS system, using fallback")
+        raise HTTPException(
+            status_code=503,
+            detail="CQRS migration in progress. Please contact administrator or re-sync from Odoo."
+        )
+    
+    cqrs_user_id = user_profile["id"]  # Use CQRS user ID, not auth user ID
+    
+    # STEP 2: Get access matrix (O(1) lookup!)
+    access = await db.user_access_matrix.find_one({"user_id": cqrs_user_id}, {"_id": 0})
     
     if not access:
         # Cache miss - rebuild
-        logger.warning(f"Access matrix cache miss for user {user_id}, rebuilding...")
+        logger.warning(f"Access matrix cache miss for user {cqrs_user_id}, rebuilding...")
         from projections.access_matrix_projection import AccessMatrixProjection
         from event_store.store import EventStore
         
         projection = AccessMatrixProjection(db)
         projection.event_store = EventStore(db)
-        await projection.rebuild_for_user(user_id)
-        access = await db.user_access_matrix.find_one({"user_id": user_id}, {"_id": 0})
+        await projection.rebuild_for_user(cqrs_user_id)
+        access = await db.user_access_matrix.find_one({"user_id": cqrs_user_id}, {"_id": 0})
         
         if not access:
-            # Still no access - user might not exist in new system
-            logger.error(f"Cannot build access matrix for user {user_id}")
-            raise HTTPException(status_code=500, detail="Access matrix not available. User may need to re-sync from Odoo.")
+            # Still no access - data issue
+            logger.error(f"Cannot build access matrix for user {cqrs_user_id}")
+            raise HTTPException(status_code=500, detail="Access matrix not available")
     
-    # STEP 2: Get accessible opportunity IDs
+    # STEP 3: Get accessible opportunity IDs
     accessible_opp_ids = access.get("accessible_opportunities", [])
     
-    # STEP 3: Fetch opportunities (already denormalized - no joins!)
+    # STEP 4: Fetch opportunities (already denormalized - no joins!)
     opportunities = await db.opportunity_view.find({
         "odoo_id": {"$in": accessible_opp_ids},
         "is_active": True
     }, {"_id": 0}).to_list(1000)
     
-    # STEP 4: Get pre-computed metrics
+    # STEP 5: Get pre-computed metrics
     metrics = await db.dashboard_metrics.find_one(
-        {"user_id": user_id},
+        {"user_id": cqrs_user_id},
         {"_id": 0}
     )
     
     if not metrics:
         # Cache miss - compute on demand
-        logger.info(f"Metrics cache miss for user {user_id}, computing...")
-        metrics = await _compute_metrics_on_demand(user_id, opportunities)
-    
-    # STEP 5: Get user profile for hierarchy context
-    user_profile = await db.user_profiles.find_one(
-        {"id": user_id},
-        {"_id": 0, "hierarchy": 1, "odoo": 1, "name": 1, "email": 1}
-    )
+        logger.info(f"Metrics cache miss for user {cqrs_user_id}, computing...")
+        metrics = await _compute_metrics_on_demand(cqrs_user_id, opportunities)
     
     return {
         "source": "cqrs_v2",
