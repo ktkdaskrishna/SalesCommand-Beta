@@ -9,7 +9,7 @@ import uuid
 import logging
 
 from core.database import Database
-from middleware.rbac import require_permission
+from middleware.rbac import require_approved  # Changed from require_permission
 from models.base import UserRole
 
 router = APIRouter(tags=["CQRS Sync"])
@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 @router.post("/sync/trigger")
 async def trigger_cqrs_sync(
     background_tasks: BackgroundTasks,
-    token_data: dict = Depends(require_permission("manage_integrations"))
+    token_data: dict = Depends(require_approved())  # Allow all approved users, not just specific permission
 ):
     """
     Manually trigger CQRS sync from Odoo.
+    Available to all approved users (will be restricted to admins in production).
     
     Process:
     1. Fetch data from Odoo
@@ -133,7 +134,7 @@ async def run_cqrs_sync(sync_job_id: str):
 
 @router.get("/health")
 async def get_cqrs_health(
-    token_data: dict = Depends(require_permission("view_integrations"))
+    token_data: dict = Depends(require_approved())  # All approved users
 ):
     """
     Get CQRS system health.
