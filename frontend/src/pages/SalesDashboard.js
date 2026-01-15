@@ -288,6 +288,14 @@ const SalesDashboard = () => {
           </p>
         </div>
       )}
+      
+      {/* Opportunity Detail Panel - Slide-over */}
+      {selectedOpportunity && (
+        <OpportunityDetailPanel
+          opportunity={selectedOpportunity}
+          onClose={() => setSelectedOpportunity(null)}
+        />
+      )}
     </div>
   );
 };
