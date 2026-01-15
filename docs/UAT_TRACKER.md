@@ -997,6 +997,522 @@ Implement interface for Product Directors to assign Goals and Activities (POCs, 
   id: \"uuid\",
   set_by_user_id: \"ceo_uuid\",
   assigned_to_user_id: \"pd_uuid\",
+
+
+---
+
+## 🔴 NEW UAT ITEMS - User Feedback (2025-01-15)
+
+### 🟡 UAT-009: Remove Repetitive Success Toast
+
+**Priority:** P1  
+**Status:** ✅ COMPLETE  
+**Assigned To:** E1  
+**Effort:** 5 minutes  
+**Completed:** 2025-01-15
+
+**Description:**
+"Dashboard loaded successfully" toast appears every time dashboard loads (on navigation, refresh, etc.). This is repetitive and annoying for users.
+
+**Solution Implemented:**
+- Removed `toast.success('Dashboard loaded successfully')` from fetchDashboard()
+- Toast only shows on:
+  - Manual refresh (user clicks Refresh button)
+  - Manual sync (user clicks Sync Now)
+  - Errors (always show error toasts)
+
+**File Changed:**
+- `/app/frontend/src/pages/SalesDashboard.js` (line 45)
+
+**Status:** ✅ FIXED
+
+---
+
+### 🔴 UAT-010: Opportunities Tab - Team View & Filtering
+
+**Priority:** P0 (Manager Feature Broken)  
+**Status:** 📝 LOGGED  
+**Assigned To:** TBD  
+**Estimated Effort:** 6-8 hours
+
+**Description:**
+The Opportunities page (`/opportunities`) shows only individual opportunities. Missing critical manager features:
+1. No team opportunities visible (manager should see subordinate opportunities)
+2. No filtering mechanism (My Opportunities vs Team Opportunities)
+3. Different from dashboard which correctly shows team data
+
+**Current State:**
+- Dashboard: Shows 4 opportunities (2 own + 2 team) ✅
+- Opportunities page: Shows unknown count (needs investigation) ❌
+- No filter dropdown to switch between "My Opps" and "Team Opps" ❌
+
+**Required Features:**
+
+**1. Filter Dropdown (Top-Right):**
+```jsx
+<Select value={filter} onChange={setFilter}>
+  <Option value="all">All Opportunities ({total})</Option>
+  <Option value="mine">My Opportunities ({own_count})</Option>
+  {isManager && (
+    <Option value="team">Team Opportunities ({team_count})</Option>
+  )}
+</Select>
+```
+
+**2. Backend API Enhancement:**
+```python
+# File: backend/routes/sales.py or api/v2_dashboard.py
+
+@router.get("/v2/opportunities")
+async def get_opportunities_v2(
+    filter: str = Query(default="all"),  # "all", "mine", "team"
+    token_data: dict = Depends(require_approved())
+):
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    # Get user profile for hierarchy info
+    user_profile = await db.user_profiles.find_one({"id": user_id})
+    
+    if filter == "mine":
+        # Only own opportunities
+        opportunities = await db.opportunity_view.find({
+            "salesperson.user_id": user_id,
+            "is_active": True
+        }).to_list(1000)
+    
+    elif filter == "team":
+        # Only subordinate opportunities (for managers)
+        subordinate_ids = [
+            s["user_id"] 
+            for s in user_profile.get("hierarchy", {}).get("subordinates", [])
+        ]
+        
+        opportunities = await db.opportunity_view.find({
+            "salesperson.user_id": {"$in": subordinate_ids},
+            "is_active": True
+        }).to_list(1000)
+    
+    else:  # "all"
+        # All accessible (own + team)
+        opportunities = await db.opportunity_view.find({
+            "visible_to_user_ids": user_id,
+            "is_active": True
+        }).to_list(1000)
+    
+    return {
+        "opportunities": opportunities,
+        "filter": filter,
+        "counts": {
+            "all": len(opportunities),
+            "mine": count_mine,
+            "team": count_team
+        }
+    }
+```
+
+**3. Frontend Updates:**
+```jsx
+// File: frontend/src/pages/Opportunities.js
+
+const [filter, setFilter] = useState('all');
+const [opportunities, setOpportunities] = useState([]);
+
+const fetchOpportunities = async () => {
+  const response = await dashboardAPI.getV2Opportunities({ filter });
+  setOpportunities(response.data.opportunities);
+  setCounts(response.data.counts);
+};
+
+// Add filter UI
+<div className="flex justify-between mb-4">
+  <h1>Opportunities</h1>
+  
+  {isManager && (
+    <Select value={filter} onValueChange={setFilter}>
+      <SelectTrigger className="w-[200px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">
+          All ({counts.all})
+        </SelectItem>
+        <SelectItem value="mine">
+          My Opportunities ({counts.mine})
+        </SelectItem>
+        <SelectItem value="team">
+          Team Opportunities ({counts.team})
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  )}
+</div>
+```
+
+**Acceptance Criteria:**
+- [ ] Manager sees filter dropdown with 3 options
+- [ ] "All" shows own + team opportunities
+- [ ] "My Opportunities" shows only own
+- [ ] "Team Opportunities" shows only subordinates'
+- [ ] Non-managers don't see team option
+- [ ] Filter persists during session
+- [ ] Counts are accurate
+
+**Related Files:**
+- `frontend/src/pages/Opportunities.js`
+- `backend/api/v2_dashboard.py` (add getV2Opportunities endpoint)
+- `frontend/src/services/api.js` (add API method)
+
+---
+
+### 🔴 UAT-011: Opportunity Card Click - Detail Panel Not Opening
+
+**Priority:** P0 (Broken Navigation)  
+**Status:** 📝 LOGGED  
+**Assigned To:** TBD  
+**Estimated Effort:** 2-3 hours
+
+**Description:**
+Clicking on an opportunity card in the dashboard does NOT open the detail panel. Previously, expansion click would show opportunity details in a slide-over panel.
+
+**Previous Behavior (Working):**
+```
+Click opportunity card
+  ↓
+OpportunityDetailPanel slides in from right
+  ↓
+Shows: Opportunity details, activities, contacts, notes
+  ↓
+User can edit or close panel
+```
+
+**Current Behavior (Broken):**
+```
+Click opportunity card
+  ↓
+Nothing happens (no navigation, no panel)
+```
+
+**Investigation Required:**
+
+**1. Check Dashboard Card Click Handler:**
+```jsx
+// File: frontend/src/pages/SalesDashboard.js
+
+// Current (around line 175):
+<div
+  className="..."
+  onClick={() => navigate(`/opportunities/${opp.id}`)}  // Does this work?
+>
+```
+
+**2. Check if OpportunityDetailPanel Component Exists:**
+```bash
+# Find component
+find /app/frontend/src -name "*OpportunityDetail*"
+
+# Expected: OpportunityDetailPanel.js or similar
+```
+
+**3. Check Route Configuration:**
+```jsx
+// File: frontend/src/App.js
+
+// Should have:
+<Route path="/opportunities/:id" element={<OpportunityDetail />} />
+// OR use slide-over panel (no route change)
+```
+
+**Required Fix:**
+
+**Option A: Restore Slide-Over Panel (Recommended)**
+```jsx
+// In SalesDashboard.js
+
+const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+
+// Card onClick:
+onClick={() => setSelectedOpportunity(opp)}
+
+// Render panel:
+{selectedOpportunity && (
+  <OpportunityDetailPanel
+    opportunity={selectedOpportunity}
+    onClose={() => setSelectedOpportunity(null)}
+  />
+)}
+```
+
+**Option B: Navigation to Detail Page**
+```jsx
+// Ensure route exists and ID is correct
+onClick={() => navigate(`/opportunities/${opp.odoo_id}`)}  // Use odoo_id not UUID
+```
+
+**Acceptance Criteria:**
+- [ ] Clicking opportunity card opens detail view
+- [ ] Detail panel/page shows opportunity information
+- [ ] Can close panel or navigate back
+- [ ] Works for both own and team opportunities
+- [ ] Previous functionality restored
+
+**Files to Check:**
+- `frontend/src/pages/SalesDashboard.js`
+- `frontend/src/components/OpportunityDetailPanel.js` (if exists)
+- `frontend/src/App.js` (routes)
+- `frontend/src/pages/OpportunityDetail.js` (if route-based)
+
+---
+
+### 🟡 UAT-012: Probability Calculation Not Working
+
+**Priority:** P1 (Missing Feature)  
+**Status:** 📝 LOGGED  
+**Assigned To:** TBD  
+**Estimated Effort:** 3-4 hours
+
+**Description:**
+Opportunity probability calculation feature is not working. This is the Blue Sheet probability calculation that was previously implemented.
+
+**Expected Feature:**
+```
+Opportunity Detail View:
+  ↓
+"Calculate Probability" button
+  ↓
+Blue Sheet Analysis Form:
+  - Economic Buyer Identified: [Yes/No]
+  - Coach Engaged: [Yes/No]
+  - Budget Confirmed: [Yes/No]
+  - etc.
+  ↓
+Submit
+  ↓
+Calculated Probability: 75%
+AI Recommendations: [List of suggestions]
+```
+
+**Current State:**
+- Endpoint exists: `POST /api/opportunities/{id}/calculate-probability`
+- Backend logic exists in `routes/sales.py`
+- But: Not integrated with CQRS opportunity_view
+- But: Frontend may not have button/form
+
+**Investigation Required:**
+
+**1. Backend Endpoint Check:**
+```bash
+# Test endpoint
+curl -X POST /api/opportunities/{opp_id}/calculate-probability \
+  -H "Authorization: Bearer {token}" \
+  -d '{
+    "economic_buyer_identified": true,
+    "coach_engaged": false,
+    ...
+  }'
+
+# Expected: Returns calculated probability
+```
+
+**2. Frontend Integration:**
+```jsx
+// Check if exists in OpportunityDetailPanel or OpportunityDetail page
+
+// Should have:
+<Button onClick={openBlueSheetForm}>
+  Calculate Probability
+</Button>
+
+<BlueSheetAnalysisModal
+  opportunity={opportunity}
+  onCalculate={handleCalculate}
+/>
+```
+
+**3. CQRS Integration:**
+```python
+# After calculation, update opportunity_view:
+await db.opportunity_view.update_one(
+    {"odoo_id": opp_id},
+    {
+        "$set": {
+            "probability": calculated_probability,
+            "blue_sheet_analysis": analysis_data,
+            "last_calculated": datetime.now(timezone.utc)
+        }
+    }
+)
+
+# Also update Odoo if needed (write-back)
+```
+
+**Required Implementation:**
+
+**Backend:**
+- [ ] Verify calculate-probability endpoint working
+- [ ] Update endpoint to work with CQRS opportunity_view (odoo_id)
+- [ ] Persist calculation results to opportunity_view
+- [ ] Generate event: OpportunityProbabilityCalculated
+
+**Frontend:**
+- [ ] Add "Calculate Probability" button to opportunity detail
+- [ ] Create/restore Blue Sheet form modal
+- [ ] Submit calculation to backend
+- [ ] Display results (probability % + AI recommendations)
+- [ ] Show probability on opportunity cards
+
+**Acceptance Criteria:**
+- [ ] "Calculate Probability" button visible on opportunity detail
+- [ ] Blue Sheet form opens with all fields
+- [ ] Calculation returns probability %
+- [ ] AI recommendations generated (if LLM configured)
+- [ ] Probability saved and displayed on cards
+- [ ] Works with CQRS opportunity_view
+
+**Related Files:**
+- `backend/routes/sales.py` (calculate-probability endpoint)
+- `backend/api/v2_dashboard.py` (may need v2 endpoint)
+- `frontend/src/components/BlueSheetModal.js` (if exists)
+- `frontend/src/pages/OpportunityDetail.js`
+
+---
+
+## 📊 UPDATED PROGRESS TRACKING
+
+| UAT ID | Title | Priority | Status | Effort | Assignee |
+|--------|-------|----------|--------|--------|----------|
+| UAT-001 | Remove CQRS Banner | P1 | ✅ COMPLETE | 15min | E1 |
+| UAT-002 | Notification Position | P1 | ✅ COMPLETE | 30min | E1 |
+| UAT-003 | Manual Refresh | P2 | 📝 Logged | 3-4hrs | TBD |
+| UAT-004 | Configurable Sync | P2 | 📝 Logged | 2hrs | TBD |
+| UAT-005 | Granular RBAC | P0 | 📝 Logged | 4-6hrs | TBD |
+| UAT-006 | Activity Sync Fix | P0 | 🔄 80% Done | 4-6hrs | E1 |
+| UAT-007 | Target Assignment | P2 | 📝 Logged | 8-12hrs | TBD |
+| UAT-008 | System Config Menu | P2 | ✅ COMPLETE | 1hr | E1 |
+| **UAT-009** | **Remove Success Toast** | **P1** | **✅ COMPLETE** | **5min** | **E1** |
+| **UAT-010** | **Team Opportunities Filter** | **P0** | **📝 Logged** | **6-8hrs** | **TBD** |
+| **UAT-011** | **Opportunity Click Broken** | **P0** | **📝 Logged** | **2-3hrs** | **TBD** |
+| **UAT-012** | **Probability Calculation** | **P1** | **📝 Logged** | **3-4hrs** | **TBD** |
+
+**Total Items:** 12  
+**Completed:** 4/12 (33%)  
+**In Progress:** 1/12 (UAT-006)  
+**Remaining:** 7/12  
+**Total Effort Remaining:** ~30-40 hours
+
+---
+
+## 🎯 PRIORITY IMPLEMENTATION ORDER (UPDATED)
+
+### Phase 1: Critical Fixes (P0 Items) - 10-17 hours
+1. ✅ UAT-009: Success toast removed (DONE)
+2. **UAT-010:** Team opportunities filter (6-8 hrs) - NEXT
+3. **UAT-011:** Opportunity detail panel (2-3 hrs)
+4. **UAT-006:** Complete activity sync (1 hr remaining)
+5. **UAT-005:** Granular RBAC (4-6 hrs)
+
+### Phase 2: UX Improvements (P1 Items) - 3-4 hours
+6. **UAT-012:** Probability calculation (3-4 hrs)
+
+### Phase 3: Enhancements (P2 Items) - 9-16 hours
+7. UAT-004: Configurable auto-sync (2 hrs)
+8. UAT-003: Manual refresh buttons (3-4 hrs)
+9. UAT-007: Target assignment system (8-12 hrs)
+
+---
+
+## 📝 INVESTIGATION NOTES - UAT-010
+
+### Current Opportunities Page Issues
+
+**What We Know:**
+- Dashboard correctly uses v2 API (`/api/v2/dashboard/`)
+- Dashboard shows 4 opportunities for manager (2 own + 2 team)
+- Opportunities page likely uses old API (`/api/opportunities`)
+- Old API may not have team filtering
+
+**Files to Investigate:**
+- `frontend/src/pages/Opportunities.js` - Current implementation
+- Which API endpoint is it calling?
+- Does it use v1 or v2?
+- Does it have filter logic?
+
+**Likely Issue:**
+```javascript
+// Opportunities.js probably calls:
+await api.get('/opportunities')  // Old v1 endpoint
+
+// Should call:
+await api.get('/v2/dashboard/opportunities?filter=all')  // v2 with filtering
+```
+
+**Required Changes:**
+1. Update Opportunities.js to use v2 API
+2. Add filter dropdown UI
+3. Implement filter logic (all/mine/team)
+4. Show team badge on team opportunities
+5. Display subordinate name on team opps
+
+---
+
+## 📝 INVESTIGATION NOTES - UAT-011
+
+### Opportunity Card Click Issue
+
+**Observed Behavior:**
+- Opportunity cards have arrow icon (suggests clickable)
+- onClick handler exists: `onClick={() => navigate(\`/opportunities/${opp.id}\`)}`
+- But: Nothing happens when clicked
+
+**Possible Causes:**
+1. **Route doesn't exist:** No `/opportunities/:id` route in App.js
+2. **ID format wrong:** Using opp.id (UUID) but should use opp.odoo_id
+3. **Component doesn't exist:** OpportunityDetail page missing
+4. **Panel component missing:** OpportunityDetailPanel not imported
+
+**Previous Implementation (From Handoff):**
+- Had OpportunityDetailPanel component
+- Slide-over panel from right side
+- Showed: Details, activities, contacts, edit button
+
+**Required Investigation:**
+```bash
+# Check if component exists
+ls /app/frontend/src/components/*Opportunity*Detail*
+
+# Check if route exists
+grep "opportunities/:id" /app/frontend/src/App.js
+
+# Check current card onClick
+grep -A 5 "onClick.*navigate.*opportunities" /app/frontend/src/pages/SalesDashboard.js
+```
+
+**Fix Strategy:**
+- Option A: Restore OpportunityDetailPanel (slide-over)
+- Option B: Create OpportunityDetail page with route
+- Option C: Navigate to existing opportunities page with selected opp highlighted
+
+---
+
+## 🎯 NEXT ACTIONS
+
+**Immediate (Now):**
+1. ✅ Remove success toast (DONE)
+2. Investigate Opportunities.js current implementation
+3. Check if OpportunityDetailPanel exists
+4. Document findings for UAT-010 and UAT-011
+
+**Short-term (Next 2-3 hours):**
+1. Fix UAT-011 (opportunity click)
+2. Implement UAT-010 (team filter)
+3. Complete UAT-006 (activity sync frontend)
+
+**Medium-term (Tomorrow):**
+1. UAT-005: Granular RBAC
+2. UAT-012: Probability calculation
+3. UAT-004: Configurable sync
+
+---
   product_line: \"MSSP\" | \"Network Security\" | \"GRC\" | \"App Security\",
   gp_target_amount: 500000,
   period: \"Q1 2026\",
