@@ -21,7 +21,15 @@ class SystemLogger:
     """
     
     def __init__(self, db=None):
-        self.db = db or Database.get_db()
+        # Lazy initialization - db will be set when first used
+        self._db = db
+    
+    @property
+    def db(self):
+        if self._db is None:
+            from core.database import Database
+            self._db = Database.get_db()
+        return self._db
     
     async def log_error(
         self,

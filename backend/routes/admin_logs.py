@@ -9,7 +9,7 @@ import logging
 
 from core.database import Database
 from models.base import UserRole
-from middleware.rbac import require_role
+from services.auth.jwt_handler import require_role
 from services.logging.system_logger import system_logger
 
 router = APIRouter(prefix="/admin/logs", tags=["Admin Logs"])
