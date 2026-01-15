@@ -292,14 +292,19 @@ const Header = ({ onMenuClick, user, onLogout }) => {
                     <User className="w-4 h-4" />
                     My Profile
                   </Link>
-                  <Link
-                    to="/system-config"
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                    onClick={() => setShowDropdown(false)}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Link>
+                  
+                  {/* System Config for privileged users */}
+                  {(user?.is_super_admin || user?.permissions?.includes?.('system.config.view')) && (
+                    <Link
+                      to="/system-config"
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      onClick={() => setShowDropdown(false)}
+                    >
+                      <Settings className="w-4 h-4" />
+                      System Config
+                    </Link>
+                  )}
+                  
                   {user?.is_super_admin && (
                     <Link
                       to="/admin-dashboard"

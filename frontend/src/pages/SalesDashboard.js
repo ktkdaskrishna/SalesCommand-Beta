@@ -118,23 +118,6 @@ const SalesDashboard = () => {
         </div>
       </div>
 
-      {/* Architecture Badge */}
-      {useV2 && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <Zap className="w-5 h-5 text-indigo-600" />
-            <div className="flex-1">
-              <p className="font-medium text-indigo-900">
-                ⚡ CQRS v2 Architecture Active
-              </p>
-              <p className="text-sm text-indigo-600">
-                Event Sourcing + Materialized Views | Sub-second performance | Pre-computed access control
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
