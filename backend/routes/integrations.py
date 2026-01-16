@@ -398,156 +398,25 @@ async def sync_users_from_odoo(
     Users are SOURCE OF TRUTH from Odoo - manual user creation is blocked.
     Users synced here are set to 'pending' approval status.
     """
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
+    
     db = Database.get_db()
-    
-    # Get Odoo config
-    intg = await db.integrations.find_one({"integration_type": "odoo"})
-    if not intg or not intg.get("enabled"):
-        raise HTTPException(status_code=400, detail="Odoo integration not enabled")
-    
-    config = intg.get("config", {})
-    if not config.get("url"):
-        raise HTTPException(status_code=400, detail="Odoo not configured")
-    
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
+    pipeline = OdooSyncPipelineService(db)
     
     try:
-        odoo_users = await connector.fetch_users()
+        result = await pipeline.sync_users(user_id=token_data["id"])
+        
+        return UserSyncResponse(
+            synced=result.synced,
+            created=result.created,
+            updated=result.updated,
+            deactivated=result.deactivated,
+            errors=result.errors
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
-    finally:
-        await connector.disconnect()
-    
-    # Sync to CRM
-    created = 0
-    updated = 0
-    errors = []
-    odoo_ids = []
-    
-    for odoo_user in odoo_users:
-        employee_id = odoo_user.get('odoo_employee_id')
-        user_id = odoo_user.get('odoo_user_id')
-        odoo_ids.append(employee_id or user_id)
-        
-        if not odoo_user.get('email'):
-            errors.append(f"Skipped user {odoo_user.get('name')}: no email")
-            continue
-        
-        try:
-            # Find by email ONLY (most reliable) - do NOT match by name or loose criteria
-            # This prevents cross-user data corruption
-            existing = await db.users.find_one({
-                "email": {"$regex": f"^{odoo_user['email']}$", "$options": "i"}
-            })
-            
-            # If not found by email, try by odoo_employee_id (for previously synced users)
-            if not existing and employee_id:
-                existing = await db.users.find_one({"odoo_employee_id": employee_id})
-            
-            # If still not found, try by odoo_user_id
-            if not existing and user_id:
-                existing = await db.users.find_one({"odoo_user_id": user_id})
-            
-            # Map department
-            dept = None
-            if odoo_user.get('department_odoo_id'):
-                dept = await db.departments.find_one({"odoo_id": odoo_user['department_odoo_id']})
-            
-            if existing:
-                # CRITICAL: Only update if email matches or if this is the same Odoo user
-                existing_email = existing.get('email', '').lower()
-                odoo_email = odoo_user['email'].lower()
-                existing_odoo_id = existing.get('odoo_employee_id') or existing.get('odoo_user_id')
-                
-                # Verify this is the correct match
-                if existing_email != odoo_email and existing_odoo_id != employee_id and existing_odoo_id != user_id:
-                    # This is a different user - don't update, create new instead
-                    logger.warning(f"Email mismatch: local={existing_email}, odoo={odoo_email}. Creating new user instead.")
-                    existing = None
-            
-            if existing:
-                # Update existing user - but don't overwrite name for super_admin
-                update_data = {
-                    "odoo_employee_id": employee_id,
-                    "odoo_user_id": user_id,
-                    "job_title": odoo_user.get('job_title'),
-                    "phone": odoo_user.get('phone'),
-                    "department_id": dept['id'] if dept else existing.get('department_id'),
-                    "department_name": odoo_user.get('department_name'),
-                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
-                    "synced_at": datetime.now(timezone.utc),
-                    "source": "odoo",
-                    "odoo_matched": True,
-                }
-                # Only update name if user isn't a super_admin (preserve admin names)
-                if not existing.get('is_super_admin'):
-                    update_data["name"] = odoo_user['name']
-                    
-                await db.users.update_one({"id": existing['id']}, {"$set": update_data})
-                updated += 1
-            else:
-                # Create new user (pending approval)
-                new_user = {
-                    "id": str(uuid.uuid4()),
-                    "email": odoo_user['email'],
-                    "name": odoo_user['name'],
-                    "hashed_password": None,  # SSO only - no password
-                    "odoo_employee_id": employee_id,
-                    "odoo_user_id": user_id,
-                    "job_title": odoo_user.get('job_title'),
-                    "phone": odoo_user.get('phone'),
-                    "department_id": dept['id'] if dept else None,
-                    "department_name": odoo_user.get('department_name'),
-                    "manager_odoo_id": odoo_user.get('manager_odoo_id'),
-                    "role": "pending",  # Needs admin approval to assign role
-                    "role_id": None,
-                    "is_approved": False,
-                    "approval_status": "pending",
-                    "is_super_admin": False,
-                    "source": "odoo",
-                    "synced_at": datetime.now(timezone.utc),
-                    "created_at": datetime.now(timezone.utc),
-                }
-                await db.users.insert_one(new_user)
-                created += 1
-                
-        except Exception as e:
-            errors.append(f"Failed to sync user {odoo_user.get('name')}: {str(e)}")
-    
-    # Deactivate users no longer in Odoo (only odoo-sourced users)
-    deactivated = 0
-    result = await db.users.update_many(
-        {
-            "source": "odoo",
-            "$and": [
-                {"odoo_employee_id": {"$nin": [u.get('odoo_employee_id') for u in odoo_users if u.get('odoo_employee_id')]}},
-                {"odoo_user_id": {"$nin": [u.get('odoo_user_id') for u in odoo_users if u.get('odoo_user_id')]}}
-            ],
-            "is_approved": True
-        },
-        {"$set": {"is_approved": False, "approval_status": "deactivated", "deactivated_at": datetime.now(timezone.utc)}}
-    )
-    deactivated = result.modified_count
-    
-    # Log sync event
-    await db.audit_log.insert_one({
-        "id": str(uuid.uuid4()),
-        "action": "sync_users",
-        "source": "odoo",
-        "user_id": token_data["id"],
-        "details": {"synced": len(odoo_users), "created": created, "updated": updated, "deactivated": deactivated},
-        "timestamp": datetime.now(timezone.utc),
-    })
-    
-    return UserSyncResponse(
-        synced=len(odoo_users),
-        created=created,
-        updated=updated,
-        deactivated=deactivated,
-        errors=errors
-    )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class OdooFullSyncResponse(BaseModel):
