@@ -180,7 +180,7 @@ class AccessMatrixProjection(BaseProjection):
             # Pre-computed access lists
             "accessible_opportunities": accessible_opp_ids,
             "accessible_accounts": list(accessible_accounts),
-            "accessible_user_ids": subordinate_ids,  # Users they can view
+            "accessible_user_ids": all_subordinate_ids,  # Users they can view (ALL levels)
             
             # Hierarchy context
             "is_super_admin": is_super_admin,
