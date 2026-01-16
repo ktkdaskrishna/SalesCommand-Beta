@@ -168,6 +168,11 @@ async def rebuild_access_matrix(
         }
         
     except Exception as e:
+        logger.error(f"Failed to rebuild access matrix: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to rebuild access matrix: {str(e)}"
+        )
 
 
 @router.post("/rebuild-opportunity-visibility")
