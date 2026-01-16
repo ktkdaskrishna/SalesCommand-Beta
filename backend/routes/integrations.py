@@ -368,98 +368,25 @@ async def sync_departments_from_odoo(
     Sync departments from Odoo hr.department.
     Departments are SOURCE OF TRUTH from Odoo - CRM departments are read-only.
     """
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
+    
     db = Database.get_db()
-    
-    # Get Odoo config
-    intg = await db.integrations.find_one({"integration_type": "odoo"})
-    if not intg or not intg.get("enabled"):
-        raise HTTPException(status_code=400, detail="Odoo integration not enabled")
-    
-    config = intg.get("config", {})
-    if not config.get("url"):
-        raise HTTPException(status_code=400, detail="Odoo not configured")
-    
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
+    pipeline = OdooSyncPipelineService(db)
     
     try:
-        departments = await connector.fetch_departments()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch from Odoo: {str(e)}")
-    finally:
-        await connector.disconnect()
-    
-    # Sync to CRM
-    created = 0
-    updated = 0
-    errors = []
-    odoo_ids = []
-    
-    for dept in departments:
-        odoo_ids.append(dept['odoo_id'])
+        result = await pipeline.sync_departments(user_id=token_data["id"])
         
-        try:
-            existing = await db.departments.find_one({"odoo_id": dept['odoo_id']})
-            
-            if existing:
-                # Update existing
-                await db.departments.update_one(
-                    {"odoo_id": dept['odoo_id']},
-                    {"$set": {
-                        "name": dept['name'],
-                        "complete_name": dept.get('complete_name'),
-                        "parent_odoo_id": dept.get('parent_id'),
-                        "manager_odoo_id": dept.get('manager_id'),
-                        "active": dept.get('active', True),
-                        "synced_at": datetime.now(timezone.utc),
-                        "source": "odoo",
-                    }}
-                )
-                updated += 1
-            else:
-                # Create new
-                await db.departments.insert_one({
-                    "id": str(uuid.uuid4()),
-                    "odoo_id": dept['odoo_id'],
-                    "name": dept['name'],
-                    "complete_name": dept.get('complete_name'),
-                    "parent_odoo_id": dept.get('parent_id'),
-                    "manager_odoo_id": dept.get('manager_id'),
-                    "active": dept.get('active', True),
-                    "source": "odoo",
-                    "synced_at": datetime.now(timezone.utc),
-                    "created_at": datetime.now(timezone.utc),
-                })
-                created += 1
-        except Exception as e:
-            errors.append(f"Failed to sync department {dept.get('name')}: {str(e)}")
-    
-    # Deactivate departments no longer in Odoo
-    deactivated = 0
-    result = await db.departments.update_many(
-        {"source": "odoo", "odoo_id": {"$nin": odoo_ids}, "active": True},
-        {"$set": {"active": False, "deactivated_at": datetime.now(timezone.utc)}}
-    )
-    deactivated = result.modified_count
-    
-    # Log sync event
-    await db.audit_log.insert_one({
-        "id": str(uuid.uuid4()),
-        "action": "sync_departments",
-        "source": "odoo",
-        "user_id": token_data["id"],
-        "details": {"synced": len(departments), "created": created, "updated": updated, "deactivated": deactivated},
-        "timestamp": datetime.now(timezone.utc),
-    })
-    
-    return DepartmentSyncResponse(
-        synced=len(departments),
-        created=created,
-        updated=updated,
-        deactivated=deactivated,
-        errors=errors
-    )
+        return DepartmentSyncResponse(
+            synced=result.synced,
+            created=result.created,
+            updated=result.updated,
+            deactivated=result.deactivated,
+            errors=result.errors
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/odoo/sync-users", response_model=UserSyncResponse)
