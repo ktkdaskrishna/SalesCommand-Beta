@@ -85,12 +85,10 @@ class OpportunityProjection(BaseProjection):
                 # Owner can see
                 visible_to_user_ids.append(sp_user["id"])
                 
-                # Manager can see (CRITICAL for hierarchy visibility)
-                if salesperson.get("manager"):
-                    manager_user_id = salesperson["manager"].get("user_id")
-                    if manager_user_id:
-                        visible_to_user_ids.append(manager_user_id)
-                        logger.debug(f"Added manager {manager_user_id} to visibility for opp {odoo_id}")
+                # ALL managers in chain can see (CRITICAL for multi-level hierarchy)
+                manager_chain = await self._get_all_managers_recursive(sp_user["id"])
+                visible_to_user_ids.extend(manager_chain)
+                logger.debug(f"Added {len(manager_chain)} managers to visibility for opp {odoo_id}")
         else:
             logger.warning(f"Opportunity {odoo_id} has no salesperson_id")
         
