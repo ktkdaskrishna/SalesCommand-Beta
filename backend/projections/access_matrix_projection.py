@@ -200,4 +200,48 @@ class AccessMatrixProjection(BaseProjection):
             upsert=True
         )
         
-        logger.info(f"Access matrix rebuilt for {user['email']}: {len(accessible_opp_ids)} opps, {len(subordinates)} subordinates")
+        logger.info(f"Access matrix rebuilt for {user['email']}: {len(accessible_opp_ids)} opps, {len(all_subordinate_ids)} total subordinates ({len(subordinates)} direct)")
+    
+    async def _get_all_subordinates_recursive(self, user_id: str, visited=None) -> List[str]:
+        """
+        Recursively get ALL subordinate user IDs (multi-level hierarchy).
+        
+        Example:
+            Krishna manages Vinsha, Vinsha manages Zakariya
+            → get_all_subordinates(Krishna) returns [Vinsha_ID, Zakariya_ID]
+        
+        Args:
+            user_id: User UUID to get subordinates for
+            visited: Set of already visited user IDs (prevents infinite loops)
+        
+        Returns:
+            List of ALL subordinate user IDs at all levels
+        """
+        if visited is None:
+            visited = set()
+        
+        # Prevent infinite loops in case of circular references
+        if user_id in visited:
+            return []
+        
+        visited.add(user_id)
+        all_subordinates = []
+        
+        # Get user's direct subordinates
+        user = await self.user_profiles.find_one({"id": user_id}, {"_id": 0, "hierarchy.subordinates": 1})
+        if not user:
+            return []
+        
+        direct_subordinates = user.get("hierarchy", {}).get("subordinates", [])
+        
+        for sub in direct_subordinates:
+            sub_id = sub.get("user_id")
+            if sub_id and sub_id not in visited:
+                # Add this subordinate
+                all_subordinates.append(sub_id)
+                
+                # Recursively get their subordinates
+                indirect_subs = await self._get_all_subordinates_recursive(sub_id, visited)
+                all_subordinates.extend(indirect_subs)
+        
+        return all_subordinates
