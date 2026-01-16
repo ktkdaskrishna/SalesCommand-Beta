@@ -186,6 +186,7 @@ class AccessMatrixProjection(BaseProjection):
             "is_super_admin": is_super_admin,
             "is_manager": user.get("hierarchy", {}).get("is_manager", False),
             "subordinate_count": len(subordinates),
+            "all_subordinate_count": len(all_subordinate_ids),  # Including indirect reports
             "managed_team_ids": [user.get("odoo", {}).get("team_id")] if user.get("odoo", {}).get("team_id") else [],
             
             # Cache metadata
