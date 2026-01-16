@@ -76,6 +76,11 @@ async def get_dashboard_v2(
         "is_active": True
     }, {"_id": 0}).to_list(1000)
     
+    # CRITICAL: Convert odoo_id to string for frontend drag & drop compatibility
+    for opp in opportunities:
+        if "odoo_id" in opp and isinstance(opp["odoo_id"], (int, float)):
+            opp["odoo_id"] = str(int(opp["odoo_id"]))
+    
     # STEP 5: Get pre-computed metrics
     metrics = await db.dashboard_metrics.find_one(
         {"user_id": cqrs_user_id},
