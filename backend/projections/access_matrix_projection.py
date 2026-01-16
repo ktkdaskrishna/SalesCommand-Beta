@@ -165,9 +165,12 @@ class AccessMatrixProjection(BaseProjection):
             if acc_id:
                 accessible_accounts.add(acc_id)
         
-        # STEP 3: Get subordinate info
+        # STEP 3: Get subordinate info (including ALL levels recursively)
         subordinates = user.get("hierarchy", {}).get("subordinates", [])
-        subordinate_ids = [s["user_id"] for s in subordinates]
+        direct_subordinate_ids = [s["user_id"] for s in subordinates]
+        
+        # Get ALL subordinates recursively (multi-level hierarchy)
+        all_subordinate_ids = await self._get_all_subordinates_recursive(user_id)
         
         # STEP 4: Store access matrix
         access_doc = {
