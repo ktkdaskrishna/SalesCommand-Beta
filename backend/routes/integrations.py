@@ -435,162 +435,27 @@ async def sync_all_from_odoo(
 ):
     """
     Trigger a full sync of all entities from Odoo.
-    Syncs: Accounts (Partners), Opportunities (CRM Leads), Invoices, Contacts.
+    Syncs: Accounts (Partners), Opportunities (CRM Leads), Invoices, Users to data_lake_serving.
     """
-    import time
-    start_time = time.time()
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
     
     db = Database.get_db()
-    
-    # Get Odoo config
-    intg = await db.integrations.find_one({"integration_type": "odoo"})
-    if not intg or not intg.get("enabled"):
-        raise HTTPException(status_code=400, detail="Odoo integration not enabled")
-    
-    config = intg.get("config", {})
-    if not config.get("url"):
-        raise HTTPException(status_code=400, detail="Odoo not configured")
-    
-    # Connect to Odoo
-    from integrations.odoo.connector import OdooConnector
-    connector = OdooConnector(config)
-    
-    synced_entities = {}
-    errors = []
+    pipeline = OdooSyncPipelineService(db)
     
     try:
-        # 1. Sync Accounts (res.partner)
-        try:
-            accounts = await connector.fetch_accounts()
-            for acc in accounts:
-                serving_doc = {
-                    "entity_type": "account",
-                    "serving_id": f"odoo_account_{acc.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": acc
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["accounts"] = len(accounts)
-        except Exception as e:
-            errors.append(f"Account sync error: {str(e)}")
+        result = await pipeline.sync_data_lake(user_id=token_data["id"])
         
-        # 2. Sync Opportunities (crm.lead)
-        try:
-            opportunities = await connector.fetch_opportunities()
-            for opp in opportunities:
-                serving_doc = {
-                    "entity_type": "opportunity",
-                    "serving_id": f"odoo_opportunity_{opp.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": opp
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["opportunities"] = len(opportunities)
-        except Exception as e:
-            errors.append(f"Opportunity sync error: {str(e)}")
-        
-        # 3. Sync Invoices (account.move)
-        try:
-            invoices = await connector.fetch_invoices()
-            for inv in invoices:
-                serving_doc = {
-                    "entity_type": "invoice",
-                    "serving_id": f"odoo_invoice_{inv.get('id')}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": inv
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["invoices"] = len(invoices)
-        except Exception as e:
-            errors.append(f"Invoice sync error: {str(e)}")
-        
-        # 4. Sync Users/Employees (for user matching on approval)
-        try:
-            users = await connector.fetch_users()
-            for usr in users:
-                serving_doc = {
-                    "entity_type": "user",
-                    "serving_id": f"odoo_user_{usr.get('odoo_user_id', usr.get('id'))}",
-                    "source": "odoo",
-                    "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                    "data": {
-                        "id": usr.get("odoo_user_id", usr.get("id")),
-                        "name": usr.get("name"),
-                        "email": usr.get("email", "").lower(),
-                        "login": usr.get("login", "").lower(),
-                        "work_email": usr.get("work_email", "").lower(),
-                        "job_title": usr.get("job_title"),
-                        "department_id": usr.get("department_odoo_id"),
-                        "department_name": usr.get("department_name"),
-                        "team_id": usr.get("team_id"),
-                        "team_name": usr.get("team_name"),
-                        "active": usr.get("active", True),
-                    }
-                }
-                await db.data_lake_serving.update_one(
-                    {"serving_id": serving_doc["serving_id"]},
-                    {"$set": serving_doc},
-                    upsert=True
-                )
-            synced_entities["users"] = len(users)
-        except Exception as e:
-            errors.append(f"User sync error: {str(e)}")
-        
-        # Update integration status
-        await db.integrations.update_one(
-            {"integration_type": "odoo"},
-            {"$set": {
-                "last_sync": datetime.now(timezone.utc),
-                "sync_status": "success" if not errors else "partial",
-                "error_message": "; ".join(errors) if errors else None
-            }}
+        return OdooFullSyncResponse(
+            success=result["success"],
+            message=result["message"],
+            synced_entities=result["synced_entities"],
+            errors=result["errors"],
+            duration_seconds=result["duration_seconds"]
         )
-        
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        errors.append(f"Connection error: {str(e)}")
-        await db.integrations.update_one(
-            {"integration_type": "odoo"},
-            {"$set": {
-                "sync_status": "failed",
-                "error_message": str(e)
-            }}
-        )
-    finally:
-        await connector.disconnect()
-    
-    duration = time.time() - start_time
-    
-    # Log sync event
-    await db.audit_log.insert_one({
-        "id": str(uuid.uuid4()),
-        "action": "full_odoo_sync",
-        "user_id": token_data["id"],
-        "details": {"synced_entities": synced_entities, "errors": errors},
-        "timestamp": datetime.now(timezone.utc),
-    })
-    
-    return OdooFullSyncResponse(
-        success=len(errors) == 0,
-        message=f"Sync completed. Synced {sum(synced_entities.values())} records." if not errors else f"Sync completed with {len(errors)} error(s)",
-        synced_entities=synced_entities,
-        errors=errors,
-        duration_seconds=round(duration, 2)
-    )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/departments")
