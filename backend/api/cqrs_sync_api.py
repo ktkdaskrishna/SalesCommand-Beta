@@ -204,6 +204,7 @@ async def rebuild_opportunity_visibility(
             event = Event(
                 id=event_data["id"],
                 event_type=event_data["event_type"],
+                aggregate_type=event_data.get("aggregate_type", "Opportunity"),
                 aggregate_id=event_data.get("aggregate_id", ""),
                 payload=event_data["payload"],
                 metadata=event_data.get("metadata", {}),
