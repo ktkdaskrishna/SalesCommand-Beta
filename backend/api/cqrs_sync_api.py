@@ -132,6 +132,49 @@ async def run_cqrs_sync(sync_job_id: str):
         )
 
 
+
+@router.post("/rebuild-access-matrix")
+async def rebuild_access_matrix(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Manually rebuild access matrix for all managers.
+    Fixes multi-level hierarchy visibility issues.
+    """
+    db = Database.get_db()
+    
+    try:
+        from projections.access_matrix_projection import AccessMatrixProjection
+        
+        projection = AccessMatrixProjection(db)
+        
+        # Get all managers
+        managers = await db.user_profiles.find(
+            {"hierarchy.is_manager": True},
+            {"_id": 0, "id": 1, "name": 1, "email": 1}
+        ).to_list(100)
+        
+        rebuilt_count = 0
+        for manager in managers:
+            await projection.rebuild_for_user(manager['id'])
+            rebuilt_count += 1
+        
+        logger.info(f"Rebuilt access matrix for {rebuilt_count} managers")
+        
+        return {
+            "success": True,
+            "message": f"Access matrix rebuilt for {rebuilt_count} managers",
+            "rebuilt_count": rebuilt_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to rebuild access matrix: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to rebuild access matrix: {str(e)}"
+        )
+
+
 @router.get("/health")
 async def get_cqrs_health(
     token_data: dict = Depends(require_approved())  # All approved users
