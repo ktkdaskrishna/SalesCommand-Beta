@@ -168,6 +168,63 @@ async def rebuild_access_matrix(
         }
         
     except Exception as e:
+
+
+@router.post("/rebuild-opportunity-visibility")
+async def rebuild_opportunity_visibility(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Rebuild opportunity visibility for multi-level hierarchy fix.
+    Re-processes all opportunities to include all managers in the chain.
+    """
+    db = Database.get_db()
+    
+    try:
+        from projections.opportunity_projection import OpportunityProjection
+        from event_store.models import Event, EventType
+        from datetime import datetime, timezone
+        
+        projection = OpportunityProjection(db)
+        
+        # Get all opportunity events
+        events = await db.events.find(
+            {"event_type": EventType.ODOO_OPPORTUNITY_SYNCED.value},
+            {"_id": 0}
+        ).to_list(10000)
+        
+        processed_count = 0
+        for event_data in events:
+            # Reconstruct event object
+            event = Event(
+                id=event_data["id"],
+                event_type=event_data["event_type"],
+                aggregate_id=event_data.get("aggregate_id", ""),
+                payload=event_data["payload"],
+                metadata=event_data.get("metadata", {}),
+                timestamp=event_data["timestamp"],
+                version=event_data.get("version", 1)
+            )
+            
+            # Reprocess
+            await projection._handle_opportunity_synced(event)
+            processed_count += 1
+        
+        logger.info(f"Rebuilt visibility for {processed_count} opportunities")
+        
+        return {
+            "success": True,
+            "message": f"Rebuilt visibility for {processed_count} opportunities",
+            "processed_count": processed_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to rebuild opportunity visibility: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to rebuild opportunity visibility: {str(e)}"
+        )
+
         logger.error(f"Failed to rebuild access matrix: {e}")
         raise HTTPException(
             status_code=500,
