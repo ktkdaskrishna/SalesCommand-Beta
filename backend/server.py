@@ -124,6 +124,7 @@ from routes.sales import router as sales_router
 from routes.config import router as config_router
 from routes.goals import router as goals_router
 from api.v2_dashboard import router as v2_dashboard_router  # CQRS v2 API
+from api.v2_activities import router as v2_activities_router  # CQRS v2 Activities API
 from api.cqrs_sync_api import router as cqrs_sync_router  # CQRS sync endpoints
 
 # Register routes
@@ -138,6 +139,7 @@ api_router.include_router(sales_router)
 api_router.include_router(config_router)
 api_router.include_router(goals_router)
 api_router.include_router(v2_dashboard_router, prefix="/v2/dashboard")  # CQRS v2
+api_router.include_router(v2_activities_router, prefix="/v2/activities")  # CQRS v2 Activities
 api_router.include_router(cqrs_sync_router, prefix="/integrations/cqrs")  # CQRS sync with prefix
 
 # Mount API router
