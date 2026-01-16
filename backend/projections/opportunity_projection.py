@@ -194,3 +194,48 @@ class OpportunityProjection(BaseProjection):
         
         logger.info(f"Opportunity soft-deleted: {odoo_id}")
         await self.mark_processed(event.id)
+
+
+    
+    async def _get_all_managers_recursive(self, user_id: str, visited=None) -> List[str]:
+        """
+        Get ALL managers up the chain (multi-level hierarchy).
+        
+        Example:
+            Zakariya reports to Vinsha, Vinsha reports to Krishna
+            → get_all_managers(Zakariya) returns [Vinsha_ID, Krishna_ID]
+        
+        Args:
+            user_id: User UUID to get managers for
+            visited: Set of already visited user IDs (prevents infinite loops)
+        
+        Returns:
+            List of ALL manager user IDs at all levels
+        """
+        if visited is None:
+            visited = set()
+        
+        # Prevent infinite loops
+        if user_id in visited:
+            return []
+        
+        visited.add(user_id)
+        all_managers = []
+        
+        # Get user's manager
+        user = await self.user_profiles.find_one({"id": user_id}, {"_id": 0, "hierarchy.manager": 1})
+        if not user:
+            return []
+        
+        manager_info = user.get("hierarchy", {}).get("manager")
+        if manager_info:
+            manager_id = manager_info.get("user_id")
+            if manager_id and manager_id not in visited:
+                # Add this manager
+                all_managers.append(manager_id)
+                
+                # Recursively get their manager
+                higher_managers = await self._get_all_managers_recursive(manager_id, visited)
+                all_managers.extend(higher_managers)
+        
+        return all_managers
