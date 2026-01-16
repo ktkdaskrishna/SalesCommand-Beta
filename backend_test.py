@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 
 class SalesCommandAPITester:
-    def __init__(self, base_url="https://datapulse-11.preview.emergentagent.com"):
+    def __init__(self, base_url="https://cqrs-sales.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
