@@ -326,24 +326,41 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
   const productTag = opportunity.product_lines?.[0] || null;
   const activityCount = opportunity.activity_count || 0;
   
+  // CRITICAL: Check if this is an Odoo-synced opportunity (read-only)
+  const isOdooSynced = opportunity.source === "odoo" || opportunity.odoo_id;
+  const isDraggable = !isOdooSynced; // Only local opportunities can be dragged
+  
   return (
-    <Draggable draggableId={opportunity.id} index={index}>
+    <Draggable 
+      draggableId={String(opportunity.id)} 
+      index={index}
+      isDragDisabled={isOdooSynced} // Disable drag for Odoo opportunities
+    >
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
             "bg-white rounded-lg border p-4 mb-3 shadow-sm hover:shadow-md transition-all cursor-pointer",
-            snapshot.isDragging && "shadow-lg ring-2 ring-blue-500"
+            snapshot.isDragging && "shadow-lg ring-2 ring-blue-500",
+            isOdooSynced && "border-amber-200 bg-amber-50/30" // Visual indicator for read-only
           )}
           onClick={() => onViewDetails && onViewDetails(opportunity)}
           data-testid={`opp-card-${opportunity.id}`}
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-2">
-            <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100" onClick={(e) => e.stopPropagation()}>
-              <GripVertical className="w-4 h-4 text-slate-400" />
-            </div>
+            {isDraggable && (
+              <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100" onClick={(e) => e.stopPropagation()}>
+                <GripVertical className="w-4 h-4 text-slate-400" />
+              </div>
+            )}
+            {isOdooSynced && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded border border-amber-300">
+                <AlertCircle className="w-3 h-3" />
+                Read-only (Odoo)
+              </div>
+            )}
             {/* Product/Segment Tag */}
             {productTag && (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
