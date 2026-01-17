@@ -157,13 +157,14 @@ const ActivityTimeline = () => {
   const fetchActivities = async () => {
     setLoading(true);
     try {
-      // FIXED: Use correct endpoint /activities (not /v2/activities/)
-      const response = await api.get('/activities');
+      // FIXED: Use v2 endpoint with system events filtered out
+      const response = await api.get('/v2/activities/', { 
+        params: { include_system: false }  // Only show business activities
+      });
       
-      // DEFENSIVE: Ensure activities is always an array
+      // DEFENSIVE: Handle different response structures
       let activitiesData = response.data;
       
-      // Handle different response structures
       if (activitiesData && typeof activitiesData === 'object') {
         if (Array.isArray(activitiesData)) {
           activitiesData = activitiesData;
@@ -179,11 +180,13 @@ const ActivityTimeline = () => {
         activitiesData = [];
       }
       
-      // FIXED: Fetch stats from correct endpoint /activities/stats
+      // Fetch stats (also exclude system events)
       try {
-        const statsResponse = await api.get('/activities/stats');
+        const statsResponse = await api.get('/v2/activities/dashboard-summary', {
+          params: { include_system: false }
+        });
         setStats(statsResponse.data);
-        console.log('Activity stats:', statsResponse.data);
+        console.log('Activity stats (business only):', statsResponse.data);
       } catch (e) {
         console.warn('Could not fetch activity stats:', e.message);
         setStats(null);
@@ -196,7 +199,7 @@ const ActivityTimeline = () => {
             id: 'placeholder-1',
             title: 'No business activities yet',
             activity_type: 'info',
-            description: 'Business activities like opportunity updates, deal confidence analysis, and goal creation will appear here.',
+            description: 'Business activities from Odoo (calls, meetings, tasks) will appear here once synced.',
             timestamp: new Date().toISOString(),
             type_label: 'Info',
             user_name: 'System',
@@ -208,7 +211,6 @@ const ActivityTimeline = () => {
     } catch (error) {
       console.error('Error fetching activities:', error);
       console.error('Response data:', error.response?.data);
-      // Use helpful placeholder on error
       setActivities([
         {
           id: 'error-1',
