@@ -6,13 +6,19 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, CheckCircle, TrendingUp, Target } from 'lucide-react';
 import api from '../services/api';
 
-const ActivityDashboard = () => {
+const ActivityDashboard = ({ stats }) => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSummary();
-  }, []);
+    // If stats are passed as prop, use them
+    if (stats) {
+      setSummary(stats);
+      setLoading(false);
+    } else {
+      fetchSummary();
+    }
+  }, [stats]);
 
   const fetchSummary = async () => {
     try {
@@ -27,7 +33,14 @@ const ActivityDashboard = () => {
 
   if (loading || !summary) return null;
 
-  const { overview, at_risk, by_presales_category } = summary;
+  // DEFENSIVE: Safely access stats properties with defaults
+  const total = summary.total || 0;
+  const overdue = summary.overdue || 0;
+  const dueToday = summary.due_today || 0;
+  const upcoming = summary.upcoming || 0;
+  const completed = summary.completed || 0;
+  const byType = summary.by_type || {};
+  const byStatus = summary.by_status || {};
 
   return (
     <div className="space-y-4 mb-6">
@@ -35,81 +48,62 @@ const ActivityDashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatusCard
           title="Overdue"
-          count={overview.overdue.count}
+          count={overdue}
           icon={AlertTriangle}
           color="red"
-          subtitle={`${overview.overdue.count} need attention`}
+          subtitle={`${overdue} need attention`}
         />
         <StatusCard
           title="Due Today"
-          count={overview.due_today.count}
+          count={dueToday}
           icon={Clock}
           color="orange"
           subtitle="Urgent"
         />
         <StatusCard
-          title="In Progress"
-          count={overview.in_progress.count}
+          title="Upcoming"
+          count={upcoming}
           icon={TrendingUp}
           color="blue"
           subtitle="On track"
         />
         <StatusCard
           title="Completed"
-          count={overview.completed.count}
+          count={completed}
           icon={CheckCircle}
           color="emerald"
           subtitle="Done"
         />
       </div>
 
-      {/* At Risk Activities */}
-      {at_risk.count > 0 && (
-        <div className="card border-l-4 border-red-500 bg-red-50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h3 className="font-semibold text-red-900">
-              At Risk Activities ({at_risk.count})
-            </h3>
-          </div>
-          <div className="space-y-2">
-            {at_risk.activities.map((act, idx) => (
-              <div key={idx} className="flex items-start justify-between text-sm bg-white p-2 rounded">
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">{act.summary}</p>
-                  <p className="text-xs text-slate-600">{act.opportunity_name}</p>
-                </div>
-                <span className="text-xs text-red-600 font-medium">
-                  {act.due_date ? new Date(act.due_date).toLocaleDateString() : 'No date'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Presales Category Breakdown */}
-      {Object.keys(by_presales_category).length > 0 && (
+      {/* Activity Type Breakdown */}
+      {Object.keys(byType).length > 0 && (
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Target className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-semibold text-slate-900">Presales Activities Breakdown</h3>
+            <h3 className="font-semibold text-slate-900">Activity Types</h3>
           </div>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-            {Object.entries(by_presales_category).map(([category, stats]) => (
-              <div key={category} className="text-center p-3 bg-slate-50 rounded-lg">
-                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">{category}</p>
-                <div className="flex items-center justify-center gap-1 mt-2">
-                  <span className="text-xs text-emerald-600">{stats.completed} ✓</span>
-                  <span className="text-xs text-slate-400">•</span>
-                  <span className="text-xs text-orange-600">{stats.pending} pending</span>
-                </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(byType).map(([type, count]) => (
+              <div key={type} className="text-center p-3 bg-slate-50 rounded-lg">
+                <p className="text-2xl font-bold text-slate-900">{count}</p>
+                <p className="text-xs text-slate-600 font-medium mt-1">{type}</p>
               </div>
             ))}
           </div>
         </div>
       )}
+      
+      {/* Total Summary */}
+      <div className="card p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-indigo-700 font-medium">Total Activities</p>
+            <p className="text-3xl font-bold text-indigo-900">{total}</p>
+          </div>
+          <Target className="w-12 h-12 text-indigo-400" />
+        </div>
+      </div>
     </div>
   );
 };
