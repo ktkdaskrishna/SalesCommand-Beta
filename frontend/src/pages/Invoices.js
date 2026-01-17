@@ -111,6 +111,8 @@ const Receivables = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterSalesperson, setFilterSalesperson] = useState('all'); // NEW
+  const [filterAccount, setFilterAccount] = useState('all'); // NEW
 
   useEffect(() => {
     fetchReceivables();
@@ -128,15 +130,22 @@ const Receivables = () => {
     }
   };
 
-  // Filter invoices
+  // Get unique salespersons and accounts for filters
+  const salespersons = [...new Set(data?.invoices?.map(i => i.salesperson).filter(Boolean))] || [];
+  const accounts = [...new Set(data?.invoices?.map(i => i.customer_name).filter(Boolean))] || [];
+
+  // Filter invoices with enhanced filters
   const filteredInvoices = data?.invoices?.filter(inv => {
     const matchesSearch = !searchQuery || 
       inv.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      inv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.salesperson?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = filterStatus === 'all' || inv.payment_status === filterStatus;
+    const matchesSalesperson = filterSalesperson === 'all' || inv.salesperson === filterSalesperson;
+    const matchesAccount = filterAccount === 'all' || inv.customer_name === filterAccount;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesSalesperson && matchesAccount;
   }) || [];
 
   if (loading) {
