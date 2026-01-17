@@ -125,7 +125,8 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
       const odooActs = (odooActivities.data?.activities || []).map(a => ({
         ...a,
         source: 'odoo',
-        status: a.state || 'pending',
+        // Map Odoo state to our status
+        status: a.status || (a.state === 'done' ? 'completed' : 'pending'),
         title: a.summary || a.activity_type,
         due_date: a.due_date,
         notes: a.note,
