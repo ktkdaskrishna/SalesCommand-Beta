@@ -139,6 +139,7 @@ async def get_activity_dashboard_summary(
             "due_today": 0,
             "upcoming": 0,
             "completed": 0,
+            "no_due_date": 0,  # NEW: Track activities without due dates
             "by_type": {},
             "by_status": {}
         }
@@ -157,7 +158,13 @@ async def get_activity_dashboard_summary(
             
             # Count by due date
             due_date_str = activity.get("due_date")
-            if due_date_str and status != "done":
+            
+            if not due_date_str:
+                # NEW: Activity has no due date
+                summary["no_due_date"] += 1
+                continue
+            
+            if status != "done":
                 try:
                     due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
                     
@@ -169,6 +176,7 @@ async def get_activity_dashboard_summary(
                         summary["upcoming"] += 1
                 except Exception as e:
                     logger.warning(f"Invalid due_date format: {due_date_str}")
+                    summary["no_due_date"] += 1  # Count as no due date if unparseable
         
         return summary
         
