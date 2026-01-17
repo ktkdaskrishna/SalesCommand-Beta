@@ -731,7 +731,7 @@ class OdooConnector(BaseConnector):
         model = 'mail.message'
         fields = [
             'id', 'body', 'date', 'message_type', 'subtype_id',
-            'author_id', 'email_from', 'subject', 'res_model',
+            'author_id', 'email_from', 'subject', 'model',  # ← 'model' not 'res_model'
             'res_id', 'record_name', 'tracking_value_ids'
         ]
         
