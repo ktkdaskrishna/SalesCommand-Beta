@@ -74,14 +74,14 @@ class UATFixesTester:
         )
         return success
 
-    def test_login(self, email="am1@salescommand.com", password="demo123"):
+    def test_login(self, email="superadmin@salescommand.com", password="demo123"):
         """Test login and get token"""
         print("\n" + "="*50)
-        print("TESTING AUTHENTICATION")
+        print(f"TESTING AUTHENTICATION - {email}")
         print("="*50)
         
         success, response = self.run_test(
-            "Login as Account Manager",
+            f"Login as {email}",
             "POST",
             "auth/login",
             200,
@@ -91,6 +91,7 @@ class UATFixesTester:
             self.token = response['access_token']
             self.user_id = response['user']['id']
             self.user_role = response['user']['role']
+            self.user_email = email
             print(f"   Logged in as: {response['user']['name']} ({response['user']['role']})")
             return True
         return False
