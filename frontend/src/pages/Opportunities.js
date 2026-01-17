@@ -418,17 +418,24 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
           </div>
           
           {/* Calculate Probability Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenBlueSheet(opportunity);
-            }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm"
-            data-testid={`calc-prob-${opportunity.id}`}
-          >
-            <Calculator className="w-4 h-4" />
-            Get Deal Confidence
-          </button>
+          {!isOdooSynced ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenBlueSheet(opportunity);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm"
+              data-testid={`calc-prob-${opportunity.id}`}
+            >
+              <Calculator className="w-4 h-4" />
+              Get Deal Confidence
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 text-slate-500 text-sm font-medium rounded-lg border border-slate-200">
+              <AlertCircle className="w-4 h-4" />
+              Synced from Odoo
+            </div>
+          )}
           
           {/* View Details Button */}
           <button
