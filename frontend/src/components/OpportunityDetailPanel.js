@@ -115,9 +115,14 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
     try {
       // Fetch activities from both local and Odoo sources
       const [localActivities, odooActivities] = await Promise.all([
-        api.get(`/activities?opportunity_id=${opportunity.id}`).catch(() => ({ data: [] })),
-        // Also fetch Odoo activities linked to this opportunity's res_id
-        api.get(`/activities/opportunity/${opportunity.odoo_id || opportunity.id}`).catch(() => ({ data: { activities: [] } })),
+        api.get(`/activities?opportunity_id=${opportunity.id}`).catch((err) => {
+          console.error('Failed to fetch local activities:', err);
+          return { data: [] };
+        }),
+        api.get(`/activities/opportunity/${opportunity.odoo_id || opportunity.id}`).catch((err) => {
+          console.error('Failed to fetch Odoo activities:', err);
+          return { data: { activities: [] } };
+        }),
       ]);
       
       // Combine and dedupe activities
@@ -128,10 +133,12 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
         // Map Odoo state to our status
         status: a.status || (a.state === 'done' ? 'completed' : 'pending'),
         title: a.summary || a.activity_type,
-        due_date: a.due_date,
+        due_date: a.date_deadline,  // FIXED: Use date_deadline from backend
         notes: a.note,
         type: a.activity_type,
       }));
+      
+      console.log(`Fetched ${localActs.length} local + ${odooActs.length} Odoo activities`);
       
       // Merge both sources, removing duplicates by id
       const seenIds = new Set();
@@ -142,6 +149,7 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
         return true;
       });
       
+      console.log(`Total merged activities: ${mergedActivities.length}`, mergedActivities);
       setActivities(mergedActivities);
     } catch (err) {
       console.error('Failed to fetch related data:', err);
