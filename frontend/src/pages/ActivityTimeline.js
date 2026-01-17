@@ -227,6 +227,12 @@ const ActivityTimeline = () => {
 
   // Filter activities
   const filteredActivities = useMemo(() => {
+    // DEFENSIVE: Ensure activities is always an array
+    if (!Array.isArray(activities)) {
+      console.warn('activities is not an array:', activities);
+      return [];
+    }
+    
     let result = activities;
     
     if (searchQuery) {
@@ -247,6 +253,12 @@ const ActivityTimeline = () => {
   // Group activities by date
   const groupedActivities = useMemo(() => {
     const groups = {};
+    
+    // DEFENSIVE: Ensure filteredActivities is an array before forEach
+    if (!Array.isArray(filteredActivities)) {
+      console.warn('filteredActivities is not an array:', filteredActivities);
+      return groups;
+    }
     
     filteredActivities.forEach(activity => {
       const date = new Date(activity.timestamp || activity.created_at).toDateString();
