@@ -259,62 +259,40 @@ const Receivables = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Odoo-Style Unified Search - No Separate Dropdowns */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search invoices, customers, salesperson..."
+            placeholder="Search invoices by: customer, salesperson, status, amount, date, invoice #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input pl-10"
+            className="input pl-10 text-sm"
             data-testid="search-invoices"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="input w-auto min-w-[150px]"
-          data-testid="filter-status"
-        >
-          <option value="all">All Statuses</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-          <option value="partial">Partial</option>
-          <option value="overdue">Overdue</option>
-        </select>
-        
-        {/* ENHANCED: Salesperson Filter */}
-        {salespersons.length > 0 && (
-          <select
-            value={filterSalesperson}
-            onChange={(e) => setFilterSalesperson(e.target.value)}
-            className="input w-auto min-w-[150px]"
-            data-testid="filter-salesperson"
-          >
-            <option value="all">All Salespersons</option>
-            {salespersons.map(sp => (
-              <option key={sp} value={sp}>{sp}</option>
-            ))}
-          </select>
-        )}
-        
-        {/* ENHANCED: Account Filter */}
-        {accounts.length > 1 && (
-          <select
-            value={filterAccount}
-            onChange={(e) => setFilterAccount(e.target.value)}
-            className="input w-auto min-w-[150px]"
-            data-testid="filter-account"
-          >
-            <option value="all">All Accounts</option>
-            {accounts.map(acc => (
-              <option key={acc} value={acc}>{acc}</option>
-            ))}
-          </select>
-        )}
+        <button onClick={fetchReceivables} className="btn-secondary flex items-center gap-2 whitespace-nowrap">
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
+      
+      {/* Search Help Text */}
+      {searchQuery && (
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Filter className="w-4 h-4" />
+          <span>
+            Filtering across all fields: {filteredInvoices.length} of {data?.invoices?.length || 0} invoices
+          </span>
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {/* Invoices Table */}
       {filteredInvoices.length === 0 ? (
