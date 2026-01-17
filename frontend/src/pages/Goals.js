@@ -171,6 +171,11 @@ const Goals = () => {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showTeamAssignModal, setShowTeamAssignModal] = useState(false); // NEW
+  const [teamMembers, setTeamMembers] = useState([]); // NEW
+  const [selectedGoalForAssignment, setSelectedGoalForAssignment] = useState(null); // NEW
+  const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState([]); // NEW
+  const [isManager, setIsManager] = useState(false); // NEW
   const [editingGoal, setEditingGoal] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -187,7 +192,19 @@ const Goals = () => {
 
   useEffect(() => {
     fetchGoals();
+    fetchTeamMembers(); // NEW
   }, []);
+  
+  // NEW: Fetch team members for managers
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await api.get('/goals/team/subordinates');
+      setIsManager(response.data.is_manager);
+      setTeamMembers(response.data.subordinates || []);
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+    }
+  };
 
   const fetchGoals = async () => {
     try {
