@@ -213,6 +213,101 @@ async def update_goal_progress(
         }}
     )
     
+
+
+
+@router.get("/team/subordinates")
+async def get_team_subordinates(
+    token_data: dict = Depends(require_approved_user)
+):
+    """
+    Get list of subordinates for manager goal assignment.
+    Returns team members that the current user manages.
+    """
+    db = Database.get_db()
+    user_id = token_data["id"]
+    
+    # Get user's profile from user_profiles (CQRS)
+    user_profile = await db.user_profiles.find_one({"email": token_data["email"].lower()}, {"_id": 0})
+    
+    if not user_profile:
+        return {"subordinates": [], "is_manager": False}
+    
+    # Get subordinates from hierarchy
+    is_manager = user_profile.get("hierarchy", {}).get("is_manager", False)
+    subordinates = user_profile.get("hierarchy", {}).get("subordinates", [])
+    
+    # Format for frontend
+    team_members = []
+    for sub in subordinates:
+        team_members.append({
+            "user_id": sub.get("user_id"),
+            "name": sub.get("name"),
+            "email": sub.get("email"),
+            "odoo_employee_id": sub.get("odoo_employee_id"),
+        })
+    
+    return {
+        "is_manager": is_manager,
+        "subordinates": team_members,
+        "count": len(team_members)
+    }
+
+
+@router.post("/assign-to-team")
+async def assign_goal_to_team(
+    goal_id: str,
+    team_member_ids: List[str],
+    token_data: dict = Depends(require_approved_user)
+):
+    """
+    Assign an existing goal to multiple team members.
+    Creates individual goal instances for each team member.
+    """
+    db = Database.get_db()
+    
+    # Get original goal
+    original_goal = await db.goals.find_one({"id": goal_id}, {"_id": 0})
+    if not original_goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Check if user is manager
+    user_profile = await db.user_profiles.find_one({"email": token_data["email"].lower()}, {"_id": 0})
+    if not user_profile or not user_profile.get("hierarchy", {}).get("is_manager"):
+        raise HTTPException(status_code=403, detail="Only managers can assign team goals")
+    
+    # Create goal instances for each team member
+    created_goals = []
+    now = datetime.now(timezone.utc)
+    
+    for member_id in team_member_ids:
+        team_goal = {
+            "id": str(uuid.uuid4()),
+            "name": original_goal["name"],
+            "description": original_goal.get("description"),
+            "target_value": original_goal["target_value"],
+            "current_value": 0,  # Reset for new assignee
+            "unit": original_goal["unit"],
+            "goal_type": original_goal["goal_type"],
+            "due_date": original_goal["due_date"],
+            "assignee_type": "user",
+            "assignee_id": member_id,
+            "parent_goal_id": goal_id,  # Link to parent goal
+            "created_by": token_data["id"],
+            "assigned_by": token_data["id"],  # Track who assigned
+            "created_at": now,
+            "updated_at": now,
+            "is_active": True,
+        }
+        
+        await db.goals.insert_one(team_goal)
+        created_goals.append(team_goal["id"])
+    
+    return {
+        "message": f"Goal assigned to {len(team_member_ids)} team members",
+        "created_goal_ids": created_goals
+    }
+
     # Calculate new achievement percentage
     target = existing.get("target_value", 0)
     achievement = round((current_value / target) * 100, 1) if target > 0 else 0
