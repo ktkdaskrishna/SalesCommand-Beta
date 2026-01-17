@@ -15,7 +15,7 @@ import {
   ChevronRight, TrendingUp, TrendingDown,
   Phone, Globe, MapPin, Users, DollarSign, X, Save,
   MoreVertical, Edit2, Trash2, ExternalLink, Filter,
-  Database, RefreshCw, Info, Eye
+  Database, RefreshCw, Info, Eye, Activity, AlertCircle
 } from 'lucide-react';
 
 // Data Source Badge
