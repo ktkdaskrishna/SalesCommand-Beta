@@ -109,10 +109,7 @@ const Receivables = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterSalesperson, setFilterSalesperson] = useState('all'); // NEW
-  const [filterAccount, setFilterAccount] = useState('all'); // NEW
+  const [searchQuery, setSearchQuery] = useState(''); // Unified Odoo-style search
 
   useEffect(() => {
     fetchReceivables();
