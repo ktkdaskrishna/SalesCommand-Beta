@@ -410,13 +410,16 @@ class OdooSyncPipelineService:
             # 1. Sync Accounts (res.partner)
             try:
                 accounts = await connector.fetch_accounts()
+                account_odoo_ids = [acc.get('id') for acc in accounts if acc.get('id')]
+                
                 for acc in accounts:
                     serving_doc = {
                         "entity_type": "account",
                         "serving_id": f"odoo_account_{acc.get('id')}",
                         "source": "odoo",
                         "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                        "data": acc
+                        "data": acc,
+                        "is_active": True  # Mark as active
                     }
                     await self.db.data_lake_serving.update_one(
                         {"serving_id": serving_doc["serving_id"]},
@@ -424,7 +427,25 @@ class OdooSyncPipelineService:
                         upsert=True
                     )
                 synced_entities["accounts"] = len(accounts)
-                logger.info(f"Synced {len(accounts)} accounts")
+                
+                # Soft-delete accounts no longer in Odoo
+                delete_result = await self.db.data_lake_serving.update_many(
+                    {
+                        "entity_type": "account",
+                        "source": "odoo",
+                        "is_active": True,
+                        "data.id": {"$nin": account_odoo_ids}
+                    },
+                    {
+                        "$set": {
+                            "is_active": False,
+                            "deleted_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }
+                )
+                deleted_accounts = delete_result.modified_count
+                
+                logger.info(f"Synced {len(accounts)} accounts, soft-deleted {deleted_accounts}")
             except Exception as e:
                 error_msg = f"Account sync error: {str(e)}"
                 errors.append(error_msg)
