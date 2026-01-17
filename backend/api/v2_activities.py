@@ -19,27 +19,37 @@ logger = logging.getLogger(__name__)
 async def get_activities(
     user_id: Optional[str] = None,
     limit: int = 100,
+    include_system: bool = False,  # NEW: Filter system events by default
     token_data: dict = Depends(get_current_user_from_token)
 ):
     """
     Get activities from CQRS activity_view.
     
-    Filters based on user access control:
-    - Super admins see all activities
-    - Regular users see only their own activities
-    - Managers see their team's activities
+    By default, filters OUT system events (user_login, data_synced, etc.)
+    to show only business activities from Odoo.
     
     Args:
-        user_id: Filter by specific user (managers can filter by subordinates)
-        limit: Max number of activities to return
+        user_id: Filter by specific user
+        limit: Max number of activities
+        include_system: If True, includes system events (default: False)
     """
     db = Database.get_db()
     current_user_id = token_data["id"]
     is_super_admin = token_data.get("role") == UserRole.SUPER_ADMIN
     
+    # Define system event types to exclude
+    system_event_types = [
+        "user_login", "data_synced", "system", 
+        "user_created", "user_updated", "sync_completed"
+    ]
+    
     try:
         # Build query based on access control
         query = {"is_active": True}
+        
+        # Filter out system events by default
+        if not include_system:
+            query["activity_type"] = {"$nin": system_event_types}
         
         if not is_super_admin:
             # Get user's access matrix to check what they can see
