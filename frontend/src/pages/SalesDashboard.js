@@ -299,6 +299,19 @@ const SalesDashboard = () => {
           </p>
         </div>
       )}
+
+      {/* Opportunity Detail Panel */}
+      {selectedOpportunity && (
+        <OpportunityDetailPanel
+          opportunity={selectedOpportunity}
+          isOpen={showDetailPanel}
+          onClose={() => {
+            setShowDetailPanel(false);
+            setSelectedOpportunity(null);
+          }}
+          onUpdate={fetchDashboard}
+        />
+      )}
     </div>
   );
 };
