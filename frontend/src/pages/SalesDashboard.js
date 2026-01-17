@@ -228,7 +228,10 @@ const SalesDashboard = () => {
                       ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-300' 
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
-                  onClick={() => navigate('/opportunities')} 
+                  onClick={() => {
+                    setSelectedOpportunity(opp);
+                    setShowDetailPanel(true);
+                  }}
                   data-testid={`dashboard-opp-card-${opp.odoo_id || opp.id || idx}`}
                 >
                   <div className="flex items-start justify-between">
@@ -241,7 +244,7 @@ const SalesDashboard = () => {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
+                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-2">
                         <span>
                           <User className="w-3.5 h-3.5 inline mr-1" />
                           {salesperson.name || 'Unassigned'}
@@ -257,13 +260,26 @@ const SalesDashboard = () => {
                         <span>•</span>
                         <span className="font-medium">${opp.value?.toLocaleString() || '0'}</span>
                       </div>
+                      
+                      {/* ENHANCED: Activity Preview */}
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="flex items-center gap-1 text-emerald-600">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {opp.completed_activities || 0} done
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Clock className="w-3 h-3" />
+                          {opp.pending_activities || 0} pending
+                        </span>
+                      </div>
+                      
                       {isSubordinateOpp && salesperson.manager && (
                         <p className="text-xs text-indigo-600 mt-1">
                           Reports to: {salesperson.manager.name}
                         </p>
                       )}
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                   </div>
                 </div>
               );
