@@ -869,37 +869,21 @@ const Opportunities = () => {
         </button>
       </div>
 
-      {/* Search & View Toggle */}
+      {/* Odoo-Style Unified Search & View Toggle */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search opportunities..."
+                placeholder="Search by: name, account, salesperson, owner, stage, value..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input pl-10"
                 data-testid="search-input"
               />
             </div>
-            
-            {viewMode === 'table' && (
-              <select
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-                className="input w-auto min-w-[140px]"
-                data-testid="stage-filter"
-              >
-                <option value="">All Stages</option>
-                {STAGES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
 
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
