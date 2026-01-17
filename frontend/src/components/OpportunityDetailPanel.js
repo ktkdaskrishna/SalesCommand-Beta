@@ -71,27 +71,90 @@ const ActivityItem = ({ activity }) => {
   };
   const StatusIcon = statusIcons[activity.status] || Clock;
   
+  // Extract activity details
+  const activityType = activity.activity_type || activity.type || 'Task';
+  const summary = activity.summary || activity.title || activityType;
+  const assignedTo = activity.user_name || activity.assigned_to?.name || 'Unassigned';
+  const dueDate = activity.due_date || activity.date_deadline;
+  const notes = activity.note || activity.notes || '';
+  const cleanNotes = notes ? notes.replace(/<[^>]*>/g, ' ').trim() : '';
+  
   return (
-    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+    <div className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all">
+      {/* Icon */}
       <div className={cn(
-        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+        "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
         activity.status === 'completed' ? 'bg-emerald-100' :
-        activity.status === 'overdue' ? 'bg-red-100' : 'bg-amber-100'
+        activity.status === 'overdue' ? 'bg-red-100' : 
+        'bg-amber-100'
       )}>
         <StatusIcon className={cn(
-          "w-4 h-4",
+          "w-5 h-5",
           activity.status === 'completed' ? 'text-emerald-600' :
-          activity.status === 'overdue' ? 'text-red-600' : 'text-amber-600'
+          activity.status === 'overdue' ? 'text-red-600' :
+          'text-amber-600'
         )} />
       </div>
+      
+      {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-900">{activity.title || activity.type}</p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {activity.due_date ? formatDate(activity.due_date) : 'No due date'}
-        </p>
-        {activity.notes && (
-          <p className="text-xs text-slate-400 mt-1 truncate">{activity.notes}</p>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex-1">
+            <h4 className="font-semibold text-slate-900">{summary}</h4>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-medium",
+                activityType === 'Call' ? 'bg-purple-100 text-purple-700' :
+                activityType === 'Email' ? 'bg-blue-100 text-blue-700' :
+                activityType === 'Meeting' ? 'bg-indigo-100 text-indigo-700' :
+                activityType === 'Document' ? 'bg-cyan-100 text-cyan-700' :
+                'bg-slate-100 text-slate-700'
+              )}>
+                {activityType}
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-medium",
+                activity.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                activity.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              )}>
+                {activity.state || activity.status}
+              </span>
+            </div>
+          </div>
+          
+          {/* Due Date */}
+          {dueDate && (
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs text-slate-500">Due</p>
+              <p className="text-sm font-medium text-slate-900">
+                {formatDate(dueDate)}
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Description */}
+        {cleanNotes && cleanNotes.length > 0 && (
+          <p className="text-sm text-slate-600 mb-2 line-clamp-2">
+            {cleanNotes}
+          </p>
         )}
+        
+        {/* Assigned To */}
+        <div className="flex items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <User className="w-3 h-3" />
+            Assigned to: {assignedTo}
+          </span>
+          {!dueDate && (
+            <span className="text-amber-600 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              No due date
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
