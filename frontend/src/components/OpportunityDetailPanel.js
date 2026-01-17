@@ -259,6 +259,13 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
               Activities ({activities.length})
             </Tab>
             <Tab 
+              active={activeTab === 'history'} 
+              onClick={() => setActiveTab('history')}
+              icon={MessageSquare}
+            >
+              Communication ({messages.length})
+            </Tab>
+            <Tab 
               active={activeTab === 'bluesheet'} 
               onClick={() => setActiveTab('bluesheet')}
               icon={Sparkles}
