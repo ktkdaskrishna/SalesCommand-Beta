@@ -2045,8 +2045,10 @@ async def get_account_360_view(
             "due_date": inv.get("invoice_date_due", inv.get("due_date")),
         })
     
-    # Get related activities
+    # Get related activities from BOTH local DB and Odoo (data_lake_serving)
     activities = []
+    
+    # 1. Get local activities
     activity_docs = await db.activities.find({"account_id": account_id}, {"_id": 0}).to_list(50)
     for act in activity_docs:
         activities.append({
@@ -2056,7 +2058,53 @@ async def get_account_360_view(
             "status": act.get("status", "pending"),
             "due_date": act.get("due_date"),
             "priority": act.get("priority", "medium"),
+            "source": "crm"
         })
+    
+    # 2. Get Odoo activities from data_lake_serving
+    odoo_activity_docs = await db.data_lake_serving.find(
+        active_entity_filter("activity", {
+            "$or": [
+                {"data.res_id": int(account_id) if account_id.isdigit() else None},
+                {"data.res_model": "res.partner"}
+            ]
+        })
+    ).to_list(100)
+    
+    for doc in odoo_activity_docs:
+        act = doc.get("data", {})
+        activities.append({
+            "id": str(act.get("id", "")),
+            "title": act.get("summary") or act.get("note", "Activity"),
+            "activity_type": act.get("activity_type_id", ["", ""])[1] if isinstance(act.get("activity_type_id"), list) else "task",
+            "status": "done" if act.get("state") == "done" else "pending",
+            "due_date": act.get("date_deadline"),
+            "priority": "high" if act.get("state") == "overdue" else "medium",
+            "source": "odoo",
+            "user_name": act.get("user_id", ["", ""])[1] if isinstance(act.get("user_id"), list) else ""
+        })
+    
+    # Calculate activity summary metrics
+    now = datetime.now(timezone.utc)
+    activity_summary = {
+        "total": len(activities),
+        "pending": len([a for a in activities if a["status"] == "pending"]),
+        "completed": len([a for a in activities if a["status"] == "done"]),
+        "overdue": 0,
+        "due_soon": 0
+    }
+    
+    # Count overdue and due soon
+    for act in activities:
+        if act["status"] != "done" and act.get("due_date"):
+            try:
+                due_date = datetime.fromisoformat(str(act["due_date"]).replace('Z', '+00:00'))
+                if due_date < now:
+                    activity_summary["overdue"] += 1
+                elif (due_date - now).days <= 7:
+                    activity_summary["due_soon"] += 1
+            except:
+                pass
     
     # Get related contacts from data_lake_serving
     # Contacts have entity_type: "contact" with account_id field
