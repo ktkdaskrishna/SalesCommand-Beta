@@ -38,6 +38,14 @@ async def lifespan(app: FastAPI):
         # Seed demo data if needed
         await seed_demo_data()
         
+        # Start background sync service (5 minute interval)
+        try:
+            from services.sync.background_sync import start_background_sync
+            await start_background_sync(interval_minutes=5)
+            logger.info("Background sync service started (5 min interval)")
+        except Exception as e:
+            logger.warning(f"Failed to start background sync: {e}")
+        
     except Exception as e:
         logger.error(f"Startup error: {e}")
         raise
@@ -46,6 +54,14 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down...")
+    
+    # Stop background sync
+    try:
+        from services.sync.background_sync import stop_background_sync
+        await stop_background_sync()
+    except Exception:
+        pass
+        
     await Database.disconnect()
 
 
@@ -57,7 +73,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Middleware
+# CORS Middleware (add before error handlers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS != "*" else ["*"],
@@ -102,9 +118,14 @@ from routes.data_lake import router as data_lake_router
 from routes.integrations import router as integrations_router
 from routes.webhooks import router as webhooks_router
 from routes.admin import router as admin_router
+from routes.admin_logs import router as admin_logs_router  # NEW: Admin logging
 from routes.personal import router as personal_router
 from routes.sales import router as sales_router
 from routes.config import router as config_router
+from routes.goals import router as goals_router
+from api.v2_dashboard import router as v2_dashboard_router  # CQRS v2 API
+from api.v2_activities import router as v2_activities_router  # CQRS v2 Activities API
+from api.cqrs_sync_api import router as cqrs_sync_router  # CQRS sync endpoints
 
 # Register routes
 api_router.include_router(auth_router)
@@ -112,9 +133,14 @@ api_router.include_router(data_lake_router)
 api_router.include_router(integrations_router)
 api_router.include_router(webhooks_router)
 api_router.include_router(admin_router)
+api_router.include_router(admin_logs_router)  # Admin logging endpoints
 api_router.include_router(personal_router)
 api_router.include_router(sales_router)
 api_router.include_router(config_router)
+api_router.include_router(goals_router)
+api_router.include_router(v2_dashboard_router, prefix="/v2/dashboard")  # CQRS v2
+api_router.include_router(v2_activities_router, prefix="/v2/activities")  # CQRS v2 Activities
+api_router.include_router(cqrs_sync_router, prefix="/integrations/cqrs")  # CQRS sync with prefix
 
 # Mount API router
 app.include_router(api_router)

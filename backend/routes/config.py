@@ -10,8 +10,9 @@ import uuid
 import logging
 
 from core.database import Database
-from services.auth.jwt_handler import get_current_user_from_token
+from services.auth.jwt_handler import get_current_user_from_token, require_role
 from middleware.rbac import require_approved
+from models.base import UserRole
 
 router = APIRouter(prefix="/config", tags=["Configuration"])
 logger = logging.getLogger(__name__)
@@ -73,9 +74,11 @@ DEFAULT_NAV_ITEMS = [
     {"id": "dashboard", "label": "Dashboard", "icon": "LayoutDashboard", "path": "/dashboard", "order": 1},
     {"id": "accounts", "label": "Accounts", "icon": "Building2", "path": "/accounts", "order": 2},
     {"id": "opportunities", "label": "Opportunities", "icon": "Target", "path": "/opportunities", "order": 3},
-    {"id": "kpis", "label": "KPIs", "icon": "BarChart3", "path": "/kpis", "order": 4},
-    {"id": "email", "label": "Email", "icon": "Mail", "path": "/email", "order": 5},
-    {"id": "reports", "label": "Reports", "icon": "FileText", "path": "/reports", "order": 6},
+    {"id": "goals", "label": "Goals", "icon": "Award", "path": "/goals", "order": 4},
+    {"id": "activity", "label": "Activity", "icon": "Activity", "path": "/activity", "order": 5},
+    {"id": "invoices", "label": "Invoices", "icon": "FileText", "path": "/invoices", "order": 6},
+    {"id": "kpis", "label": "KPIs", "icon": "BarChart3", "path": "/kpis", "order": 7},
+    {"id": "email", "label": "Email & Calendar", "icon": "Mail", "path": "/my-outlook", "order": 8},
 ]
 
 ADMIN_NAV_ITEMS = [
@@ -669,11 +672,45 @@ async def update_bluesheet_weights(
     return updated
 
 # ===================== TARGET ASSIGNMENT CONFIGURATION =====================
+# Targets are ROLE-BASED, not user-specific
+# Users inherit targets from their assigned role
+# This allows dynamic target assignment as users change roles
 
+class RoleTargetCreate(BaseModel):
+    """Role-based target definition"""
+    role_id: str  # Required - targets are per role
+    period_type: str = "monthly"  # monthly, quarterly, yearly
+    period_start: datetime
+    period_end: datetime
+    # Revenue targets
+    target_revenue: float = 0
+    target_deals: int = 0
+    # Activity targets (role-specific)
+    target_activities: int = 0
+    target_demos: int = 0  # For presales
+    target_support_tickets: int = 0  # For support
+    target_meetings: int = 0  # For managers
+    # Product line specific targets
+    product_line_targets: Dict[str, float] = {}
+    # Metadata
+    notes: Optional[str] = None
+
+
+class UserTargetOverride(BaseModel):
+    """User-specific target override (exception to role-based)"""
+    user_id: str
+    role_target_id: str  # Reference to the role target being overridden
+    override_revenue: Optional[float] = None
+    override_deals: Optional[int] = None
+    override_activities: Optional[int] = None
+    reason: str  # Required explanation for override
+
+
+# Legacy target create model (for backwards compatibility)
 class TargetCreate(BaseModel):
     user_id: Optional[str] = None
     role_id: Optional[str] = None
-    period_type: str = "monthly"  # monthly, quarterly, yearly
+    period_type: str = "monthly"
     period_start: datetime
     period_end: datetime
     target_revenue: float = 0
@@ -681,13 +718,450 @@ class TargetCreate(BaseModel):
     target_activities: int = 0
     product_line_targets: Dict[str, float] = {}
 
+
+@router.get("/role-targets")
+async def get_role_targets(
+    role_id: Optional[str] = Query(default=None),
+    period_type: Optional[str] = Query(default=None),
+    active_only: bool = Query(default=True),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get role-based targets.
+    Returns targets that apply to roles, not individual users.
+    """
+    db = Database.get_db()
+    
+    query = {}
+    if role_id:
+        query["role_id"] = role_id
+    if period_type:
+        query["period_type"] = period_type
+    if active_only:
+        now = datetime.now(timezone.utc)
+        query["period_end"] = {"$gte": now}
+    
+    targets = await db.role_targets.find(query, {"_id": 0}).to_list(100)
+    
+    # Enrich with role names
+    for target in targets:
+        role = await db.roles.find_one({"id": target.get("role_id")})
+        target["role_name"] = role.get("name") if role else "Unknown Role"
+    
+    return targets
+
+
+@router.post("/role-targets")
+async def create_role_target(
+    data: RoleTargetCreate,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Create a role-based target.
+    All users with this role will inherit this target.
+    """
+    db = Database.get_db()
+    
+    # Verify role exists
+    role = await db.roles.find_one({"id": data.role_id})
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Check for existing target for same role/period
+    existing = await db.role_targets.find_one({
+        "role_id": data.role_id,
+        "period_type": data.period_type,
+        "period_start": {"$lte": data.period_end},
+        "period_end": {"$gte": data.period_start}
+    })
+    if existing:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Target already exists for role '{role.get('name')}' in overlapping period"
+        )
+    
+    target = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc),
+        "created_by": token_data["id"]
+    }
+    
+    await db.role_targets.insert_one(target)
+    
+    # Audit log
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "create_role_target",
+        "entity_type": "role_target",
+        "entity_id": target["id"],
+        "user_id": token_data["id"],
+        "details": {"role_id": data.role_id, "role_name": role.get("name")},
+        "timestamp": datetime.now(timezone.utc),
+    })
+    
+    target.pop("_id", None)
+    target["role_name"] = role.get("name")
+    return target
+
+
+@router.put("/role-targets/{target_id}")
+async def update_role_target(
+    target_id: str,
+    target_revenue: Optional[float] = Query(default=None),
+    target_deals: Optional[int] = Query(default=None),
+    target_activities: Optional[int] = Query(default=None),
+    target_demos: Optional[int] = Query(default=None),
+    target_support_tickets: Optional[int] = Query(default=None),
+    target_meetings: Optional[int] = Query(default=None),
+    notes: Optional[str] = Query(default=None),
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Update a role-based target"""
+    db = Database.get_db()
+    
+    update_data = {"updated_at": datetime.now(timezone.utc)}
+    if target_revenue is not None:
+        update_data["target_revenue"] = target_revenue
+    if target_deals is not None:
+        update_data["target_deals"] = target_deals
+    if target_activities is not None:
+        update_data["target_activities"] = target_activities
+    if target_demos is not None:
+        update_data["target_demos"] = target_demos
+    if target_support_tickets is not None:
+        update_data["target_support_tickets"] = target_support_tickets
+    if target_meetings is not None:
+        update_data["target_meetings"] = target_meetings
+    if notes is not None:
+        update_data["notes"] = notes
+    
+    result = await db.role_targets.update_one(
+        {"id": target_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    return {"message": "Target updated"}
+
+
+@router.delete("/role-targets/{target_id}")
+async def delete_role_target(
+    target_id: str,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Delete a role-based target"""
+    db = Database.get_db()
+    
+    result = await db.role_targets.delete_one({"id": target_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    return {"message": "Target deleted"}
+
+
+@router.get("/user-targets/{user_id}")
+async def get_user_effective_targets(
+    user_id: str,
+    period_type: Optional[str] = Query(default="monthly"),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get effective targets for a specific user.
+    Resolves role-based targets + any user-specific overrides.
+    """
+    db = Database.get_db()
+    
+    # Get user and their role
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    role_id = user.get("role_id")
+    if not role_id:
+        return {
+            "user_id": user_id,
+            "user_name": user.get("name"),
+            "role_id": None,
+            "role_name": None,
+            "targets": None,
+            "message": "User has no assigned role"
+        }
+    
+    # Get role info
+    role = await db.roles.find_one({"id": role_id})
+    role_name = role.get("name") if role else "Unknown"
+    
+    # Get role-based targets for current period
+    now = datetime.now(timezone.utc)
+    role_target = await db.role_targets.find_one({
+        "role_id": role_id,
+        "period_type": period_type,
+        "period_start": {"$lte": now},
+        "period_end": {"$gte": now}
+    }, {"_id": 0})
+    
+    if not role_target:
+        return {
+            "user_id": user_id,
+            "user_name": user.get("name"),
+            "role_id": role_id,
+            "role_name": role_name,
+            "targets": None,
+            "message": f"No {period_type} targets defined for role '{role_name}'"
+        }
+    
+    # Check for user-specific overrides
+    override = await db.target_overrides.find_one({
+        "user_id": user_id,
+        "role_target_id": role_target["id"]
+    }, {"_id": 0})
+    
+    # Merge override into target
+    effective_target = {**role_target}
+    if override:
+        if override.get("override_revenue") is not None:
+            effective_target["target_revenue"] = override["override_revenue"]
+        if override.get("override_deals") is not None:
+            effective_target["target_deals"] = override["override_deals"]
+        if override.get("override_activities") is not None:
+            effective_target["target_activities"] = override["override_activities"]
+        effective_target["has_override"] = True
+        effective_target["override_reason"] = override.get("reason")
+    else:
+        effective_target["has_override"] = False
+    
+    return {
+        "user_id": user_id,
+        "user_name": user.get("name"),
+        "role_id": role_id,
+        "role_name": role_name,
+        "targets": effective_target
+    }
+
+
+@router.get("/target-progress-report")
+async def get_target_progress_report(
+    period_type: Optional[str] = Query(default=None, description="monthly, quarterly, yearly"),
+    role_id: Optional[str] = Query(default=None, description="Filter by specific role"),
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get aggregated target progress report for all salespeople.
+    Shows each user's progress against their role-based targets.
+    
+    Returns:
+    - Individual progress per salesperson
+    - Team-wide aggregated metrics
+    - Variance analysis (above/below target)
+    """
+    db = Database.get_db()
+    
+    now = datetime.now(timezone.utc)
+    
+    # Get active role targets
+    target_query = {"period_end": {"$gte": now}}
+    if period_type:
+        target_query["period_type"] = period_type
+    if role_id:
+        target_query["role_id"] = role_id
+    
+    role_targets = await db.role_targets.find(target_query, {"_id": 0}).to_list(100)
+    
+    # Create a map of role_id to target
+    role_target_map = {t["role_id"]: t for t in role_targets}
+    
+    # Get roles
+    roles = await db.roles.find({}, {"_id": 0}).to_list(100)
+    role_map = {r["id"]: r for r in roles}
+    
+    # Get all sales users (users with roles that have targets)
+    role_ids_with_targets = list(role_target_map.keys())
+    users_query = {"is_active": True}
+    if role_ids_with_targets:
+        users_query["role_id"] = {"$in": role_ids_with_targets}
+    
+    users = await db.users.find(users_query, {"_id": 0, "password_hash": 0}).to_list(500)
+    
+    # Calculate actual performance for each user
+    user_progress = []
+    team_totals = {
+        "target_revenue": 0,
+        "actual_revenue": 0,
+        "target_deals": 0,
+        "actual_deals": 0,
+        "target_activities": 0,
+        "actual_activities": 0,
+    }
+    
+    for user in users:
+        user_role_id = user.get("role_id")
+        if not user_role_id or user_role_id not in role_target_map:
+            continue
+        
+        target = role_target_map[user_role_id]
+        role = role_map.get(user_role_id, {})
+        
+        # Get user's Odoo data for matching
+        odoo_user_id = user.get("odoo_user_id")
+        odoo_salesperson_name = user.get("odoo_salesperson_name", "").lower()
+        
+        # Calculate actual performance from data_lake_serving
+        # Won opportunities (revenue)
+        won_match = {
+            "entity_type": "opportunity",
+            "is_active": {"$ne": False},
+            "$or": [
+                {"data.stage_name": {"$regex": "won", "$options": "i"}},
+                {"data.stage_id": {"$in": [4, "won"]}}  # Common won stage IDs
+            ]
+        }
+        
+        # Add user filter
+        if odoo_user_id:
+            won_match["data.salesperson_id"] = odoo_user_id
+        elif odoo_salesperson_name:
+            won_match["data.salesperson_name"] = {"$regex": f"^{odoo_salesperson_name}$", "$options": "i"}
+        else:
+            continue  # Skip users without Odoo mapping
+        
+        won_opps = await db.data_lake_serving.find(won_match, {"data.amount": 1}).to_list(1000)
+        actual_revenue = sum(o.get("data", {}).get("amount", 0) or 0 for o in won_opps)
+        
+        # Active opportunities (deals in pipeline)
+        active_match = {
+            "entity_type": "opportunity",
+            "is_active": {"$ne": False},
+        }
+        if odoo_user_id:
+            active_match["data.salesperson_id"] = odoo_user_id
+        elif odoo_salesperson_name:
+            active_match["data.salesperson_name"] = {"$regex": f"^{odoo_salesperson_name}$", "$options": "i"}
+        
+        actual_deals = await db.data_lake_serving.count_documents(active_match)
+        
+        # Activities count
+        activity_match = {
+            "entity_type": "activity",
+            "is_active": {"$ne": False},
+        }
+        if odoo_user_id:
+            activity_match["data.user_id"] = odoo_user_id
+        
+        actual_activities = await db.data_lake_serving.count_documents(activity_match)
+        
+        # Calculate progress percentages
+        target_revenue = target.get("target_revenue", 0)
+        target_deals = target.get("target_deals", 0)
+        target_activities = target.get("target_activities", 0)
+        
+        revenue_progress = round((actual_revenue / target_revenue * 100), 1) if target_revenue > 0 else 0
+        deals_progress = round((actual_deals / target_deals * 100), 1) if target_deals > 0 else 0
+        activities_progress = round((actual_activities / target_activities * 100), 1) if target_activities > 0 else 0
+        
+        # Overall progress (weighted average)
+        weights = {"revenue": 0.5, "deals": 0.3, "activities": 0.2}
+        overall_progress = round(
+            revenue_progress * weights["revenue"] +
+            deals_progress * weights["deals"] +
+            activities_progress * weights["activities"],
+            1
+        )
+        
+        # Determine status
+        if overall_progress >= 100:
+            status = "achieved"
+        elif overall_progress >= 70:
+            status = "on_track"
+        elif overall_progress >= 40:
+            status = "at_risk"
+        else:
+            status = "behind"
+        
+        user_progress.append({
+            "user_id": user["id"],
+            "user_name": user.get("name", "Unknown"),
+            "user_email": user.get("email"),
+            "role_id": user_role_id,
+            "role_name": role.get("name", "Unknown"),
+            "target": {
+                "revenue": target_revenue,
+                "deals": target_deals,
+                "activities": target_activities,
+                "period_type": target.get("period_type"),
+                "period_start": target.get("period_start"),
+                "period_end": target.get("period_end"),
+            },
+            "actual": {
+                "revenue": actual_revenue,
+                "deals": actual_deals,
+                "activities": actual_activities,
+            },
+            "progress": {
+                "revenue": revenue_progress,
+                "deals": deals_progress,
+                "activities": activities_progress,
+                "overall": overall_progress,
+            },
+            "variance": {
+                "revenue": actual_revenue - target_revenue,
+                "deals": actual_deals - target_deals,
+                "activities": actual_activities - target_activities,
+            },
+            "status": status,
+        })
+        
+        # Aggregate team totals
+        team_totals["target_revenue"] += target_revenue
+        team_totals["actual_revenue"] += actual_revenue
+        team_totals["target_deals"] += target_deals
+        team_totals["actual_deals"] += actual_deals
+        team_totals["target_activities"] += target_activities
+        team_totals["actual_activities"] += actual_activities
+    
+    # Calculate team-level progress
+    team_progress = {
+        "revenue": round((team_totals["actual_revenue"] / team_totals["target_revenue"] * 100), 1) if team_totals["target_revenue"] > 0 else 0,
+        "deals": round((team_totals["actual_deals"] / team_totals["target_deals"] * 100), 1) if team_totals["target_deals"] > 0 else 0,
+        "activities": round((team_totals["actual_activities"] / team_totals["target_activities"] * 100), 1) if team_totals["target_activities"] > 0 else 0,
+    }
+    
+    # Sort users by overall progress (descending)
+    user_progress.sort(key=lambda x: x["progress"]["overall"], reverse=True)
+    
+    # Calculate summary stats
+    achieved_count = sum(1 for u in user_progress if u["status"] == "achieved")
+    on_track_count = sum(1 for u in user_progress if u["status"] == "on_track")
+    at_risk_count = sum(1 for u in user_progress if u["status"] == "at_risk")
+    behind_count = sum(1 for u in user_progress if u["status"] == "behind")
+    
+    return {
+        "generated_at": now.isoformat(),
+        "period_filter": period_type,
+        "role_filter": role_id,
+        "summary": {
+            "total_salespeople": len(user_progress),
+            "achieved": achieved_count,
+            "on_track": on_track_count,
+            "at_risk": at_risk_count,
+            "behind": behind_count,
+        },
+        "team_totals": team_totals,
+        "team_progress": team_progress,
+        "individual_progress": user_progress,
+    }
+
+
+# Legacy endpoints - kept for backwards compatibility
 @router.get("/targets")
 async def get_targets(
     user_id: Optional[str] = Query(default=None),
     period_type: Optional[str] = Query(default=None),
     token_data: dict = Depends(require_approved())
 ):
-    """Get sales targets (filtered by user or period)"""
+    """Get sales targets (legacy - use /role-targets instead)"""
     db = Database.get_db()
     
     query = {}
@@ -699,12 +1173,13 @@ async def get_targets(
     targets = await db.targets.find(query, {"_id": 0}).to_list(100)
     return targets
 
+
 @router.post("/targets")
 async def create_target(
     data: TargetCreate,
     token_data: dict = Depends(require_approved())
 ):
-    """Create a new target (Super Admin only)"""
+    """Create a new target (legacy - use /role-targets instead)"""
     db = Database.get_db()
     
     # Check if user is super admin
@@ -722,6 +1197,7 @@ async def create_target(
     await db.targets.insert_one(target)
     target.pop("_id", None)
     return target
+
 
 @router.put("/targets/{target_id}")
 async def update_target(

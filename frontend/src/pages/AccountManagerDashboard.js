@@ -30,7 +30,145 @@ import {
   Users,
   BarChart3,
   Kanban,
+  Database,
+  RefreshCw,
+  Info,
+  CheckCircle,
+  XCircle,
+  AlertTriangle as AlertTriangleIcon,
 } from "lucide-react";
+
+// Sync Status Widget - shows integration health
+const SyncStatusWidget = ({ integrations }) => {
+  if (!integrations || integrations.length === 0) return null;
+  
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'syncing':
+        return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin" />;
+      case 'needs_refresh':
+      case 'warning':
+      case 'no_data':
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-amber-500" />;
+      case 'error':
+      case 'failed':
+        return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+      case 'not_configured':
+      case 'not_connected':
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-slate-400" />;
+      default:
+        return <AlertTriangleIcon className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'connected':
+        return 'text-emerald-600';
+      case 'syncing':
+        return 'text-blue-600';
+      case 'needs_refresh':
+      case 'warning':
+      case 'no_data':
+        return 'text-amber-600';
+      case 'error':
+      case 'failed':
+        return 'text-red-600';
+      default:
+        return 'text-slate-400';
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      {integrations.map((integration, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-1.5 text-xs"
+          title={integration.note || `${integration.name}: ${integration.status}`}
+        >
+          {getStatusIcon(integration.status)}
+          <span className={getStatusColor(integration.status)}>
+            {integration.name.split(' ')[0]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Data Source Badge Component - shows where data comes from
+const DataSourceBadge = ({ source, lastSync }) => {
+  const formatSyncTime = (timestamp) => {
+    if (!timestamp) return "Never";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
+      <Database className="w-3.5 h-3.5 text-blue-600" />
+      <span className="text-blue-700 font-medium">Source: {source || "CRM"}</span>
+      {lastSync && (
+        <>
+          <span className="text-blue-300">|</span>
+          <RefreshCw className="w-3 h-3 text-blue-500" />
+          <span className="text-blue-600">{formatSyncTime(lastSync)}</span>
+        </>
+      )}
+    </div>
+  );
+};
+
+// Empty State Explainer Component
+const EmptyStateExplainer = ({ type, userRole }) => {
+  const messages = {
+    opportunities: {
+      title: "No opportunities assigned yet",
+      description: userRole === "account_manager" 
+        ? "Opportunities will appear here once they're synced from Odoo and assigned to your account."
+        : "No opportunities found in the data lake. Data syncs automatically from connected sources.",
+      icon: Target,
+    },
+    activities: {
+      title: "No pending activities",
+      description: "You're all caught up! Activities will appear here when created or assigned to you.",
+      icon: CheckCircle2,
+    },
+    pipeline: {
+      title: "Pipeline data loading",
+      description: "Your sales pipeline will populate once opportunities are synced from Odoo.",
+      icon: Kanban,
+    },
+  };
+
+  const config = messages[type] || messages.opportunities;
+  const Icon = config.icon;
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+      <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+        <Icon className="w-7 h-7 text-slate-400" />
+      </div>
+      <h4 className="font-semibold text-slate-700 mb-2">{config.title}</h4>
+      <p className="text-sm text-slate-500 max-w-sm">{config.description}</p>
+      <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+        <Info className="w-3.5 h-3.5" />
+        <span>Data syncs automatically from Odoo ERP</span>
+      </div>
+    </div>
+  );
+};
 import {
   BarChart,
   Bar,
@@ -114,14 +252,15 @@ const OpportunityCard = ({ opportunity, index, onCalculateProbability }) => {
             )}
           </div>
           
-          {/* Calculate Probability Button */}
+          {/* Get Deal Confidence Button */}
           <button
             onClick={() => onCalculateProbability(opportunity)}
             className="mt-3 w-full text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1 py-1.5 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
             data-testid={`calc-prob-${opportunity.id}`}
+            title="Get guidance based on configurable deal factors"
           >
             <Sparkles className="w-3 h-3" />
-            Calculate Probability
+            Get Deal Confidence
           </button>
         </div>
       )}
@@ -229,9 +368,13 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-blue-600" />
-            Blue Sheet Probability Analysis
+            Deal Confidence Assessment
           </h2>
           <p className="text-sm text-slate-500 mt-1">{opportunity?.name}</p>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+            <Info className="w-3 h-3" />
+            Based on configurable factors. Use as guidance, not prediction.
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
@@ -408,21 +551,29 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
           {result && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-slate-900">Analysis Result</h4>
-                <span className={cn(
-                  "text-2xl font-bold",
-                  result.calculated_probability >= 70 ? "text-emerald-600" :
-                  result.calculated_probability >= 40 ? "text-amber-600" :
-                  "text-red-600"
-                )}>
-                  {result.calculated_probability}%
-                </span>
+                <div>
+                  <h4 className="font-semibold text-slate-900">Deal Confidence Signal</h4>
+                  <p className="text-xs text-slate-500">Use as guidance, not prediction</p>
+                </div>
+                <div className="text-center">
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    result.calculated_probability >= 70 ? "text-emerald-600" :
+                    result.calculated_probability >= 40 ? "text-amber-600" :
+                    "text-red-600"
+                  )}>
+                    {result.calculated_probability >= 70 ? "High" :
+                     result.calculated_probability >= 40 ? "Medium" :
+                     "Low"}
+                  </span>
+                  <p className="text-xs text-slate-400">{result.calculated_probability}% score</p>
+                </div>
               </div>
               <p className="text-sm text-slate-700 mb-3">{result.analysis_summary}</p>
               
               {result.recommendations?.length > 0 && (
                 <div>
-                  <h5 className="text-sm font-medium text-slate-700 mb-2">AI Recommendations:</h5>
+                  <h5 className="text-sm font-medium text-slate-700 mb-2">Suggested Actions:</h5>
                   <ul className="space-y-1">
                     {result.recommendations.map((rec, i) => (
                       <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
@@ -452,7 +603,7 @@ const BlueSheetModal = ({ opportunity, isOpen, onClose, onCalculate }) => {
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            Calculate Probability
+            Get Confidence Signal
           </button>
         </div>
       </div>
@@ -646,6 +797,12 @@ const IncentiveCalculatorModal = ({ isOpen, onClose }) => {
 const AccountManagerDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  
+  // Check if user can trigger sync (admin only)
+  const canTriggerSync = true; // All authenticated users can trigger sync (was: admin only)
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [syncCooldown, setSyncCooldown] = useState(false);
   const [stats, setStats] = useState(null);
   const [kanbanData, setKanbanData] = useState({ stages: [], kanban: {} });
   const [recentActivities, setRecentActivities] = useState([]);
@@ -655,10 +812,56 @@ const AccountManagerDashboard = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [integrations, setIntegrations] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchIntegrationsHealth();
   }, []);
+
+  const fetchIntegrationsHealth = async () => {
+    try {
+      const res = await api.get("/sync-status");
+      setIntegrations(res.data.integrations || []);
+    } catch (e) {
+      console.log("Could not fetch sync status");
+    }
+  };
+
+  const handleSyncFromOdoo = async () => {
+    // Rate limiting: 30 second cooldown
+    if (syncCooldown) {
+      alert("Please wait 30 seconds between sync requests.");
+      return;
+    }
+    
+    setSyncing(true);
+    setSyncCooldown(true);
+    
+    try {
+      // Use the user-accessible sync endpoint (works for all authenticated users)
+      const res = await api.post("/integrations/user-sync/refresh");
+      
+      if (res.data) {
+        setLastSyncTime(new Date());
+        // Wait a bit for sync to complete then refresh
+        setTimeout(async () => {
+          await fetchDashboardData();
+          setSyncing(false);
+        }, 5000);
+        
+        // Reset cooldown after 30 seconds
+        setTimeout(() => setSyncCooldown(false), 30000);
+        return;
+      }
+    } catch (e) {
+      console.error("Sync failed:", e);
+      const errorMessage = e.response?.data?.detail || "Sync failed. Please try again later.";
+      alert(errorMessage);
+      setSyncCooldown(false);
+    }
+    setSyncing(false);
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -670,9 +873,9 @@ const AccountManagerDashboard = () => {
 
       const realData = realDataRes.data;
       
-      // Set stats from real data
+      // Set stats from real data - map to expected field names
       setStats({
-        pipeline_value: realData.metrics.pipeline_value,
+        total_pipeline_value: realData.metrics.pipeline_value,
         won_revenue: realData.metrics.won_revenue,
         active_opportunities: realData.metrics.active_opportunities,
         activity_completion_rate: 0, // Will calculate from activities
@@ -680,10 +883,17 @@ const AccountManagerDashboard = () => {
         pending_invoices: realData.metrics.pending_invoices,
       });
 
-      // Convert real opportunities to kanban format
-      const stages = ["New", "Qualification", "Proposal", "Negotiation", "Won", "Lost"];
+      // Convert real opportunities to kanban format with proper stage objects
+      const stageConfigs = [
+        { id: "New", name: "New", color: "#6366F1" },
+        { id: "Qualification", name: "Qualification", color: "#8B5CF6" },
+        { id: "Proposal", name: "Proposal", color: "#F59E0B" },
+        { id: "Negotiation", name: "Negotiation", color: "#F97316" },
+        { id: "Won", name: "Won", color: "#10B981" },
+        { id: "Lost", name: "Lost", color: "#EF4444" },
+      ];
       const kanban = {};
-      stages.forEach(s => kanban[s] = []);
+      stageConfigs.forEach(s => kanban[s.id] = { stage: s, opportunities: [], total_value: 0, count: 0 });
       
       realData.opportunities.forEach(opp => {
         const stage = opp.stage || "New";
@@ -696,8 +906,10 @@ const AccountManagerDashboard = () => {
         else if (stage.toLowerCase().includes("qualif")) mappedStage = "Qualification";
         else mappedStage = "New";
         
-        if (!kanban[mappedStage]) kanban[mappedStage] = [];
-        kanban[mappedStage].push({
+        if (!kanban[mappedStage]) {
+          kanban[mappedStage] = { stage: { id: mappedStage, name: mappedStage, color: "#6B7280" }, opportunities: [], total_value: 0, count: 0 };
+        }
+        kanban[mappedStage].opportunities.push({
           id: String(opp.id),
           name: opp.name,
           account_name: opp.account_name,
@@ -706,9 +918,11 @@ const AccountManagerDashboard = () => {
           stage: mappedStage,
           source: "odoo",
         });
+        kanban[mappedStage].total_value += opp.value || 0;
+        kanban[mappedStage].count += 1;
       });
 
-      setKanbanData({ stages, kanban, source: "data_lake_serving" });
+      setKanbanData({ stages: stageConfigs, kanban, source: "data_lake_serving" });
       setRecentActivities(activitiesRes.data.slice(0, 5));
 
       // Note: Data is from Odoo sync
@@ -785,6 +999,14 @@ const AccountManagerDashboard = () => {
           <p className="text-slate-600 mt-1">
             Your sales dashboard and pipeline management
           </p>
+          {/* Data Source Badge + Sync Status */}
+          <div className="mt-3 flex items-center gap-4">
+            <DataSourceBadge 
+              source={kanbanData?.source === "data_lake_serving" ? "Odoo" : "CRM"} 
+              lastSync={new Date().toISOString()} 
+            />
+            <SyncStatusWidget integrations={integrations} />
+          </div>
         </div>
         
         {/* Global Search */}
@@ -815,8 +1037,26 @@ const AccountManagerDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex gap-3">
+      {/* Quick Actions - Simplified for Beta */}
+      <div className="flex gap-3 items-center">
+        {canTriggerSync && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncFromOdoo}
+              disabled={syncing || syncCooldown}
+              className="btn-primary flex items-center gap-2"
+              data-testid="sync-odoo-btn"
+            >
+              <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+              {syncing ? "Syncing..." : syncCooldown ? "Please wait..." : "Sync from Odoo"}
+            </button>
+            {lastSyncTime && (
+              <span className="text-xs text-slate-500">
+                Last synced: {lastSyncTime.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        )}
         <button
           onClick={() => setShowCalculator(true)}
           className="btn-secondary flex items-center gap-2"
@@ -827,23 +1067,14 @@ const AccountManagerDashboard = () => {
         </button>
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* KPI Cards Row - Simplified: Only show metrics tied to real data */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <KPICard
           title="Pipeline Value"
           value={stats?.total_pipeline_value || 0}
-          target={salesMetrics?.quota || 500000}
           unit="currency"
-          trend="up"
+          trend="stable"
           icon={DollarSign}
-        />
-        <KPICard
-          title="Won Revenue"
-          value={stats?.won_revenue || 0}
-          target={salesMetrics?.quota || 500000}
-          unit="currency"
-          trend="up"
-          icon={TrendingUp}
         />
         <KPICard
           title="Active Opportunities"
@@ -852,46 +1083,7 @@ const AccountManagerDashboard = () => {
           trend="stable"
           icon={Target}
         />
-        <KPICard
-          title="Activity Completion"
-          value={stats?.activity_completion_rate || 0}
-          target={90}
-          unit="percentage"
-          icon={CheckCircle2}
-        />
       </div>
-
-      {/* Sales Metrics Summary */}
-      {salesMetrics && (
-        <div className="card p-6" data-testid="sales-metrics">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
-            Sales Metrics ({salesMetrics.period})
-          </h3>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Orders Won</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_won)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Booked</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_booked)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Invoiced</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_invoiced)}</p>
-            </div>
-            <div className="text-center p-3 bg-slate-50 rounded-lg">
-              <p className="label">Collected</p>
-              <p className="text-xl font-bold text-slate-900">{formatCurrency(salesMetrics.orders_collected)}</p>
-            </div>
-            <div className="text-center p-3 bg-emerald-50 rounded-lg">
-              <p className="label">Commission Earned</p>
-              <p className="text-xl font-bold text-emerald-600">{formatCurrency(salesMetrics.commission_earned)}</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Pipeline Kanban - Expandable */}
       <ExpandableContainer
@@ -947,9 +1139,7 @@ const AccountManagerDashboard = () => {
             </div>
           ))}
           {recentActivities.length === 0 && (
-            <div className="p-8 text-center text-slate-500">
-              No pending activities
-            </div>
+            <EmptyStateExplainer type="activities" userRole={user?.role} />
           )}
         </div>
       </div>

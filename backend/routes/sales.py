@@ -19,6 +19,29 @@ from core.config import settings
 router = APIRouter(tags=["Sales"])
 logger = logging.getLogger(__name__)
 
+
+# ===================== HELPER FUNCTIONS =====================
+
+def active_entity_filter(entity_type: str, additional_filters: dict = None) -> dict:
+    """
+    Create a filter for active (non-deleted) records from data_lake_serving.
+    Soft-deleted records (is_active=False) are completely hidden from users.
+    
+    Handles three cases:
+    - is_active=True: explicitly active
+    - is_active=None: not yet set (legacy/seeded data, treated as active)
+    - is_active does not exist: old records (treated as active)
+    """
+    base_filter = {
+        "entity_type": entity_type,
+        # Exclude only explicitly deleted records (is_active=False)
+        "is_active": {"$ne": False}
+    }
+    if additional_filters:
+        base_filter.update(additional_filters)
+    return base_filter
+
+
 # ===================== MODELS =====================
 
 class OpportunityCreate(BaseModel):
@@ -158,28 +181,129 @@ async def get_opportunities(
     product_line: Optional[str] = None,
     token_data: dict = Depends(require_approved())
 ):
-    """Get opportunities with optional filters"""
+    """Get opportunities from data_lake_serving with proper field mapping"""
+    from services.field_mapper import get_field_mapper
+    
     db = Database.get_db()
     user_id = token_data["id"]
-    user_role = token_data.get("role", "")
+    user_email = token_data.get("email", "").lower()
     
-    query = {}
+    # Get user profile from CQRS for proper access control
+    user_profile = await db.user_profiles.find_one({"email": user_email}, {"_id": 0})
     
-    # Role-based filtering
-    if user_role == "account_manager":
-        query["owner_id"] = user_id
+    if not user_profile:
+        # User not in CQRS system
+        return []
     
-    if stage:
-        query["stage"] = stage
-    if product_line:
-        query["product_lines"] = product_line
+    cqrs_user_id = user_profile["id"]
+    is_super_admin = user_profile.get("is_super_admin", False)
     
-    opportunities = await db.opportunities.find(query, {"_id": 0}).to_list(1000)
+    # Get access matrix for proper multi-level hierarchy support
+    access_matrix = await db.user_access_matrix.find_one({"user_id": cqrs_user_id}, {"_id": 0})
     
-    # Enrich with activity counts
+    if not access_matrix and not is_super_admin:
+        logger.warning(f"No access matrix for user {user_email}")
+        return []
+    
+    # Get accessible opportunity IDs from access matrix
+    accessible_opp_ids = access_matrix.get("accessible_opportunities", []) if access_matrix else []
+    
+    # Fetch from data_lake_serving
+    opportunities = []
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
+    
+    # Get field mapper
+    mapper = get_field_mapper()
+    
+    for doc in opp_docs:
+        opp_data = doc.get("data", {})
+        
+        # Use universal mapper for proper field extraction
+        canonical_opp = mapper.map_opportunity(opp_data)
+        
+        # Access control: Check if user can see this opportunity
+        if not is_super_admin:
+            opp_odoo_id = canonical_opp.get("odoo_id")
+            
+            # Convert to int for comparison if needed
+            try:
+                opp_odoo_id_int = int(opp_odoo_id) if opp_odoo_id else None
+            except:
+                opp_odoo_id_int = None
+            
+            # Check if opportunity is in accessible list
+            if opp_odoo_id not in accessible_opp_ids and opp_odoo_id_int not in accessible_opp_ids:
+                continue  # User can't access this opportunity
+        
+        # Map stage to internal format (keep existing logic)
+        stage_name_lower = canonical_opp.get("stage_name", "").lower()
+        if "won" in stage_name_lower:
+            mapped_stage = "closed_won"
+        elif "lost" in stage_name_lower:
+            mapped_stage = "closed_lost"
+        elif "negot" in stage_name_lower:
+            mapped_stage = "negotiation"
+        elif "propos" in stage_name_lower:
+            mapped_stage = "proposal"
+        elif "discov" in stage_name_lower:
+            mapped_stage = "discovery"
+        elif "qualif" in stage_name_lower:
+            mapped_stage = "qualification"
+        else:
+            mapped_stage = "lead"
+        
+        canonical_opp["stage"] = mapped_stage
+        canonical_opp["last_synced"] = doc.get("last_aggregated")
+        
+        # Stage filter
+        if stage and mapped_stage != stage:
+            continue
+        
+        opportunities.append(canonical_opp)
+    
+    # ENHANCED: Aggregate activity counts for each opportunity
     for opp in opportunities:
-        activity_count = await db.activities.count_documents({"opportunity_id": opp["id"]})
-        opp["activity_count"] = activity_count
+        try:
+            opp_id = opp.get("id")
+            
+            # Convert to int if possible for matching with Odoo res_id
+            try:
+                opp_id_int = int(opp_id)
+            except (ValueError, TypeError):
+                opp_id_int = None
+            
+            # Build activity query - match by res_id (int or string)
+            if opp_id_int:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": opp_id_int
+                }
+            else:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": opp_id
+                }
+            
+            activity_docs = await db.data_lake_serving.find(activity_query).to_list(100)
+            
+            # Count by status
+            activities = [doc.get("data", {}) for doc in activity_docs]
+            completed = len([a for a in activities if a.get("state") == "done"])
+            pending = len([a for a in activities if a.get("state") not in ["done", "cancel", "cancelled"]])
+            
+            opp["completed_activities"] = completed
+            opp["pending_activities"] = pending
+            opp["total_activities"] = len(activities)
+            
+        except Exception as e:
+            logger.error(f"Activity aggregation error for {opp.get('id')}: {e}")
+            opp["completed_activities"] = 0
+            opp["pending_activities"] = 0
+            opp["total_activities"] = 0
     
     return opportunities
 
@@ -262,22 +386,106 @@ async def update_opportunity(
     updated = await db.opportunities.find_one({"id": opp_id}, {"_id": 0})
     return updated
 
+# Stage transition rules - defines allowed transitions
+# Format: { "from_stage": ["allowed_to_stage1", "allowed_to_stage2", ...] }
+STAGE_TRANSITION_RULES = {
+    "new": ["qualification", "lost"],
+    "lead": ["qualification", "lost"],
+    "qualification": ["discovery", "proposal", "lost"],
+    "discovery": ["proposal", "negotiation", "lost"],
+    "proposal": ["negotiation", "won", "lost"],
+    "negotiation": ["won", "lost", "proposal"],  # Can go back to proposal
+    "won": [],  # Closed stages cannot transition
+    "lost": [],  # Closed stages cannot transition
+    "closed_won": [],
+    "closed_lost": [],
+}
+
+# Stages that are considered "closed" - cannot transition out
+CLOSED_STAGES = ["won", "lost", "closed_won", "closed_lost"]
+
+
+def validate_stage_transition(current_stage: str, new_stage: str) -> tuple[bool, str]:
+    """
+    Validate if a stage transition is allowed.
+    Returns (is_valid, error_message)
+    """
+    current_normalized = current_stage.lower().replace(" ", "_")
+    new_normalized = new_stage.lower().replace(" ", "_")
+    
+    # Same stage - always allowed (no-op)
+    if current_normalized == new_normalized:
+        return True, ""
+    
+    # Check if current stage is closed
+    if current_normalized in CLOSED_STAGES:
+        return False, f"Cannot move opportunity from '{current_stage}' - deal is already closed"
+    
+    # Check if transition is allowed
+    allowed_transitions = STAGE_TRANSITION_RULES.get(current_normalized, [])
+    
+    # If no rules defined for this stage, allow any non-closed transition
+    if not allowed_transitions and current_normalized not in STAGE_TRANSITION_RULES:
+        if new_normalized in CLOSED_STAGES:
+            return True, ""  # Allow closing from any undefined stage
+        return True, ""  # Allow transition to any stage if not explicitly restricted
+    
+    if new_normalized not in [t.lower() for t in allowed_transitions]:
+        allowed_list = ", ".join(allowed_transitions) if allowed_transitions else "none"
+        return False, f"Cannot move from '{current_stage}' to '{new_stage}'. Allowed transitions: {allowed_list}"
+    
+    return True, ""
+
+
 @router.patch("/opportunities/{opp_id}/stage")
 async def update_opportunity_stage(
     opp_id: str,
     new_stage: str = Query(...),
     token_data: dict = Depends(require_approved())
 ):
-    """Update only the stage of an opportunity (for drag-drop)"""
+    """
+    Update only the stage of an opportunity (for drag-drop).
+    Validates stage transitions against defined rules.
+    """
     db = Database.get_db()
     
     opportunity = await db.opportunities.find_one({"id": opp_id})
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     
+    current_stage = opportunity.get("stage", "new")
+    
+    # Validate stage transition
+    is_valid, error_message = validate_stage_transition(current_stage, new_stage)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "error": "INVALID_STAGE_TRANSITION",
+                "message": error_message,
+                "current_stage": current_stage,
+                "requested_stage": new_stage,
+            }
+        )
+    
     # Get stage probability default
     stage = await db.pipeline_stages.find_one({"id": new_stage})
     new_probability = stage.get("probability_default", opportunity.get("probability", 10)) if stage else opportunity.get("probability", 10)
+    
+    # Log the transition
+    await db.audit_log.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "stage_transition",
+        "entity_type": "opportunity",
+        "entity_id": opp_id,
+        "user_id": token_data["id"],
+        "details": {
+            "from_stage": current_stage,
+            "to_stage": new_stage,
+            "opportunity_name": opportunity.get("name"),
+        },
+        "timestamp": datetime.now(timezone.utc),
+    })
     
     await db.opportunities.update_one(
         {"id": opp_id},
@@ -289,6 +497,18 @@ async def update_opportunity_stage(
     )
     
     return {"message": "Stage updated", "stage": new_stage, "probability": new_probability}
+
+
+@router.get("/stage-transitions")
+async def get_stage_transition_rules(
+    token_data: dict = Depends(require_approved())
+):
+    """Get the stage transition rules for frontend validation"""
+    return {
+        "rules": STAGE_TRANSITION_RULES,
+        "closed_stages": CLOSED_STAGES,
+    }
+
 
 # ===================== BLUE SHEET PROBABILITY =====================
 
@@ -816,16 +1036,34 @@ async def get_activities(
     status: Optional[str] = None,
     opportunity_id: Optional[str] = None,
     account_id: Optional[str] = None,
+    include_system: bool = False,
+    activity_type: Optional[str] = None,
     token_data: dict = Depends(require_approved())
 ):
-    """Get activities with filters"""
+    """
+    Get activities with filters.
+    By default, excludes system events (user_login, data_synced).
+    Use include_system=true to see all activities.
+    """
     db = Database.get_db()
     user_id = token_data["id"]
     user_role = token_data.get("role", "")
+    is_super_admin = token_data.get("is_super_admin", False)
     
     query = {}
-    if user_role == "account_manager":
-        query["$or"] = [{"created_by_id": user_id}, {"assigned_to_id": user_id}]
+    
+    # Role-based filtering (admins see all, others see their own)
+    if not is_super_admin and user_role == "account_manager":
+        query["$or"] = [{"created_by_id": user_id}, {"assigned_to_id": user_id}, {"user_id": user_id}]
+    
+    # Exclude system events by default (login, sync events)
+    system_event_types = ["user_login", "data_synced", "system"]
+    if not include_system:
+        query["activity_type"] = {"$nin": system_event_types}
+    
+    # Filter by specific activity type if provided
+    if activity_type:
+        query["activity_type"] = activity_type
     
     if status:
         query["status"] = status
@@ -834,8 +1072,116 @@ async def get_activities(
     if account_id:
         query["account_id"] = account_id
     
-    activities = await db.activities.find(query, {"_id": 0}).sort("due_date", 1).to_list(1000)
+    # Sort by created_at descending (most recent first), fallback to due_date
+    activities = await db.activities.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return activities
+
+
+@router.get("/activities/stats")
+async def get_activity_stats(
+    token_data: dict = Depends(require_approved())
+):
+    """Get activity statistics - counts by type"""
+    db = Database.get_db()
+    
+    # System event types to separate
+    system_event_types = ["user_login", "data_synced", "system"]
+    
+    # Count total
+    total = await db.activities.count_documents({})
+    
+    # Count business activities (non-system)
+    business = await db.activities.count_documents({
+        "activity_type": {"$nin": system_event_types}
+    })
+    
+    # Count system events
+    system = await db.activities.count_documents({
+        "activity_type": {"$in": system_event_types}
+    })
+    
+    # Count by type
+    pipeline = [
+        {"$group": {"_id": "$activity_type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    type_counts = {}
+    async for doc in db.activities.aggregate(pipeline):
+        type_counts[doc["_id"] or "unknown"] = doc["count"]
+    
+    # Count today's activities
+    from datetime import datetime, timezone, timedelta
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_business = await db.activities.count_documents({
+        "activity_type": {"$nin": system_event_types},
+        "created_at": {"$gte": today_start}
+    })
+    
+    return {
+        "total": total,
+        "business_activities": business,
+        "system_events": system,
+        "today_business": today_business,
+        "by_type": type_counts
+    }
+
+
+@router.get("/activities/opportunity/{opp_id}")
+async def get_activities_for_opportunity(
+    opp_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get activities linked to a specific opportunity.
+    Returns Odoo mail.activity records for this opportunity.
+    """
+    from services.field_mapper import get_field_mapper
+    
+    db = Database.get_db()
+    mapper = get_field_mapper()
+    
+    activities = []
+    
+    # Try to parse as integer for Odoo matching
+    try:
+        odoo_id = int(opp_id) if opp_id.isdigit() else int(opp_id)
+    except (ValueError, TypeError):
+        odoo_id = None
+    
+    if odoo_id:
+        # Query Odoo activities from data_lake_serving
+        odoo_activities = await db.data_lake_serving.find({
+            "entity_type": "activity",
+            "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+            "data.res_model": "crm.lead",
+            "data.res_id": odoo_id
+        }).to_list(100)
+        
+        for act_doc in odoo_activities:
+            data = act_doc.get("data", {})
+            
+            # Use mapper to properly extract activity fields
+            canonical_activity = mapper.map_activity(data)
+            
+            # Map state to status for frontend
+            state = canonical_activity.get("state", "planned")
+            if state == "done":
+                status = "completed"
+            elif state in ["overdue", "today"]:
+                status = "pending"
+            else:
+                status = "pending"
+            
+            canonical_activity["status"] = status
+            
+            activities.append(canonical_activity)
+    
+    return {
+        "opportunity_id": opp_id,
+        "activities": activities,
+        "count": len(activities)
+    }
+
 
 @router.post("/activities")
 async def create_activity(
@@ -861,6 +1207,56 @@ async def create_activity(
     }
     
     await db.activities.insert_one(activity)
+
+
+
+@router.get("/opportunities/{opp_id}/messages")
+async def get_opportunity_messages(
+    opp_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get chatter messages/communication history for an opportunity.
+    Shows notes, emails, status changes from Odoo.
+    """
+    db = Database.get_db()
+    
+    # Convert to int for Odoo ID matching
+    try:
+        opp_odoo_id = int(opp_id)
+    except (ValueError, TypeError):
+        opp_odoo_id = opp_id
+    
+    # Query messages from data_lake_serving
+    message_docs = await db.data_lake_serving.find({
+        "entity_type": "message",
+        "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+        "data.res_model": "crm.lead",
+        "data.res_id": opp_odoo_id
+    }).sort([("data.date", -1)]).to_list(100)
+    
+    messages = []
+    for doc in message_docs:
+        msg = doc.get("data", {})
+        
+        messages.append({
+            "id": msg.get("id"),
+            "body": msg.get("body", ""),
+            "date": msg.get("date"),
+            "message_type": msg.get("message_type"),
+            "subtype_name": msg.get("subtype_name"),
+            "author_name": msg.get("author_name", "System"),
+            "author_id": msg.get("author_id"),
+            "email_from": msg.get("email_from"),
+            "subject": msg.get("subject"),
+        })
+    
+    return {
+        "messages": messages,
+        "count": len(messages),
+        "opportunity_id": opp_id
+    }
+
     activity.pop("_id", None)
     return activity
 
@@ -1007,8 +1403,21 @@ async def get_kpis(
     """Get all KPIs"""
     db = Database.get_db()
     user_id = token_data["id"]
+    is_super_admin = token_data.get("is_super_admin", False)
     
-    query = {"owner_id": user_id}
+    # Build query - super admins see all KPIs, others see their own or unassigned
+    if is_super_admin:
+        query = {}
+    else:
+        query = {
+            "$or": [
+                {"owner_id": user_id},
+                {"user_id": user_id},
+                {"owner_id": {"$exists": False}},
+                {"user_id": {"$exists": False}}
+            ]
+        }
+    
     if category:
         query["category"] = category
     
@@ -1079,31 +1488,129 @@ async def get_real_dashboard(
     """
     Get dashboard data from data_lake_serving (real Odoo-synced data).
     This is the source of truth for beta.
+    Access is controlled by Odoo salesperson/team assignment AND manager hierarchy.
+    
+    Manager visibility:
+    - Managers can see all records assigned to their direct reports
+    - This is based on the manager_odoo_id field in users collection
     """
     db = Database.get_db()
     user_id = token_data["id"]
-    user_email = token_data.get("email", "")
+    user_email = token_data.get("email", "").lower()
     user_role = token_data.get("role", "")
-    is_super_admin = token_data.get("is_super_admin", False)
     
-    # Get user's team_id for team-based visibility
-    user = await db.users.find_one({"id": user_id})
-    team_id = user.get("team_id") if user else None
-    department_id = user.get("department_id") if user else None
+    # Get full user details including Odoo enrichment
+    user_doc = await db.users.find_one({"id": user_id})
+    is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
+    
+    # Get Odoo identifiers for filtering
+    odoo_salesperson_name = (user_doc.get("odoo_salesperson_name") or "").lower() if user_doc else ""
+    odoo_user_id = user_doc.get("odoo_user_id") if user_doc else None
+    odoo_employee_id = user_doc.get("odoo_employee_id") if user_doc else None
+    odoo_team_id = user_doc.get("odoo_team_id") if user_doc else None
+    
+    # Build list of subordinate employee IDs (people this user manages)
+    subordinate_user_ids = set()
+    subordinate_employee_ids = set()
+    subordinate_salesperson_names = set()
+    subordinate_emails = set()  # ADD: Track subordinate emails
+    
+    if odoo_employee_id:
+        # Find all users where manager_odoo_id matches current user's employee_id
+        subordinates = await db.users.find(
+            {"manager_odoo_id": odoo_employee_id},
+            {"odoo_user_id": 1, "odoo_employee_id": 1, "odoo_salesperson_name": 1, "email": 1}
+        ).to_list(100)
+        
+        for sub in subordinates:
+            if sub.get("odoo_user_id"):
+                subordinate_user_ids.add(sub["odoo_user_id"])
+            if sub.get("odoo_employee_id"):
+                subordinate_employee_ids.add(sub["odoo_employee_id"])
+            if sub.get("odoo_salesperson_name"):
+                subordinate_salesperson_names.add(sub["odoo_salesperson_name"].lower())
+            if sub.get("email"):
+                subordinate_salesperson_names.add(sub["email"].lower())
+                subordinate_emails.add(sub["email"].lower())  # ADD: Store email separately
+        
+        logger.info(f"User {user_email} (emp_id={odoo_employee_id}) manages {len(subordinates)} subordinates: user_ids={subordinate_user_ids}, emails={subordinate_emails}")
+    
+    def user_has_access_to_record(record_data):
+        """
+        Check if current user has access to a record based on Odoo assignment.
+        
+        Access granted if:
+        1. User is super admin
+        2. User is the assigned salesperson (by ID, name, or email)
+        3. User is on the same team
+        4. User is the MANAGER of the assigned salesperson (hierarchy visibility)
+        
+        CRITICAL: Uses strict matching to prevent cross-user data leaks.
+        """
+        if is_super_admin:
+            return True
+        
+        salesperson_name = (record_data.get("salesperson_name") or "").lower().strip()
+        salesperson_id = record_data.get("salesperson_id")
+        record_team_id = record_data.get("team_id")
+        
+        # STRICT matching by salesperson ID (most reliable)
+        if odoo_user_id and salesperson_id:
+            try:
+                if int(odoo_user_id) == int(salesperson_id):
+                    return True
+            except (ValueError, TypeError):
+                pass
+        
+        # STRICT matching by salesperson name (exact, case-insensitive)
+        if odoo_salesperson_name and salesperson_name and odoo_salesperson_name == salesperson_name:
+            return True
+        
+        # STRICT matching by team
+        if odoo_team_id and record_team_id:
+            try:
+                if int(odoo_team_id) == int(record_team_id):
+                    return True
+            except (ValueError, TypeError):
+                pass
+        
+        # Fallback: Check if user's email is the salesperson's email
+        record_email = (record_data.get("salesperson_email") or salesperson_name or "").lower().strip()
+        if user_email and record_email and user_email == record_email:
+            return True
+        
+        # CRITICAL FIX: MANAGER HIERARCHY - Check if current user manages the salesperson
+        # This allows managers to see their subordinates' opportunities
+        if salesperson_id:
+            # Check if this salesperson_id belongs to any of our subordinates
+            if salesperson_id in subordinate_user_ids:
+                logger.debug(f"Manager access granted: {user_email} manages salesperson_id={salesperson_id}")
+                return True
+        
+        # Also check by salesperson name if ID match didn't work
+        if salesperson_name:
+            # Check if salesperson name matches any subordinate
+            if salesperson_name in subordinate_salesperson_names:
+                logger.debug(f"Manager access granted: {user_email} manages {salesperson_name}")
+                return True
+            
+            # Check if salesperson email matches any subordinate
+            if any(salesperson_name in sub_name for sub_name in subordinate_salesperson_names):
+                logger.debug(f"Manager access granted: {user_email} manages user with name containing {salesperson_name}")
+                return True
+        
+        return False
     
     # ---- OPPORTUNITIES FROM DATA LAKE ----
     opportunities_data = []
-    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
     for doc in opp_docs:
         opp = doc.get("data", {})
         
-        # Team-based filtering for non-admin users
-        if not is_super_admin and user_role == "account_manager":
-            # Filter by salesperson_name (Odoo field maps to user email)
-            salesperson = opp.get("salesperson_name", "")
-            if salesperson and user_email not in salesperson:
-                continue
+        # Odoo-based access control
+        if not user_has_access_to_record(opp):
+            continue
         
         opportunities_data.append({
             "id": opp.get("id"),
@@ -1119,10 +1626,16 @@ async def get_real_dashboard(
     
     # ---- ACCOUNTS FROM DATA LAKE ----
     accounts_data = []
-    acc_docs = await db.data_lake_serving.find({"entity_type": "account"}).to_list(1000)
+    acc_docs = await db.data_lake_serving.find(active_entity_filter("account")).to_list(1000)
     
     for doc in acc_docs:
         acc = doc.get("data", {})
+        
+        # Filter accounts by salesperson assignment (if set)
+        if not is_super_admin and acc.get("salesperson_name"):
+            if not user_has_access_to_record(acc):
+                continue
+        
         accounts_data.append({
             "id": acc.get("id"),
             "name": acc.get("name", ""),
@@ -1135,7 +1648,7 @@ async def get_real_dashboard(
     
     # ---- INVOICES FROM DATA LAKE ----
     invoices_data = []
-    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    inv_docs = await db.data_lake_serving.find(active_entity_filter("invoice")).to_list(1000)
     
     for doc in inv_docs:
         inv = doc.get("data", {})
@@ -1189,14 +1702,31 @@ async def get_receivables(
     
     # Get invoices from data lake
     invoices = []
-    inv_docs = await db.data_lake_serving.find({"entity_type": "invoice"}).to_list(1000)
+    inv_docs = await db.data_lake_serving.find(active_entity_filter("invoice")).to_list(1000)
     
     for doc in inv_docs:
         inv = doc.get("data", {})
+        
+        # Extract salesperson info (Odoo format: [id, "Name"] or just id)
+        salesperson_id = inv.get("invoice_user_id") or inv.get("user_id")
+        salesperson_name = ""
+        if isinstance(salesperson_id, list) and len(salesperson_id) > 1:
+            salesperson_name = salesperson_id[1]
+        elif isinstance(salesperson_id, str):
+            salesperson_name = salesperson_id
+        
+        # Extract partner/account info
+        partner_id = inv.get("partner_id")
+        partner_name = inv.get("customer_name") or inv.get("partner_name", "")
+        if isinstance(partner_id, list) and len(partner_id) > 1:
+            partner_name = partner_id[1]
+        
         invoices.append({
             "id": inv.get("id"),
             "invoice_number": inv.get("invoice_number", inv.get("name", "")),
-            "customer_name": inv.get("customer_name", inv.get("partner_name", "")),
+            "customer_name": partner_name,
+            "account_id": partner_id[0] if isinstance(partner_id, list) else partner_id,
+            "salesperson": salesperson_name,
             "total_amount": float(inv.get("total_amount", inv.get("amount_total", 0)) or 0),
             "amount_due": float(inv.get("amount_due", inv.get("amount_residual", 0)) or 0),
             "amount_paid": float(inv.get("amount_paid", 0) or 0),
@@ -1239,7 +1769,7 @@ async def get_real_opportunities(
     is_super_admin = token_data.get("is_super_admin", False)
     
     opportunities = []
-    opp_docs = await db.data_lake_serving.find({"entity_type": "opportunity"}).to_list(1000)
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
     
     for doc in opp_docs:
         opp = doc.get("data", {})
@@ -1268,4 +1798,600 @@ async def get_real_opportunities(
         "source": "data_lake_serving",
         "opportunities": opportunities,
         "count": len(opportunities),
+    }
+
+@router.get("/accounts/real")
+async def get_real_accounts(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get accounts from data_lake_serving (real Odoo data).
+    Shows synced customer/partner data from ERP.
+    Aggregates pipeline and won revenue from related opportunities.
+    """
+    db = Database.get_db()
+    
+    # Helper to handle Odoo's False values
+    def clean_value(val, default=""):
+        if val is False or val is None:
+            return default
+        return val
+    
+    # Helper to infer industry from company name
+    def infer_industry(name: str) -> str:
+        name_lower = name.lower()
+        
+        # Industry patterns based on common naming conventions
+        if any(kw in name_lower for kw in ["tech", "software", "data", "cyber", "cloud", "digital", "systems", "solutions"]):
+            return "Technology"
+        elif any(kw in name_lower for kw in ["bank", "finance", "capital", "invest", "financial"]):
+            return "Financial Services"
+        elif any(kw in name_lower for kw in ["health", "medical", "pharma", "bio", "care"]):
+            return "Healthcare"
+        elif any(kw in name_lower for kw in ["retail", "shop", "store", "commerce", "mart"]):
+            return "Retail"
+        elif any(kw in name_lower for kw in ["global", "corp", "enterprise", "inc", "llc", "ltd"]):
+            return "Enterprise"
+        elif any(kw in name_lower for kw in ["security", "secure", "protect"]):
+            return "Cybersecurity"
+        elif any(kw in name_lower for kw in ["consult", "advisory", "service"]):
+            return "Consulting"
+        elif any(kw in name_lower for kw in ["manufact", "industrial", "engineering"]):
+            return "Manufacturing"
+        
+        return ""
+    
+    # First, get all opportunities to calculate account-level metrics
+    opp_docs = await db.data_lake_serving.find(active_entity_filter("opportunity")).to_list(1000)
+    
+    # Build a map of partner_name -> metrics
+    account_metrics = {}
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        partner_name = clean_value(opp.get("partner_name"), "").strip().lower()
+        if not partner_name:
+            continue
+        
+        if partner_name not in account_metrics:
+            account_metrics[partner_name] = {
+                "pipeline_value": 0,
+                "won_value": 0,
+                "active_count": 0,
+                "total_count": 0
+            }
+        
+        value = float(opp.get("expected_revenue", 0) or 0)
+        stage = clean_value(opp.get("stage_name"), "").lower()
+        
+        account_metrics[partner_name]["total_count"] += 1
+        
+        if "won" in stage:
+            account_metrics[partner_name]["won_value"] += value
+        elif "lost" not in stage:
+            account_metrics[partner_name]["pipeline_value"] += value
+            account_metrics[partner_name]["active_count"] += 1
+    
+    # Get accounts
+    accounts = []
+    acc_docs = await db.data_lake_serving.find(active_entity_filter("account")).to_list(1000)
+    
+    for doc in acc_docs:
+        acc = doc.get("data", {})
+        name = clean_value(acc.get("name"), "")
+        
+        # Skip accounts with empty names (invalid data)
+        if not name.strip():
+            continue
+        
+        # Get metrics for this account
+        name_key = name.strip().lower()
+        metrics = account_metrics.get(name_key, {
+            "pipeline_value": 0,
+            "won_value": 0,
+            "active_count": 0,
+            "total_count": 0
+        })
+        
+        accounts.append({
+            "id": str(acc.get("id", doc.get("serving_id", ""))),
+            "name": name,
+            "email": clean_value(acc.get("email"), ""),
+            "phone": clean_value(acc.get("phone"), ""),
+            "website": clean_value(acc.get("website"), ""),
+            "city": clean_value(acc.get("address_city") or acc.get("city"), ""),
+            "country": clean_value(acc.get("address_country") or acc.get("country"), ""),
+            "industry": clean_value(acc.get("industry") or acc.get("industry_id"), "") or infer_industry(name),
+            # Aggregated metrics
+            "pipeline_value": metrics["pipeline_value"],
+            "won_value": metrics["won_value"],
+            "active_opportunities": metrics["active_count"],
+            "total_opportunities": metrics["total_count"],
+            # Source info
+            "source": "odoo",
+            "last_synced": doc.get("last_aggregated"),
+        })
+    
+    # Also get unique account names from opportunities that don't have account records
+    existing_names = {a["name"].strip().lower() for a in accounts}
+    
+    for partner_name, metrics in account_metrics.items():
+        if partner_name not in existing_names and partner_name:
+            # Create a synthetic account from opportunity data
+            display_name = partner_name.title()
+            accounts.append({
+                "id": f"opp_{partner_name[:20].replace(' ', '_')}",
+                "name": display_name,
+                "email": "",
+                "phone": "",
+                "website": "",
+                "city": "",
+                "country": "",
+                "industry": infer_industry(display_name),
+                # Aggregated metrics
+                "pipeline_value": metrics["pipeline_value"],
+                "won_value": metrics["won_value"],
+                "active_opportunities": metrics["active_count"],
+                "total_opportunities": metrics["total_count"],
+                # Source info
+                "source": "odoo_opportunity",
+                "last_synced": None,
+            })
+    
+    return {
+        "source": "data_lake_serving",
+        "data_note": "Accounts with aggregated pipeline and revenue metrics.",
+        "accounts": accounts,
+        "count": len(accounts),
+    }
+
+
+# ===================== 360° ACCOUNT VIEW =====================
+
+@router.get("/accounts/{account_id}/360")
+async def get_account_360_view(
+    account_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get 360° view of an account with all related entities.
+    Aggregates opportunities, invoices, activities, and contacts from data_lake_serving.
+    """
+    db = Database.get_db()
+    
+    # Find the account - try both data lake and legacy accounts
+    account = None
+    
+    # Handle synthetic IDs (from opportunity-derived accounts like "opp_techcorp_industri")
+    account_name = None
+    if account_id.startswith("opp_"):
+        # Extract name from synthetic ID: opp_techcorp_industri -> techcorp industri
+        name_part = account_id[4:].replace("_", " ")
+        account_name = name_part.title()
+    
+    # First check data_lake_serving by ID
+    acc_doc = await db.data_lake_serving.find_one({
+        "entity_type": "account",
+        "$or": [
+            {"data.id": account_id},
+            {"data.id": int(account_id) if account_id.isdigit() else account_id},
+            {"serving_id": account_id}
+        ]
+    })
+    
+    # If not found and we have a name, try searching by name
+    if not acc_doc and account_name:
+        acc_doc = await db.data_lake_serving.find_one({
+            "entity_type": "account",
+            "data.name": {"$regex": account_name, "$options": "i"}
+        })
+    
+    if acc_doc:
+        acc_data = acc_doc.get("data", {})
+        account = {
+            "id": str(acc_data.get("id", account_id)),
+            "name": acc_data.get("name", ""),
+            "email": acc_data.get("email", ""),
+            "phone": acc_data.get("phone", ""),
+            "mobile": acc_data.get("mobile", ""),
+            "website": acc_data.get("website", ""),
+            "street": acc_data.get("street", ""),
+            "city": acc_data.get("city", ""),
+            "state": acc_data.get("state", ""),
+            "country": acc_data.get("country", ""),
+            "zip": acc_data.get("zip", ""),
+            "industry": acc_data.get("industry", ""),
+            "company_type": acc_data.get("company_type", ""),
+            "is_company": acc_data.get("is_company", False),
+            "parent_id": acc_data.get("parent_id"),
+            "parent_name": acc_data.get("parent_name", ""),
+            "credit_limit": float(acc_data.get("credit_limit", 0) or 0),
+            "total_invoiced": float(acc_data.get("total_invoiced", 0) or 0),
+            "total_due": float(acc_data.get("total_due", 0) or 0),
+            "source": "odoo",
+            "last_synced": acc_doc.get("last_aggregated"),
+        }
+    else:
+        # Fallback to legacy accounts collection
+        legacy_acc = await db.accounts.find_one({"id": account_id}, {"_id": 0})
+        if legacy_acc:
+            account = {**legacy_acc, "source": "crm"}
+    
+    # If still not found, try to create account from opportunity partner data
+    if not account and account_name:
+        # Find opportunities with this partner name to derive account info
+        opp_doc = await db.data_lake_serving.find_one({
+            "entity_type": "opportunity",
+            "data.partner_name": {"$regex": account_name, "$options": "i"}
+        })
+        
+        if opp_doc:
+            opp_data = opp_doc.get("data", {})
+            account = {
+                "id": account_id,
+                "name": opp_data.get("partner_name", account_name),
+                "email": "",
+                "phone": "",
+                "mobile": "",
+                "website": "",
+                "street": "",
+                "city": "",
+                "state": "",
+                "country": "",
+                "zip": "",
+                "industry": "",
+                "company_type": "",
+                "is_company": True,
+                "source": "opportunity_derived",
+                "last_synced": opp_doc.get("last_aggregated"),
+            }
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Get related opportunities from data_lake_serving (only active records)
+    opportunities = []
+    
+    # Build search patterns - use name if available, fallback to ID
+    account_search_name = account.get("name", "")
+    opp_query = {
+        "entity_type": "opportunity",
+        "$and": [
+            # Only show active (non-deleted) records
+            {"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]},
+            # Match by partner ID or name
+            {"$or": [
+                {"data.partner_id": account_id},
+            ]}
+        ]
+    }
+    
+    # Add numeric ID search if applicable
+    if account_id.isdigit():
+        opp_query["$and"][1]["$or"].append({"data.partner_id": int(account_id)})
+    
+    # Add name-based search
+    if account_search_name:
+        opp_query["$and"][1]["$or"].append({"data.partner_name": {"$regex": account_search_name, "$options": "i"}})
+    
+    # Also search by account_name if we derived it from the synthetic ID
+    if account_name and account_name != account_search_name:
+        opp_query["$and"][1]["$or"].append({"data.partner_name": {"$regex": account_name, "$options": "i"}})
+    
+    opp_docs = await db.data_lake_serving.find(opp_query).to_list(100)
+    
+    for doc in opp_docs:
+        opp = doc.get("data", {})
+        opportunities.append({
+            "id": str(opp.get("id", "")),
+            "name": opp.get("name", ""),
+            "value": float(opp.get("expected_revenue", 0) or 0),
+            "probability": float(opp.get("probability", 0) or 0),
+            "stage": opp.get("stage_name", "New"),
+            "salesperson": opp.get("salesperson_name", ""),
+            "expected_close_date": opp.get("date_deadline"),
+            "created_date": opp.get("create_date"),
+        })
+    
+    # Also check legacy opportunities
+    legacy_opps = await db.opportunities.find(
+        {"account_id": account_id}, 
+        {"_id": 0}
+    ).to_list(100)
+    for opp in legacy_opps:
+        if not any(o["id"] == opp.get("id") for o in opportunities):
+            opportunities.append({
+                "id": opp.get("id", ""),
+                "name": opp.get("name", ""),
+                "value": float(opp.get("value", 0) or 0),
+                "probability": float(opp.get("probability", 0) or 0),
+                "stage": opp.get("stage", "lead"),
+                "salesperson": opp.get("owner_name", ""),
+                "expected_close_date": opp.get("expected_close_date"),
+                "created_date": opp.get("created_at"),
+            })
+    
+    # Get related invoices from data_lake_serving
+    invoices = []
+    inv_docs = await db.data_lake_serving.find({
+        "entity_type": "invoice",
+        "$or": [
+            {"data.partner_id": account_id},
+            {"data.partner_id": int(account_id) if account_id.isdigit() else None},
+            {"data.partner_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}},
+            {"data.customer_name": {"$regex": account.get("name", "NOMATCH"), "$options": "i"}}
+        ]
+    }).to_list(100)
+    
+    for doc in inv_docs:
+        inv = doc.get("data", {})
+        invoices.append({
+            "id": str(inv.get("id", "")),
+            "number": inv.get("name", inv.get("invoice_number", "")),
+            "amount_total": float(inv.get("amount_total", 0) or 0),
+            "amount_due": float(inv.get("amount_residual", inv.get("amount_due", 0)) or 0),
+            "payment_status": inv.get("payment_state", inv.get("payment_status", "pending")),
+            "invoice_date": inv.get("invoice_date"),
+            "due_date": inv.get("invoice_date_due", inv.get("due_date")),
+        })
+    
+    # Get related activities from BOTH local DB and Odoo (data_lake_serving)
+    activities = []
+    
+    # 1. Get local activities
+    activity_docs = await db.activities.find({"account_id": account_id}, {"_id": 0}).to_list(50)
+    for act in activity_docs:
+        activities.append({
+            "id": act.get("id", ""),
+            "title": act.get("title", ""),
+            "activity_type": act.get("activity_type", "task"),
+            "status": act.get("status", "pending"),
+            "due_date": act.get("due_date"),
+            "priority": act.get("priority", "medium"),
+            "source": "crm"
+        })
+    
+    # 2. Get Odoo activities from data_lake_serving
+    odoo_activity_docs = await db.data_lake_serving.find(
+        active_entity_filter("activity", {
+            "$or": [
+                {"data.res_id": int(account_id) if account_id.isdigit() else None},
+                {"data.res_model": "res.partner"}
+            ]
+        })
+    ).to_list(100)
+    
+    for doc in odoo_activity_docs:
+        act = doc.get("data", {})
+        activities.append({
+            "id": str(act.get("id", "")),
+            "title": act.get("summary") or act.get("note", "Activity"),
+            "activity_type": act.get("activity_type_id", ["", ""])[1] if isinstance(act.get("activity_type_id"), list) else "task",
+            "status": "done" if act.get("state") == "done" else "pending",
+            "due_date": act.get("date_deadline"),
+            "priority": "high" if act.get("state") == "overdue" else "medium",
+            "source": "odoo",
+            "user_name": act.get("user_id", ["", ""])[1] if isinstance(act.get("user_id"), list) else ""
+        })
+    
+    # Calculate activity summary metrics
+    now = datetime.now(timezone.utc)
+    activity_summary = {
+        "total": len(activities),
+        "pending": len([a for a in activities if a["status"] == "pending"]),
+        "completed": len([a for a in activities if a["status"] == "done"]),
+        "overdue": 0,
+        "due_soon": 0
+    }
+    
+    # Count overdue and due soon
+    for act in activities:
+        if act["status"] != "done" and act.get("due_date"):
+            try:
+                due_date = datetime.fromisoformat(str(act["due_date"]).replace('Z', '+00:00'))
+                if due_date < now:
+                    activity_summary["overdue"] += 1
+                elif (due_date - now).days <= 7:
+                    activity_summary["due_soon"] += 1
+            except:
+                pass
+    
+    # Get related contacts from data_lake_serving
+    # Contacts have entity_type: "contact" with account_id field
+    contacts = []
+    
+    # Helper to clean Odoo False values
+    def clean_val(val, default=""):
+        if val is False or val is None:
+            return default
+        return val
+    
+    # Query contacts - handle different account_id formats:
+    # - account_id: false (unlinked)
+    # - account_id: [12, "VM"] (array with ID and name)
+    # - account_id: 12 (just ID)
+    contact_docs = await db.data_lake_serving.find({
+        "entity_type": "contact"
+    }).to_list(100)
+    
+    for doc in contact_docs:
+        contact = doc.get("data", {})
+        contact_account_id = contact.get("account_id")
+        
+        # Check if contact belongs to this account
+        contact_matches = False
+        
+        if contact_account_id:
+            # Handle array format [id, name]
+            if isinstance(contact_account_id, list) and len(contact_account_id) >= 1:
+                contact_acc_id = str(contact_account_id[0])
+                contact_acc_name = contact_account_id[1] if len(contact_account_id) > 1 else ""
+                
+                # Match by ID or by name
+                if contact_acc_id == account_id:
+                    contact_matches = True
+                elif account.get("name") and contact_acc_name and account.get("name", "").lower() in contact_acc_name.lower():
+                    contact_matches = True
+            
+            # Handle simple ID format
+            elif isinstance(contact_account_id, (int, str)):
+                if str(contact_account_id) == account_id:
+                    contact_matches = True
+        
+        if contact_matches:
+            contacts.append({
+                "id": str(contact.get("id", doc.get("serving_id", ""))),
+                "name": clean_val(contact.get("name"), "Unknown"),
+                "email": clean_val(contact.get("email"), ""),
+                "phone": clean_val(contact.get("phone") or contact.get("mobile"), ""),
+                "job_title": clean_val(contact.get("title") or contact.get("function"), ""),
+            })
+    
+    # Also check for contacts that match by account name (for opportunities-derived accounts)
+    if len(contacts) == 0 and account.get("name"):
+        account_name_lower = account.get("name", "").lower()
+        for doc in contact_docs:
+            contact = doc.get("data", {})
+            contact_account_id = contact.get("account_id")
+            
+            if isinstance(contact_account_id, list) and len(contact_account_id) > 1:
+                contact_acc_name = str(contact_account_id[1]).lower()
+                if account_name_lower in contact_acc_name or contact_acc_name in account_name_lower:
+                    contacts.append({
+                        "id": str(contact.get("id", doc.get("serving_id", ""))),
+                        "name": clean_val(contact.get("name"), "Unknown"),
+                        "email": clean_val(contact.get("email"), ""),
+                        "phone": clean_val(contact.get("phone") or contact.get("mobile"), ""),
+                        "job_title": clean_val(contact.get("title") or contact.get("function"), ""),
+                    })
+    
+    # Calculate summary metrics
+    total_pipeline = sum(o["value"] for o in opportunities if o["stage"] not in ["Won", "Lost", "Closed Won", "Closed Lost"])
+    total_won = sum(o["value"] for o in opportunities if o["stage"] in ["Won", "Closed Won"])
+    total_invoiced = sum(i["amount_total"] for i in invoices)
+    total_outstanding = sum(i["amount_due"] for i in invoices)
+    
+    return {
+        "account": account,
+        "summary": {
+            "total_opportunities": len(opportunities),
+            "total_pipeline_value": total_pipeline,
+            "total_won_value": total_won,
+            "total_invoiced": total_invoiced,
+            "total_outstanding": total_outstanding,
+            "total_activities": len(activities),
+            "pending_activities": len([a for a in activities if a["status"] == "pending"]),
+            "total_contacts": len(contacts),
+            # ENHANCED: Activity summary with risk indicators
+            "activity_summary": activity_summary,
+        },
+        "opportunities": sorted(opportunities, key=lambda x: x.get("value", 0), reverse=True),
+        "invoices": sorted(invoices, key=lambda x: x.get("invoice_date") or "", reverse=True),
+        "activities": sorted(activities, key=lambda x: x.get("due_date") or ""),
+        "contacts": contacts,
+    }
+
+
+# ===================== SYNC HEALTH STATUS =====================
+
+@router.get("/sync-status")
+async def get_sync_status(
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get health status of all integrations.
+    Returns last sync times and status for dashboard widget.
+    """
+    db = Database.get_db()
+    
+    # Check Odoo integration status from integrations collection
+    odoo_integration = await db.integrations.find_one({"integration_type": "odoo"})
+    odoo_status = {
+        "name": "Odoo ERP",
+        "status": "not_configured",
+        "last_sync": None,
+        "records_synced": 0,
+        "note": None,
+    }
+    
+    if odoo_integration:
+        # Check if enabled and configured
+        if odoo_integration.get("enabled") and odoo_integration.get("config", {}).get("url"):
+            # Check actual sync status
+            sync_status = odoo_integration.get("sync_status", "unknown")
+            error_message = odoo_integration.get("error_message")
+            
+            if sync_status == "success":
+                odoo_status["status"] = "connected"
+            elif sync_status == "failed":
+                odoo_status["status"] = "error"
+                odoo_status["note"] = error_message or "Sync failed"
+            elif sync_status == "partial":
+                odoo_status["status"] = "warning"
+                odoo_status["note"] = "Some entities failed to sync"
+            elif sync_status == "in_progress":
+                odoo_status["status"] = "syncing"
+                odoo_status["note"] = "Sync in progress..."
+            else:
+                # Fallback: check if we have any synced data
+                latest_odoo = await db.data_lake_serving.find_one(
+                    {"source": "odoo"},
+                    sort=[("last_aggregated", -1)],
+                    projection={"last_aggregated": 1, "_id": 0}
+                )
+                if latest_odoo:
+                    odoo_status["status"] = "connected"
+                else:
+                    odoo_status["status"] = "no_data"
+                    odoo_status["note"] = "No data synced yet"
+            
+            odoo_status["last_sync"] = odoo_integration.get("last_sync")
+            odoo_status["records_synced"] = await db.data_lake_serving.count_documents({"source": "odoo"})
+        else:
+            odoo_status["status"] = "not_configured"
+            odoo_status["note"] = "Odoo integration not configured"
+    
+    # Check MS365 status
+    ms365_integration = await db.integrations.find_one({"integration_type": "ms365"})
+    ms365_status = {
+        "name": "Microsoft 365",
+        "status": "not_connected",
+        "last_sync": None,
+        "note": None,
+    }
+    
+    # Check if user has MS365 tokens (user-specific)
+    user = await db.users.find_one({"id": token_data["id"]})
+    if user:
+        ms_access_token = user.get("ms_access_token")
+        ms365_tokens = user.get("ms365_tokens")
+        
+        if ms_access_token or ms365_tokens:
+            ms365_status["status"] = "connected"
+            
+            # Check if token needs refresh
+            if ms365_tokens and ms365_tokens.get("expires_at"):
+                try:
+                    expires = datetime.fromisoformat(ms365_tokens["expires_at"].replace("Z", "+00:00"))
+                    if expires < datetime.now(timezone.utc):
+                        ms365_status["status"] = "needs_refresh"
+                        ms365_status["note"] = "Session expired - please re-login"
+                except:
+                    pass
+        else:
+            ms365_status["note"] = "Sign in with Microsoft to connect"
+    
+    # Determine overall health
+    statuses = [odoo_status["status"], ms365_status["status"]]
+    if "error" in statuses:
+        overall_health = "error"
+    elif "needs_refresh" in statuses or "warning" in statuses or "no_data" in statuses:
+        overall_health = "warning"
+    elif all(s == "connected" for s in statuses):
+        overall_health = "healthy"
+    else:
+        overall_health = "partial"
+    
+    return {
+        "integrations": [odoo_status, ms365_status],
+        "overall_health": overall_health,
     }

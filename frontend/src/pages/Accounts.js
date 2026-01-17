@@ -1,19 +1,53 @@
 /**
  * Accounts Page
+ * Shows synced account data from Odoo ERP via data_lake_serving
  * Modern light-themed design with glassmorphic cards
- * Preserves all existing functionality
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { accountsAPI, opportunitiesAPI } from '../services/api';
+import api from '../services/api';
+import Account360Panel from '../components/Account360Panel';
 import {
   Building2, Plus, Search, LayoutGrid, List,
   ChevronRight, TrendingUp, TrendingDown,
   Phone, Globe, MapPin, Users, DollarSign, X, Save,
-  MoreVertical, Edit2, Trash2, ExternalLink, Filter
+  MoreVertical, Edit2, Trash2, ExternalLink, Filter,
+  Database, RefreshCw, Info, Eye, Activity, AlertCircle
 } from 'lucide-react';
+
+// Data Source Badge
+const DataSourceBadge = ({ source, lastSync }) => {
+  const formatSyncTime = (timestamp) => {
+    if (!timestamp) return "Recently";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
+      <Database className="w-3.5 h-3.5 text-blue-600" />
+      <span className="text-blue-700 font-medium">Source: {source || "CRM"}</span>
+      {lastSync && (
+        <>
+          <span className="text-blue-300">|</span>
+          <RefreshCw className="w-3 h-3 text-blue-500" />
+          <span className="text-blue-600">{formatSyncTime(lastSync)}</span>
+        </>
+      )}
+    </div>
+  );
+};
 
 const Accounts = () => {
   const [accounts, setAccounts] = useState([]);
@@ -25,6 +59,10 @@ const Accounts = () => {
   const [filterIndustry, setFilterIndustry] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [show360Panel, setShow360Panel] = useState(false);
+  const [selected360AccountId, setSelected360AccountId] = useState(null);
+  const [dataSource, setDataSource] = useState('');
+  const [lastSync, setLastSync] = useState(null);
 
   // Form state - preserved from original
   const [formData, setFormData] = useState({
@@ -47,11 +85,28 @@ const Accounts = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [accountsRes, oppsRes] = await Promise.all([
-        accountsAPI.getAll(),
-        opportunitiesAPI.getAll()
-      ]);
-      setAccounts(accountsRes.data || []);
+      // Fetch real accounts from data lake first, fallback to legacy
+      let accountsData = [];
+      try {
+        const realAccountsRes = await api.get('/accounts/real');
+        if (realAccountsRes.data?.accounts?.length > 0) {
+          accountsData = realAccountsRes.data.accounts;
+          setDataSource('Odoo');
+          setLastSync(realAccountsRes.data.accounts[0]?.last_synced);
+        }
+      } catch (e) {
+        console.log('Data lake accounts not available, using legacy');
+      }
+      
+      // Fallback to legacy accounts if data lake is empty
+      if (accountsData.length === 0) {
+        const legacyRes = await accountsAPI.getAll();
+        accountsData = legacyRes.data || [];
+        setDataSource('CRM');
+      }
+      
+      const oppsRes = await opportunitiesAPI.getAll();
+      setAccounts(accountsData);
       setOpportunities(oppsRes.data || []);
     } catch (err) {
       setError('Failed to load accounts');
@@ -61,12 +116,32 @@ const Accounts = () => {
     }
   };
 
-  // Calculate account metrics - preserved from original
-  const getAccountMetrics = (accountId) => {
-    const accountOpps = opportunities.filter(o => o.account_id === accountId);
-    const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost'].includes(o.stage));
-    const wonOpps = accountOpps.filter(o => o.stage === 'closed_won');
-    const lostOpps = accountOpps.filter(o => o.stage === 'closed_lost');
+  // Calculate account metrics - use backend data when available, fallback to local calculation
+  const getAccountMetrics = (account) => {
+    // If account has pre-calculated metrics from backend (Odoo data), use them
+    if (account.pipeline_value !== undefined) {
+      return {
+        activeOpps: account.active_opportunities || 0,
+        pipelineValue: account.pipeline_value || 0,
+        wonValue: account.won_value || 0,
+        winRate: null  // Win rate requires more data
+      };
+    }
+    
+    // Fallback: calculate from local opportunities (for legacy CRM data)
+    const accountId = account.id;
+    const accountName = (account.name || "").toLowerCase();
+    
+    // Match by ID or name
+    const accountOpps = opportunities.filter(o => {
+      if (o.account_id === accountId) return true;
+      const oppAccountName = (o.account_name || "").toLowerCase();
+      return accountName && oppAccountName && oppAccountName.includes(accountName);
+    });
+    
+    const activeOpps = accountOpps.filter(o => !['closed_won', 'closed_lost', 'won', 'lost'].includes((o.stage || '').toLowerCase()));
+    const wonOpps = accountOpps.filter(o => ['closed_won', 'won'].includes((o.stage || '').toLowerCase()));
+    const lostOpps = accountOpps.filter(o => ['closed_lost', 'lost'].includes((o.stage || '').toLowerCase()));
     
     const pipelineValue = activeOpps.reduce((sum, o) => sum + (o.value || 0), 0);
     const wonValue = wonOpps.reduce((sum, o) => sum + (o.value || 0), 0);
@@ -77,12 +152,12 @@ const Accounts = () => {
     return { activeOpps: activeOpps.length, pipelineValue, wonValue, winRate };
   };
 
-  // Get health score - preserved from original
-  const getHealthScore = (accountId) => {
-    const metrics = getAccountMetrics(accountId);
-    if (metrics.winRate === null) return 'new';
-    if (metrics.winRate >= 60) return 'healthy';
-    if (metrics.winRate >= 30) return 'at-risk';
+  // Get health score - use account object for pre-calculated metrics
+  const getHealthScore = (account) => {
+    const metrics = getAccountMetrics(account);
+    if (metrics.winRate === null && metrics.pipelineValue === 0 && metrics.wonValue === 0) return 'new';
+    if (metrics.wonValue > 0 || (metrics.winRate !== null && metrics.winRate >= 60)) return 'healthy';
+    if (metrics.pipelineValue > 0 || (metrics.winRate !== null && metrics.winRate >= 30)) return 'at-risk';
     return 'critical';
   };
 
@@ -111,12 +186,38 @@ const Accounts = () => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   };
 
-  // Filter accounts - preserved from original
+  // ENHANCED: Odoo-style unified search - searches ALL fields
   const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIndustry = !filterIndustry || account.industry === filterIndustry;
-    return matchesSearch && matchesIndustry;
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Convert all searchable fields to strings safely
+    const name = String(account.name || '').toLowerCase();
+    const industry = String(account.industry || '').toLowerCase();
+    const city = String(account.city || '').toLowerCase();
+    const country = String(account.country || '').toLowerCase();
+    const website = String(account.website || '').toLowerCase();
+    const phone = String(account.phone || '').toLowerCase();
+    const email = String(account.email || '').toLowerCase();
+    
+    // Get metrics for searching by pipeline/revenue
+    const metrics = getAccountMetrics(account);
+    const pipelineValue = String(metrics.pipelineValue || '').toLowerCase();
+    const wonValue = String(metrics.wonValue || '').toLowerCase();
+    
+    // Search across ALL fields
+    return (
+      name.includes(query) ||
+      industry.includes(query) ||
+      city.includes(query) ||
+      country.includes(query) ||
+      website.includes(query) ||
+      phone.includes(query) ||
+      email.includes(query) ||
+      pipelineValue.includes(query) ||
+      wonValue.includes(query)
+    );
   });
 
   // Get health badge styling
@@ -135,6 +236,12 @@ const Accounts = () => {
     return labels[status] || 'New';
   };
 
+  // Open 360° Account View
+  const handleOpen360View = (accountId) => {
+    setSelected360AccountId(accountId);
+    setShow360Panel(true);
+  };
+
   return (
     <div className="space-y-6 animate-in" data-testid="accounts-page">
       {/* Header */}
@@ -147,6 +254,10 @@ const Accounts = () => {
             Accounts
           </h1>
           <p className="text-slate-500 mt-1">Manage your customer accounts and relationships</p>
+          {/* Data Source Badge */}
+          <div className="mt-3">
+            <DataSourceBadge source={dataSource} lastSync={lastSync} />
+          </div>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)} 
@@ -158,32 +269,20 @@ const Accounts = () => {
         </Button>
       </div>
 
-      {/* Filters Bar */}
+      {/* Odoo-Style Unified Search */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Search accounts..."
+                placeholder="Search by: name, industry, city, country, phone, email, pipeline..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
                 data-testid="search-accounts"
               />
             </div>
-            
-            <select
-              value={filterIndustry}
-              onChange={(e) => setFilterIndustry(e.target.value)}
-              className="input w-auto min-w-[140px]"
-              data-testid="industry-filter"
-            >
-              <option value="">All Industries</option>
-              {industries.map(ind => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
           </div>
 
           {/* View Toggle */}
@@ -204,6 +303,22 @@ const Accounts = () => {
             </button>
           </div>
         </div>
+        
+        {/* Search Filter Feedback */}
+        {searchQuery && (
+          <div className="flex items-center gap-2 text-sm text-slate-600 mt-3 pt-3 border-t border-slate-100">
+            <Filter className="w-4 h-4" />
+            <span>
+              Showing {filteredAccounts.length} of {accounts.length} accounts
+            </span>
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="text-indigo-600 hover:text-indigo-700 font-medium ml-2"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error */}
@@ -238,8 +353,8 @@ const Accounts = () => {
         /* Card View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAccounts.map(account => {
-            const metrics = getAccountMetrics(account.id);
-            const health = getHealthScore(account.id);
+            const metrics = getAccountMetrics(account);
+            const health = getHealthScore(account);
             
             return (
               <div
@@ -276,7 +391,7 @@ const Accounts = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
                   <span className="flex items-center gap-1">
                     <DollarSign className="w-3 h-3" />
                     {metrics.activeOpps} active opportunities
@@ -287,6 +402,24 @@ const Accounts = () => {
                     </span>
                   )}
                 </div>
+                
+                {/* ENHANCED: Activity Summary with Risk Indicators */}
+                {(account.activity_count > 0 || account.pending_activities > 0) && (
+                  <div className="flex items-center gap-2 text-xs mb-2">
+                    {account.pending_activities > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 rounded border border-amber-200">
+                        <Activity className="w-3 h-3" />
+                        {account.pending_activities} pending
+                      </span>
+                    )}
+                    {account.overdue_activities > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded border border-red-200">
+                        <AlertCircle className="w-3 h-3" />
+                        {account.overdue_activities} overdue
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {account.website && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
@@ -303,6 +436,23 @@ const Accounts = () => {
                     <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 )}
+                
+                {/* 360° View Button */}
+                <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpen360View(account.id);
+                    }}
+                    className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                    data-testid={`account-360-btn-${account.id}`}
+                  >
+                    <Eye className="w-3.5 h-3.5 mr-1.5" />
+                    360° View
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -324,8 +474,8 @@ const Accounts = () => {
             </thead>
             <tbody>
               {filteredAccounts.map((account, idx) => {
-                const metrics = getAccountMetrics(account.id);
-                const health = getHealthScore(account.id);
+                const metrics = getAccountMetrics(account);
+                const health = getHealthScore(account);
                 
                 return (
                   <tr 
@@ -363,12 +513,25 @@ const Accounts = () => {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button 
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpen360View(account.id);
+                          }}
+                          title="360° View"
+                          data-testid={`table-360-btn-${account.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -514,6 +677,16 @@ const Accounts = () => {
           </div>
         </div>
       )}
+
+      {/* 360° Account View Panel */}
+      <Account360Panel
+        accountId={selected360AccountId}
+        isOpen={show360Panel}
+        onClose={() => {
+          setShow360Panel(false);
+          setSelected360AccountId(null);
+        }}
+      />
     </div>
   );
 };

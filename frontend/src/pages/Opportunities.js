@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { opportunitiesAPI, accountsAPI, salesAPI } from "../services/api";
 import DataTable from "../components/DataTable";
+import OpportunityDetailPanel from "../components/OpportunityDetailPanel";
 import { StageBadge } from "../components/Badge";
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import {
@@ -20,6 +21,17 @@ import {
   Zap,
   Activity,
   Tag,
+  Eye,
+  Sparkles,
+  AlertCircle,
+  Maximize2,
+  Minimize2,
+  ChevronLeft,
+  ChevronRight,
+  SortAsc,
+  SortDesc,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 
 const STAGES = [
@@ -39,7 +51,7 @@ const PRODUCT_LINES = [
   "GRC",
 ];
 
-// Blue Sheet Modal Component
+// Deal Confidence Assessment Modal Component
 const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -101,102 +113,97 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-scale-in">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="deal-confidence-modal">
         {/* Header */}
-        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Calculator className="w-6 h-6 text-blue-600" />
-                Blue Sheet Probability Analysis
-              </h2>
-              <p className="text-sm text-slate-600 mt-1">{opportunity.name}</p>
-            </div>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-blue-600" />
+            Deal Confidence Assessment
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">{opportunity.name}</p>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Based on configurable factors. Use as guidance, not prediction.
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
           {/* Buying Influences */}
-          <div className="card p-5">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-blue-600" />
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" />
               Buying Influences
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.economic_buyer_identified}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, economic_buyer_identified: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Economic Buyer Identified</span>
+                <span className="text-sm">Economic Buyer Identified</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.economic_buyer_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, economic_buyer_favorable: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Economic Buyer Favorable</span>
+                <span className="text-sm">Economic Buyer Favorable</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.coach_identified}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, coach_identified: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Coach Identified</span>
+                <span className="text-sm">Coach Identified</span>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={analysis.coach_engaged}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, coach_engaged: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="rounded border-slate-300"
                 />
-                <span className="text-sm text-slate-700">Coach Actively Engaged</span>
+                <span className="text-sm">Coach Actively Engaged</span>
               </label>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="text-sm text-slate-600 mb-1 block">User Buyers Favorable</label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">User Buyers Favorable:</span>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   value={analysis.user_buyers_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, user_buyers_favorable: parseInt(e.target.value) || 0 }))}
-                  className="input"
+                  className="w-16 input text-sm"
                 />
               </div>
-              <div>
-                <label className="text-sm text-slate-600 mb-1 block">Technical Buyers Favorable</label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Technical Buyers Favorable:</span>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   value={analysis.technical_buyers_favorable}
                   onChange={(e) => setAnalysis(prev => ({ ...prev, technical_buyers_favorable: parseInt(e.target.value) || 0 }))}
-                  className="input"
+                  className="w-16 input text-sm"
                 />
               </div>
             </div>
           </div>
 
           {/* Red Flags */}
-          <div className="card p-5 border-red-200 bg-red-50/30">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+          <div>
+            <h3 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
               Red Flags
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { key: "no_access_to_economic_buyer", label: "No Access to Economic Buyer" },
                 { key: "reorganization_pending", label: "Reorganization Pending" },
@@ -204,40 +211,40 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
                 { key: "competition_preferred", label: "Competition Preferred" },
                 { key: "timeline_unclear", label: "Timeline Unclear" },
               ].map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-red-50 transition-colors border border-red-100">
+                <label key={key} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={analysis[key]}
                     onChange={(e) => setAnalysis(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="w-4 h-4 text-red-600 rounded"
+                    className="rounded border-slate-300"
                   />
-                  <span className="text-sm text-slate-700">{label}</span>
+                  <span className="text-sm text-red-700">{label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Win Results & Action Plan */}
-          <div className="card p-5 border-emerald-200 bg-emerald-50/30">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               Win Results & Action Plan
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { key: "clear_business_results", label: "Clear Business Results Defined" },
                 { key: "quantifiable_value", label: "Quantifiable Value Proposition" },
                 { key: "next_steps_defined", label: "Next Steps Defined" },
                 { key: "mutual_action_plan", label: "Mutual Action Plan Agreed" },
               ].map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-emerald-50 transition-colors border border-emerald-100">
+                <label key={key} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={analysis[key]}
                     onChange={(e) => setAnalysis(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="w-4 h-4 text-emerald-600 rounded"
+                    className="rounded border-slate-300"
                   />
-                  <span className="text-sm text-slate-700">{label}</span>
+                  <span className="text-sm">{label}</span>
                 </label>
               ))}
             </div>
@@ -294,19 +301,19 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+        <div className="p-6 border-t border-slate-200 flex justify-center gap-3">
+          <button onClick={onClose} className="btn-secondary">Close</button>
           <button 
             onClick={calculateProbability} 
             disabled={loading}
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Calculator className="w-4 h-4 mr-2" />
+              <Sparkles className="w-4 h-4" />
             )}
-            Calculate Probability
+            Get Confidence Signal
           </button>
         </div>
       </div>
@@ -315,27 +322,45 @@ const BlueSheetModal = ({ opportunity, onClose, onSave }) => {
 };
 
 // Enhanced Kanban Card with Blue Sheet, Activities, and Segment
-const KanbanCard = ({ opportunity, index, onOpenBlueSheet }) => {
+const KanbanCard = ({ opportunity, index, onOpenBlueSheet, onViewDetails }) => {
   const productTag = opportunity.product_lines?.[0] || null;
   const activityCount = opportunity.activity_count || 0;
   
+  // CRITICAL: Check if this is an Odoo-synced opportunity (read-only)
+  const isOdooSynced = opportunity.source === "odoo" || opportunity.odoo_id;
+  const isDraggable = !isOdooSynced; // Only local opportunities can be dragged
+  
   return (
-    <Draggable draggableId={opportunity.id} index={index}>
+    <Draggable 
+      draggableId={String(opportunity.id)} 
+      index={index}
+      isDragDisabled={isOdooSynced} // Disable drag for Odoo opportunities
+    >
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "bg-white rounded-lg border p-4 mb-3 shadow-sm hover:shadow-md transition-all",
-            snapshot.isDragging && "shadow-lg ring-2 ring-blue-500"
+            "bg-white rounded-lg border p-4 mb-3 shadow-sm hover:shadow-md transition-all cursor-pointer",
+            snapshot.isDragging && "shadow-lg ring-2 ring-blue-500",
+            isOdooSynced && "border-amber-200 bg-amber-50/30" // Visual indicator for read-only
           )}
+          onClick={() => onViewDetails && onViewDetails(opportunity)}
           data-testid={`opp-card-${opportunity.id}`}
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-2">
-            <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100">
-              <GripVertical className="w-4 h-4 text-slate-400" />
-            </div>
+            {isDraggable && (
+              <div {...provided.dragHandleProps} className="cursor-grab p-1 -ml-1 rounded hover:bg-slate-100" onClick={(e) => e.stopPropagation()}>
+                <GripVertical className="w-4 h-4 text-slate-400" />
+              </div>
+            )}
+            {isOdooSynced && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded border border-amber-300">
+                <AlertCircle className="w-3 h-3" />
+                Read-only (Odoo)
+              </div>
+            )}
             {/* Product/Segment Tag */}
             {productTag && (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
@@ -393,16 +418,36 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet }) => {
           </div>
           
           {/* Calculate Probability Button */}
+          {!isOdooSynced ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenBlueSheet(opportunity);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm"
+              data-testid={`calc-prob-${opportunity.id}`}
+            >
+              <Calculator className="w-4 h-4" />
+              Get Deal Confidence
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 text-slate-500 text-sm font-medium rounded-lg border border-slate-200">
+              <AlertCircle className="w-4 h-4" />
+              Synced from Odoo
+            </div>
+          )}
+          
+          {/* View Details Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onOpenBlueSheet(opportunity);
+              onViewDetails && onViewDetails(opportunity);
             }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm"
-            data-testid={`calc-prob-${opportunity.id}`}
+            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 mt-2 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-100 transition-all"
+            data-testid={`view-details-${opportunity.id}`}
           >
-            <Calculator className="w-4 h-4" />
-            Calculate Probability
+            <Eye className="w-4 h-4" />
+            View Details
           </button>
         </div>
       )}
@@ -410,12 +455,42 @@ const KanbanCard = ({ opportunity, index, onOpenBlueSheet }) => {
   );
 };
 
-// Kanban Column Component
-const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
+// Kanban Column Component with Expand/Collapse
+const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet, onViewDetails, isExpanded, onToggleExpand, isMinimized }) => {
   const columnValue = opportunities.reduce((sum, opp) => sum + (opp.value || 0), 0);
   
+  // Minimized column view
+  if (isMinimized) {
+    return (
+      <div 
+        className="flex-shrink-0 w-12 cursor-pointer hover:w-14 transition-all group"
+        onClick={onToggleExpand}
+        data-testid={`kanban-col-minimized-${stage.value}`}
+      >
+        <div className={cn(
+          "rounded-t-lg p-2 flex flex-col items-center justify-center h-full min-h-[400px]",
+          stage.color
+        )}>
+          <div className="writing-vertical text-white font-medium text-sm transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
+            {stage.label}
+          </div>
+          <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full mt-2">
+            {opportunities.length}
+          </span>
+          <ChevronRight className="w-4 h-4 text-white/60 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="flex-shrink-0 w-80">
+    <div 
+      className={cn(
+        "flex-shrink-0 transition-all duration-300",
+        isExpanded ? "w-full min-w-[600px] max-w-4xl" : "w-80"
+      )}
+      data-testid={`kanban-col-${stage.value}`}
+    >
       <div className={cn(
         "rounded-t-lg px-4 py-3 flex items-center justify-between",
         stage.color
@@ -426,9 +501,26 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
             {opportunities.length}
           </span>
         </div>
-        <span className="text-xs text-white/80 font-medium">
-          {formatCurrency(columnValue)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/80 font-medium">
+            {formatCurrency(columnValue)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+            title={isExpanded ? "Collapse column" : "Expand column"}
+            data-testid={`expand-btn-${stage.value}`}
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-4 h-4 text-white" />
+            ) : (
+              <Maximize2 className="w-4 h-4 text-white" />
+            )}
+          </button>
+        </div>
       </div>
       
       <Droppable droppableId={stage.value}>
@@ -438,7 +530,8 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
             {...provided.droppableProps}
             className={cn(
               "bg-slate-50 border border-t-0 border-slate-200 rounded-b-lg p-3 min-h-[400px] transition-colors",
-              snapshot.isDraggingOver && "bg-blue-50"
+              snapshot.isDraggingOver && "bg-blue-50",
+              isExpanded && "grid grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max"
             )}
           >
             {opportunities.map((opp, index) => (
@@ -447,11 +540,15 @@ const KanbanColumn = ({ stage, opportunities, onOpenBlueSheet }) => {
                 opportunity={opp} 
                 index={index}
                 onOpenBlueSheet={onOpenBlueSheet}
+                onViewDetails={onViewDetails}
               />
             ))}
             {provided.placeholder}
             {opportunities.length === 0 && (
-              <div className="text-center py-8 text-slate-400 text-sm">
+              <div className={cn(
+                "text-center py-8 text-slate-400 text-sm",
+                isExpanded && "col-span-full"
+              )}>
                 Drop opportunities here
               </div>
             )}
@@ -466,11 +563,13 @@ const Opportunities = () => {
   const [opportunities, setOpportunities] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
+  const [search, setSearch] = useState(""); // Odoo-style unified search
   const [viewMode, setViewMode] = useState("kanban");
   const [showModal, setShowModal] = useState(false);
   const [blueSheetOpp, setBlueSheetOpp] = useState(null);
+  const [selectedOpp, setSelectedOpp] = useState(null);  // For detail panel
+  const [expandedColumn, setExpandedColumn] = useState(null); // Track which column is expanded
+  const [sortConfig, setSortConfig] = useState({ key: 'value', direction: 'desc' }); // Table sorting
   const [formData, setFormData] = useState({
     name: "",
     account_id: "",
@@ -487,12 +586,12 @@ const Opportunities = () => {
 
   useEffect(() => {
     fetchData();
-  }, [stageFilter]);
+  }, []); // Removed stageFilter dependency - using unified search now
 
   const fetchData = async () => {
     try {
       const [oppsRes, accountsRes] = await Promise.all([
-        opportunitiesAPI.getAll({ stage: stageFilter || undefined }),
+        opportunitiesAPI.getAll(), // Removed stage filter - using unified search
         accountsAPI.getAll(),
       ]);
       setOpportunities(oppsRes.data);
@@ -541,19 +640,43 @@ const Opportunities = () => {
     const { draggableId, destination } = result;
     const newStage = destination.droppableId;
     
+    // Find the opportunity being dragged
+    const draggedOpp = opportunities.find(opp => String(opp.id) === String(draggableId));
+    
+    // CRITICAL: Prevent updating Odoo-synced opportunities
+    if (draggedOpp && (draggedOpp.source === "odoo" || draggedOpp.odoo_id)) {
+      alert("Cannot update Odoo-synced opportunities. This data is read-only and managed in Odoo ERP.");
+      return;
+    }
+    
+    // Optimistic update
+    const previousOpportunities = [...opportunities];
     setOpportunities(prev => 
       prev.map(opp => 
-        opp.id === draggableId 
+        String(opp.id) === String(draggableId)
           ? { ...opp, stage: newStage }
           : opp
       )
     );
     
     try {
-      await opportunitiesAPI.update(draggableId, { stage: newStage });
+      await opportunitiesAPI.updateStage(draggableId, newStage);
     } catch (error) {
       console.error("Error updating opportunity stage:", error);
-      fetchData();
+      
+      // Revert optimistic update
+      setOpportunities(previousOpportunities);
+      
+      // Show error toast/message
+      const errorDetail = error.response?.data?.detail;
+      if (errorDetail && typeof errorDetail === 'object') {
+        // Structured error from backend
+        alert(`Stage Transition Blocked\n\n${errorDetail.message}`);
+      } else if (typeof errorDetail === 'string') {
+        alert(`Error: ${errorDetail}`);
+      } else {
+        alert("Failed to update stage. Please try again.");
+      }
     }
   };
 
@@ -567,46 +690,82 @@ const Opportunities = () => {
     );
   };
 
+  // ENHANCED: Odoo-style unified search - searches ALL opportunity fields
+  const filteredOpportunities = opportunities.filter((opp) => {
+    if (!search) return true;
+    
+    const query = search.toLowerCase().trim();
+    
+    // Convert all searchable fields to strings safely
+    const name = String(opp.name || '').toLowerCase();
+    const accountName = String(opp.account_name || '').toLowerCase();
+    const salespersonName = String(opp.salesperson_name || opp.salesperson || '').toLowerCase();
+    const ownerEmail = String(opp.owner_email || '').toLowerCase();
+    const stage = String(opp.stage || '').toLowerCase();
+    const value = String(opp.value || '').toLowerCase();
+    const probability = String(opp.probability || '').toLowerCase();
+    const description = String(opp.description || '').toLowerCase();
+    const productLines = String(opp.product_lines?.join(' ') || '').toLowerCase();
+    
+    // Search across ALL fields (like Odoo)
+    return (
+      name.includes(query) ||
+      accountName.includes(query) ||
+      salespersonName.includes(query) ||
+      ownerEmail.includes(query) ||
+      stage.includes(query) ||
+      value.includes(query) ||
+      probability.includes(query) ||
+      description.includes(query) ||
+      productLines.includes(query)
+    );
+  });
+
   const getKanbanData = () => {
     const data = {};
     STAGES.forEach(stage => {
-      data[stage.value] = opportunities.filter(opp => opp.stage === stage.value);
+      // Use filtered opportunities for Kanban too
+      data[stage.value] = filteredOpportunities.filter(opp => opp.stage === stage.value);
     });
     return data;
   };
 
-  const filteredOpportunities = opportunities.filter((opp) =>
-    opp.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const totalPipeline = opportunities
+  const totalPipeline = filteredOpportunities
     .filter((o) => !["closed_won", "closed_lost"].includes(o.stage))
     .reduce((sum, o) => sum + (o.value || 0), 0);
     
-  const wonValue = opportunities
+  const wonValue = filteredOpportunities
     .filter((o) => o.stage === "closed_won")
     .reduce((sum, o) => sum + (o.value || 0), 0);
     
-  const avgDealSize = opportunities.length > 0
-    ? opportunities.reduce((sum, o) => sum + (o.value || 0), 0) / opportunities.length
+  const avgDealSize = filteredOpportunities.length > 0
+    ? filteredOpportunities.reduce((sum, o) => sum + (o.value || 0), 0) / filteredOpportunities.length
     : 0;
 
+  // Table columns configuration with sorting enabled
   const columns = [
     {
       key: "name",
       label: "Opportunity",
+      sortable: true,
       render: (val, row) => (
-        <div>
-          <p className="font-medium text-slate-900">{val}</p>
-          <p className="text-sm text-slate-500">{row?.account_name || "-"}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+            <Target className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900 truncate max-w-[200px]">{val}</p>
+            <p className="text-xs text-slate-500 truncate max-w-[200px]">{row.account_name || "—"}</p>
+          </div>
         </div>
       ),
     },
     {
       key: "value",
       label: "Value",
+      sortable: true,
       render: (val) => (
-        <span className="font-medium text-slate-900">
+        <span className="font-semibold text-slate-900">
           {formatCurrency(val)}
         </span>
       ),
@@ -614,14 +773,16 @@ const Opportunities = () => {
     {
       key: "stage",
       label: "Stage",
+      sortable: true,
       render: (val) => <StageBadge stage={val} />,
     },
     {
       key: "probability",
       label: "Probability",
+      sortable: true,
       render: (val) => (
         <span className={cn(
-          "px-2 py-0.5 rounded-full text-sm font-medium",
+          "px-2.5 py-1 rounded-full text-sm font-medium",
           val >= 70 ? "bg-emerald-100 text-emerald-700" :
           val >= 40 ? "bg-amber-100 text-amber-700" :
           "bg-slate-100 text-slate-600"
@@ -633,17 +794,59 @@ const Opportunities = () => {
     {
       key: "product_lines",
       label: "Products",
-      render: (val) => val?.length > 0 ? val.join(", ") : "—",
+      sortable: false,
+      render: (val) => val?.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {val.slice(0, 2).map((p, i) => (
+            <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">{p}</span>
+          ))}
+          {val.length > 2 && (
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">+{val.length - 2}</span>
+          )}
+        </div>
+      ) : "—",
     },
     {
       key: "expected_close_date",
       label: "Expected Close",
+      sortable: true,
       render: (val) => val ? formatDate(val) : "—",
     },
     {
       key: "owner_email",
       label: "Owner",
+      sortable: true,
       render: (val) => val || "—",
+    },
+    {
+      key: "actions",
+      label: "",
+      sortable: false,
+      filterable: false,
+      render: (val, row) => (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setBlueSheetOpp(row);
+            }}
+            className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Deal Confidence"
+          >
+            <Calculator className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedOpp(row);
+            }}
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            title="View Details"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -682,37 +885,21 @@ const Opportunities = () => {
         </button>
       </div>
 
-      {/* Search & View Toggle */}
+      {/* Odoo-Style Unified Search & View Toggle */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search opportunities..."
+                placeholder="Search by: name, account, salesperson, owner, stage, value..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input pl-10"
                 data-testid="search-input"
               />
             </div>
-            
-            {viewMode === 'table' && (
-              <select
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-                className="input w-auto min-w-[140px]"
-                data-testid="stage-filter"
-              >
-                <option value="">All Stages</option>
-                {STAGES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
 
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
@@ -744,6 +931,22 @@ const Opportunities = () => {
             </button>
           </div>
         </div>
+        
+        {/* Search Filter Feedback */}
+        {search && (
+          <div className="flex items-center gap-2 text-sm text-slate-600 mt-3 pt-3 border-t border-slate-100">
+            <Filter className="w-4 h-4" />
+            <span>
+              Showing {filteredOpportunities.length} of {opportunities.length} opportunities
+            </span>
+            <button 
+              onClick={() => setSearch('')}
+              className="text-indigo-600 hover:text-indigo-700 font-medium ml-2"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -772,13 +975,25 @@ const Opportunities = () => {
       {viewMode === 'kanban' && (
         <div className="card overflow-hidden" data-testid="kanban-board">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              Pipeline Board
-              <span className="text-sm font-normal text-slate-500">
-                (Drag cards to move between stages)
-              </span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-600" />
+                Pipeline Board
+                <span className="text-sm font-normal text-slate-500">
+                  (Drag cards to move between stages)
+                </span>
+              </h3>
+              {expandedColumn && (
+                <button
+                  onClick={() => setExpandedColumn(null)}
+                  className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                  data-testid="collapse-all-btn"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                  Collapse
+                </button>
+              )}
+            </div>
           </div>
           <div className="p-4 overflow-x-auto">
             <DragDropContext onDragEnd={handleDragEnd}>
@@ -789,6 +1004,12 @@ const Opportunities = () => {
                     stage={stage}
                     opportunities={kanbanData[stage.value] || []}
                     onOpenBlueSheet={setBlueSheetOpp}
+                    onViewDetails={setSelectedOpp}
+                    isExpanded={expandedColumn === stage.value}
+                    isMinimized={expandedColumn && expandedColumn !== stage.value}
+                    onToggleExpand={() => {
+                      setExpandedColumn(prev => prev === stage.value ? null : stage.value);
+                    }}
                   />
                 ))}
               </div>
@@ -799,14 +1020,27 @@ const Opportunities = () => {
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <div className="card" data-testid="opportunities-table">
+        <div className="card overflow-hidden" data-testid="opportunities-table">
           <DataTable
             columns={columns}
             data={filteredOpportunities}
             emptyMessage="No opportunities found"
+            onRowClick={(row) => setSelectedOpp(row)}
+            enableInternalSort={true}
+            enableColumnFilter={true}
+            searchable={true}
+            searchPlaceholder="Search opportunities..."
           />
         </div>
       )}
+
+      {/* Opportunity Detail Panel */}
+      <OpportunityDetailPanel
+        opportunity={selectedOpp}
+        isOpen={!!selectedOpp}
+        onClose={() => setSelectedOpp(null)}
+        onBlueSheet={setBlueSheetOpp}
+      />
 
       {/* Blue Sheet Modal */}
       {blueSheetOpp && (

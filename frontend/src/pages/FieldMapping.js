@@ -597,11 +597,11 @@ const FieldMapping = () => {
             </div>
             <div className="text-left">
               <h3 className="text-white font-medium">Current Field Mappings</h3>
-              <p className="text-sm text-zinc-500">{mappings.length} mappings configured for {ODOO_MODELS[selectedEntity]?.label}</p>
+              <p className="text-sm text-zinc-400">{mappings.length} mappings configured for {selectedIntegration === 'odoo' ? ODOO_MODELS[selectedEntity]?.label : MS365_ENTITIES[selectedEntity]?.label}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500">Click to {showMappedData ? 'collapse' : 'expand'}</span>
+            <span className="text-xs text-zinc-400">Click to {showMappedData ? 'collapse' : 'expand'}</span>
             {showMappedData ? (
               <ChevronUp className="w-5 h-5 text-zinc-400" />
             ) : (
@@ -657,12 +657,12 @@ const FieldMapping = () => {
               <div className="text-center py-8 bg-zinc-800/30 rounded-lg">
                 <Sparkles className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
                 <p className="text-zinc-400">No mappings configured yet</p>
-                <p className="text-zinc-500 text-sm mt-1">Click &quot;AI Auto-Map&quot; or &quot;Add Mapping&quot; to get started</p>
+                <p className="text-zinc-400 text-sm mt-1">Click &quot;AI Auto-Map&quot; or &quot;Add Mapping&quot; to get started</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-500 font-medium">
+                <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-zinc-800/50 rounded-lg text-xs text-zinc-400 font-medium uppercase tracking-wide">
                   <div className="col-span-3">SOURCE FIELD ({selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'})</div>
                   <div className="col-span-1 text-center">→</div>
                   <div className="col-span-3">TARGET FIELD (Canonical)</div>
@@ -805,7 +805,7 @@ const FieldMapping = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">Available {selectedIntegration === 'odoo' ? 'Odoo' : 'MS365'} Fields</h3>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 {selectedIntegration === 'odoo' 
                   ? ODOO_MODELS[selectedEntity]?.model 
                   : MS365_ENTITIES[selectedEntity]?.model
@@ -835,7 +835,7 @@ const FieldMapping = () => {
                       <CheckCircle2 className="w-4 h-4 text-purple-400" />
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-400">
                     {info.string || field} ({info.type})
                   </p>
                 </div>
@@ -852,7 +852,7 @@ const FieldMapping = () => {
             </div>
             <div>
               <h3 className="text-white font-medium">Canonical Schema</h3>
-              <p className="text-xs text-zinc-500">Your standard fields - Reference</p>
+              <p className="text-xs text-zinc-400">Your standard fields - Reference</p>
             </div>
           </div>
           
@@ -871,10 +871,10 @@ const FieldMapping = () => {
                   {mappings.some(m => m.target_field === field) ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
-                    <span className="text-xs text-zinc-500">unmapped</span>
+                    <span className="text-xs text-amber-400/70">unmapped</span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-zinc-400 mt-1">
                   {info.description} ({info.type})
                   {info.required && <span className="text-red-400 ml-1">*</span>}
                 </p>

@@ -4,7 +4,7 @@ Authentication endpoints for the API
 """
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
 import aiohttp
@@ -27,51 +27,17 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    """Register a new user"""
-    db = Database.get_db()
+    """
+    Register a new user.
     
-    # Check if email exists
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    user_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
-    
-    user_dict = {
-        "id": user_id,
-        "email": user_data.email,
-        "password_hash": hash_password(user_data.password),
-        "name": user_data.name,
-        "role": user_data.role.value if isinstance(user_data.role, UserRole) else user_data.role,
-        "department": user_data.department,
-        "product_line": user_data.product_line,
-        "is_active": True,
-        "avatar_url": None,
-        "created_at": now,
-        "updated_at": now
-    }
-    
-    await db.users.insert_one(user_dict)
-    
-    token = create_access_token(user_id, user_data.email, user_dict["role"])
-    
-    return TokenResponse(
-        access_token=token,
-        user=UserResponse(
-            id=user_id,
-            email=user_data.email,
-            name=user_data.name,
-            role=user_dict["role"],
-            department=user_data.department,
-            product_line=user_data.product_line,
-            is_active=True,
-            created_at=now,
-            updated_at=now
-        )
+    NOTE: Manual registration is BLOCKED for production.
+    Users must be synced from Odoo and authenticated via SSO.
+    This endpoint is kept for backwards compatibility but returns an error.
+    """
+    # BLOCK manual registration - users must come from Odoo sync
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Manual registration is disabled. Users must be synced from Odoo and use SSO to login. Contact your administrator."
     )
 
 
@@ -99,7 +65,33 @@ async def login(credentials: UserLogin):
             detail="Account is disabled"
         )
     
-    token = create_access_token(user["id"], user["email"], user["role"])
+    # Get role name - lookup from role_id if needed
+    user_role = user.get("role")
+    role_name = None
+    if not user_role and user.get("role_id"):
+        role_doc = await db.roles.find_one({"id": user.get("role_id")})
+        if role_doc:
+            role_name = role_doc.get("name")
+            # Try to match to UserRole enum
+            role_key = role_name.lower().replace(" ", "_") if role_name else None
+            try:
+                user_role = UserRole(role_key) if role_key else None
+            except ValueError:
+                user_role = None  # Role not in enum, leave as None
+    
+    token = create_access_token(user["id"], user["email"], user_role)
+    
+    # Log login activity (non-blocking)
+    try:
+        from services.activity_logger import activity_logger
+        await activity_logger.log_login(
+            user_id=user["id"],
+            user_name=user.get("name", user["email"]),
+            user_email=user["email"]
+        )
+    except Exception:
+        # Don't fail login if activity logging fails
+        pass
     
     return TokenResponse(
         access_token=token,
@@ -107,8 +99,12 @@ async def login(credentials: UserLogin):
             id=user["id"],
             email=user["email"],
             name=user["name"],
-            role=user["role"],
+            role=user_role,
+            role_id=user.get("role_id"),
+            role_name=role_name,
             department=user.get("department"),
+            department_id=user.get("department_id"),
+            department_name=user.get("department_name"),
             product_line=user.get("product_line"),
             is_active=user.get("is_active", True),
             is_super_admin=user.get("is_super_admin", False),
@@ -149,6 +145,47 @@ async def get_current_user(token_data: dict = Depends(get_current_user_from_toke
     return UserResponse(**user)
 
 
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(token_data: dict = Depends(get_current_user_from_token)):
+    """
+    Refresh the JWT token before it expires.
+    Returns a new token with extended expiration.
+    
+    This endpoint allows users to stay logged in without re-authenticating,
+    as long as their current token is still valid.
+    """
+    db = Database.get_db()
+    
+    user = await db.users.find_one({"id": token_data["id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is disabled"
+        )
+    
+    # Create new token with fresh expiration
+    new_token = create_access_token(user["id"], user["email"], user.get("role"))
+    
+    # Update last_login timestamp
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_login": datetime.now(timezone.utc)}}
+    )
+    
+    logger.info(f"Token refreshed for user: {user['email']}")
+    
+    return TokenResponse(
+        access_token=new_token,
+        user=UserResponse(**user)
+    )
+
+
 @router.get("/users", response_model=List[UserResponse])
 async def get_users(
     token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.CEO, UserRole.ADMIN]))
@@ -185,6 +222,89 @@ async def get_microsoft_config():
     }
 
 
+# ===================== HELPER: ODOO EMPLOYEE MAPPING =====================
+
+async def lookup_odoo_user_data(db, email: str) -> Optional[Dict[str, Any]]:
+    """
+    Look up full Odoo user data by email from the data_lake.
+    Returns dict with all Odoo enrichment fields needed for data access control.
+    
+    IMPORTANT: This uses EXACT email matching to prevent cross-user data leaks.
+    """
+    try:
+        email_lower = email.lower().strip()
+        
+        # Search Odoo data_lake for user by EXACT email match (case-insensitive)
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{email_lower}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{email_lower}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{email_lower}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            
+            # CRITICAL: Verify the email actually matches to prevent cross-user mapping
+            found_email = (odoo_data.get("email") or odoo_data.get("login") or odoo_data.get("work_email") or "").lower()
+            if found_email != email_lower:
+                logger.warning(f"Email mismatch! Requested: {email_lower}, Found: {found_email}. Rejecting match.")
+                return None
+            
+            # Extract all relevant Odoo fields for data access control
+            # Handle both old format (id) and new format (odoo_employee_id, odoo_user_id)
+            odoo_user_id = odoo_data.get("odoo_user_id") or odoo_data.get("id")
+            odoo_employee_id = odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id")
+            
+            # CRITICAL: Extract manager_id for hierarchy support
+            # In hr.employee records, manager is stored as parent_id or manager_id
+            manager_id = odoo_data.get("manager_id")
+            if not manager_id:
+                manager_id = odoo_data.get("parent_id")
+            
+            # If manager_id is a list/tuple (Odoo relational field format), extract ID
+            if isinstance(manager_id, (list, tuple)) and len(manager_id) > 0:
+                manager_id = manager_id[0]  # First element is the ID
+            
+            result = {
+                "odoo_user_id": odoo_user_id,
+                "odoo_employee_id": odoo_employee_id,
+                "odoo_salesperson_name": odoo_data.get("name"),
+                "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "manager_odoo_id": manager_id,  # ADD manager for hierarchy
+                "odoo_matched": True,
+                "odoo_match_email": email_lower,
+            }
+            
+            logger.info(f"Found Odoo user data for {email}: user_id={result['odoo_user_id']}, employee_id={result['odoo_employee_id']}, manager_id={manager_id}, name={result['odoo_salesperson_name']}")
+            return result
+        
+        logger.warning(f"No Odoo user found for email: {email}")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error looking up Odoo user for {email}: {str(e)}")
+        return None
+
+
+async def lookup_employee_id_from_odoo(db, email: str) -> Optional[int]:
+    """
+    Legacy function for backward compatibility.
+    Look up Odoo employee_id by email from the data_lake.
+    Returns employee_id if found, None otherwise.
+    """
+    odoo_data = await lookup_odoo_user_data(db, email)
+    if odoo_data and odoo_data.get("odoo_employee_id"):
+        return int(odoo_data["odoo_employee_id"])
+    return None
+
+
 class MicrosoftCompleteRequest(BaseModel):
     access_token: str
     id_token: Optional[str] = None
@@ -197,14 +317,17 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
     Complete Microsoft SSO login.
     Called by frontend after MSAL authentication.
     Validates the tokens, creates/updates user, and returns app JWT.
+    Fetches user profile details from Azure AD (name, email, job title, department, etc.)
     """
     db = Database.get_db()
     
     try:
-        # Verify the access token by calling Microsoft Graph
+        # Verify the access token by calling Microsoft Graph with extended fields
         async with aiohttp.ClientSession() as session:
             headers = {"Authorization": f"Bearer {request.access_token}"}
-            async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
+            # Request additional user profile fields from Graph API
+            graph_url = "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName,jobTitle,department,officeLocation,mobilePhone,businessPhones,companyName"
+            async with session.get(graph_url, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"Microsoft Graph API error: {error_text}")
@@ -215,10 +338,19 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 
                 ms_user = await response.json()
         
-        # Extract user info from Graph API response (more reliable than MSAL account)
+        # Log the fetched user data for debugging
+        logger.info(f"Microsoft Graph user data: {ms_user}")
+        
+        # Extract user info from Graph API response
         email = ms_user.get("mail") or ms_user.get("userPrincipalName")
         name = ms_user.get("displayName") or request.account.get("name") or email.split("@")[0]
         ms_id = ms_user.get("id") or request.account.get("localAccountId")
+        job_title = ms_user.get("jobTitle")
+        department = ms_user.get("department")
+        office_location = ms_user.get("officeLocation")
+        mobile_phone = ms_user.get("mobilePhone")
+        business_phones = ms_user.get("businessPhones", [])
+        company_name = ms_user.get("companyName")
         
         if not email:
             raise HTTPException(status_code=400, detail="Could not get email from Microsoft account")
@@ -229,22 +361,71 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
         now = datetime.now(timezone.utc)
         
         if existing_user:
-            # Update user with Microsoft info and tokens
+            # Update user with Microsoft info and tokens (sync Azure AD data)
+            update_data = {
+                "ms_id": ms_id,
+                "ms_access_token": request.access_token,
+                "name": name,  # Sync name from AD
+                "updated_at": now,
+                "last_login": now
+            }
+            # Update optional fields if available from Azure AD
+            if job_title:
+                update_data["job_title"] = job_title
+            if department:
+                update_data["ad_department"] = department  # Store AD department separately
+            if office_location:
+                update_data["office_location"] = office_location
+            if mobile_phone:
+                update_data["mobile_phone"] = mobile_phone
+            if business_phones:
+                update_data["business_phones"] = business_phones
+            if company_name:
+                update_data["company_name"] = company_name
+            
+            # CRITICAL: Map to Odoo user data for proper data access control
+            # Always refresh Odoo mapping to ensure correct user-to-data association
+            odoo_data = await lookup_odoo_user_data(db, email)
+            if odoo_data:
+                # Update with ALL Odoo enrichment fields (including manager_odoo_id)
+                update_data.update({
+                    "odoo_user_id": odoo_data.get("odoo_user_id"),
+                    "odoo_employee_id": odoo_data.get("odoo_employee_id"),
+                    "odoo_salesperson_name": odoo_data.get("odoo_salesperson_name"),
+                    "odoo_department_id": odoo_data.get("odoo_department_id"),
+                    "odoo_department_name": odoo_data.get("odoo_department_name"),
+                    "odoo_team_id": odoo_data.get("odoo_team_id"),
+                    "odoo_team_name": odoo_data.get("odoo_team_name"),
+                    "odoo_job_title": odoo_data.get("odoo_job_title"),
+                    "manager_odoo_id": odoo_data.get("manager_odoo_id"),  # ADD manager hierarchy
+                    "odoo_matched": True,
+                    "odoo_match_email": email.lower(),
+                })
+                logger.info(f"Mapped SSO user {email} to Odoo: user_id={odoo_data.get('odoo_user_id')}, employee_id={odoo_data.get('odoo_employee_id')}, manager_id={odoo_data.get('manager_odoo_id')}")
+            else:
+                # CRITICAL FIX: Don't overwrite existing Odoo fields with None!
+                # Only mark as unmatched for monitoring - preserve existing data
+                update_data["odoo_matched"] = False
+                logger.warning(f"No Odoo match for SSO user {email} - preserving existing Odoo fields to prevent data loss")
+                
             await db.users.update_one(
                 {"email": email},
-                {"$set": {
-                    "ms_id": ms_id,
-                    "ms_access_token": request.access_token,
-                    "updated_at": now,
-                    "last_login": now
-                }}
+                {"$set": update_data}
             )
-            user = existing_user
-            user_id = existing_user["id"]
-            approval_status = existing_user.get("approval_status", "approved")
+            
+            # Fetch updated user to return correct data
+            user = await db.users.find_one({"email": email})
+            user_id = user["id"]
+            approval_status = user.get("approval_status", "approved")
+            logger.info(f"Existing SSO user updated with Azure AD + Odoo data: {email}")
         else:
             # Create new user for SSO - PENDING APPROVAL
+            # All Azure AD profile data is synced
             user_id = str(uuid.uuid4())
+            
+            # Look up Odoo data for new user
+            odoo_data = await lookup_odoo_user_data(db, email)
+            
             user = {
                 "id": user_id,
                 "email": email,
@@ -254,22 +435,48 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 "department_id": None,
                 "is_super_admin": False,
                 "is_active": True,
-                "approval_status": "pending",  # NEW: Requires admin approval
+                "approval_status": "pending",  # Requires admin approval
                 "avatar_url": None,
                 "ms_id": ms_id,
                 "ms_access_token": request.access_token,
                 "auth_provider": "microsoft",
-                "job_title": ms_user.get("jobTitle"),
+                # Azure AD profile fields
+                "job_title": job_title,
+                "ad_department": department,
+                "office_location": office_location,
+                "mobile_phone": mobile_phone,
+                "business_phones": business_phones,
+                "company_name": company_name,
+                # Odoo enrichment fields (including manager_odoo_id)
+                "odoo_user_id": odoo_data.get("odoo_user_id") if odoo_data else None,
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") if odoo_data else None,
+                "odoo_salesperson_name": odoo_data.get("odoo_salesperson_name") if odoo_data else None,
+                "odoo_department_id": odoo_data.get("odoo_department_id") if odoo_data else None,
+                "odoo_department_name": odoo_data.get("odoo_department_name") if odoo_data else None,
+                "odoo_team_id": odoo_data.get("odoo_team_id") if odoo_data else None,
+                "odoo_team_name": odoo_data.get("odoo_team_name") if odoo_data else None,
+                "odoo_job_title": odoo_data.get("odoo_job_title") if odoo_data else None,
+                "manager_odoo_id": odoo_data.get("manager_odoo_id") if odoo_data else None,  # ADD manager
+                "odoo_matched": bool(odoo_data),
+                "odoo_match_email": email.lower() if odoo_data else None,
+                # Timestamps
                 "created_at": now,
                 "updated_at": now,
                 "last_login": now
             }
             await db.users.insert_one(user)
+            
+            if odoo_data:
+                logger.info(f"New SSO user {email} mapped to Odoo: user_id={odoo_data.get('odoo_user_id')}, salesperson={odoo_data.get('odoo_salesperson_name')}")
+            else:
+                logger.warning(f"No Odoo match for new SSO user {email}")
+            
             approval_status = "pending"
-            logger.info(f"New SSO user created (pending approval): {email}")
+            logger.info(f"New SSO user created (pending approval): {email} - Job: {job_title}, Dept: {department}")
         
         # Create our application JWT token
-        jwt_token = create_access_token(user_id, email, user.get("role", "pending"))
+        user_role = user.get("role")
+        jwt_token = create_access_token(user_id, email, user_role if user_role else None)
         
         logger.info(f"Microsoft SSO login successful for: {email}")
         
@@ -279,7 +486,7 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
                 id=user_id,
                 email=email,
                 name=user.get("name", name),
-                role=user.get("role", "pending"),
+                role=user_role,  # None for pending users
                 department=user.get("department"),
                 product_line=user.get("product_line"),
                 is_active=user.get("is_active", True),
@@ -299,3 +506,193 @@ async def microsoft_complete(request: MicrosoftCompleteRequest):
             raise
         logger.error(f"Microsoft SSO error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
+
+
+# ===================== SELF-SERVICE ODOO LINKING =====================
+
+async def require_approved():
+    """Dependency to require an approved user"""
+    async def dependency(token_data: dict = Depends(get_current_user_from_token)):
+        db = Database.get_db()
+        user = await db.users.find_one({"id": token_data["id"]})
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if user.get("approval_status") == "pending":
+            raise HTTPException(status_code=403, detail="User pending approval")
+        
+        return token_data
+    return Depends(dependency)
+
+
+@router.post("/relink-odoo")
+async def self_relink_to_odoo(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Self-service endpoint for users to re-link their profile to Odoo.
+    Any approved user can attempt to re-link THEMSELVES.
+    
+    Matching strategies (in order):
+    1. Email match (work_email or login in Odoo users)
+    2. Name match (fuzzy)
+    3. Salesperson match (from opportunities)
+    """
+    db = Database.get_db()
+    
+    user_id = token_data["id"]
+    user = await db.users.find_one({"id": user_id})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("approval_status") == "pending":
+        raise HTTPException(status_code=403, detail="Your account is pending approval. Please contact an administrator.")
+    
+    user_email = (user.get("email") or "").lower()
+    user_name = user.get("name", "")
+    odoo_enrichment = {}
+    match_method = None
+    match_details = []
+    
+    try:
+        # Strategy 1: Match by email
+        odoo_user_doc = await db.data_lake_serving.find_one({
+            "entity_type": "user",
+            "$or": [
+                {"data.email": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.login": {"$regex": f"^{user_email}$", "$options": "i"}},
+                {"data.work_email": {"$regex": f"^{user_email}$", "$options": "i"}}
+            ]
+        })
+        
+        if odoo_user_doc:
+            odoo_data = odoo_user_doc.get("data", {})
+            odoo_enrichment = {
+                "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                "odoo_employee_id": odoo_data.get("odoo_employee_id") or odoo_data.get("employee_id"),
+                "odoo_department_id": odoo_data.get("department_odoo_id") or odoo_data.get("department_id"),
+                "odoo_department_name": odoo_data.get("department_name"),
+                "odoo_team_id": odoo_data.get("team_id"),
+                "odoo_team_name": odoo_data.get("team_name"),
+                "odoo_job_title": odoo_data.get("job_title"),
+                "odoo_salesperson_name": odoo_data.get("name"),
+                "odoo_matched": True,
+                "odoo_match_email": user_email,
+            }
+            match_method = "email"
+            match_details.append(f"Email matched: {user_email}")
+        
+        # Strategy 2: Match by name (if email didn't match)
+        if not odoo_enrichment and user_name:
+            # Try exact name match first
+            odoo_user_by_name = await db.data_lake_serving.find_one({
+                "entity_type": "user",
+                "data.name": {"$regex": f"^{user_name}$", "$options": "i"}
+            })
+            
+            if not odoo_user_by_name:
+                # Try partial name match (first name or last name)
+                name_parts = user_name.split()
+                if name_parts:
+                    odoo_user_by_name = await db.data_lake_serving.find_one({
+                        "entity_type": "user",
+                        "$or": [
+                            {"data.name": {"$regex": name_parts[0], "$options": "i"}},
+                            {"data.name": {"$regex": name_parts[-1], "$options": "i"}} if len(name_parts) > 1 else {}
+                        ]
+                    })
+            
+            if odoo_user_by_name:
+                odoo_data = odoo_user_by_name.get("data", {})
+                odoo_enrichment = {
+                    "odoo_user_id": odoo_data.get("odoo_user_id") or odoo_data.get("id"),
+                    "odoo_employee_id": odoo_data.get("odoo_employee_id"),
+                    "odoo_department_id": odoo_data.get("department_odoo_id"),
+                    "odoo_department_name": odoo_data.get("department_name"),
+                    "odoo_job_title": odoo_data.get("job_title"),
+                    "odoo_salesperson_name": odoo_data.get("name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": odoo_data.get("email") or odoo_data.get("work_email"),
+                }
+                match_method = "name"
+                match_details.append(f"Name matched: {user_name} → {odoo_data.get('name')}")
+        
+        # Strategy 3: Match by salesperson in opportunities
+        if not odoo_enrichment:
+            opp = await db.data_lake_serving.find_one({
+                "entity_type": "opportunity",
+                "$or": [
+                    {"data.salesperson_email": {"$regex": user_email, "$options": "i"}},
+                    {"data.salesperson_name": {"$regex": user_name, "$options": "i"}}
+                ]
+            })
+            
+            if opp:
+                opp_data = opp.get("data", {})
+                odoo_enrichment = {
+                    "odoo_salesperson_name": opp_data.get("salesperson_name") or user_name,
+                    "odoo_team_id": opp_data.get("team_id"),
+                    "odoo_team_name": opp_data.get("team_name"),
+                    "odoo_matched": True,
+                    "odoo_match_email": user_email,
+                }
+                match_method = "opportunity_salesperson"
+                match_details.append(f"Matched as salesperson in opportunity: {opp_data.get('name')}")
+        
+    except Exception as e:
+        logger.error(f"Error in self-relink: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during Odoo matching: {str(e)}")
+    
+    if odoo_enrichment:
+        # Update user with Odoo data
+        update_data = {
+            "updated_at": datetime.now(timezone.utc),
+            "odoo_match_status": f"self_linked_{match_method}",
+            "odoo_match_method": match_method,
+            **odoo_enrichment
+        }
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+        
+        # Log the self-link
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "action": "user_self_relinked",
+            "user_id": user_id,
+            "match_method": match_method,
+            "match_details": match_details,
+            "odoo_enrichment": odoo_enrichment,
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        return {
+            "success": True,
+            "message": "Successfully linked to Odoo",
+            "match_method": match_method,
+            "match_details": match_details,
+            "odoo_salesperson_name": odoo_enrichment.get("odoo_salesperson_name"),
+            "odoo_department_name": odoo_enrichment.get("odoo_department_name"),
+            "odoo_team_name": odoo_enrichment.get("odoo_team_name"),
+        }
+    else:
+        # No match found - provide helpful suggestions
+        # Check how many users exist in Odoo sync
+        odoo_user_count = await db.data_lake_serving.count_documents({"entity_type": "user"})
+        
+        suggestions = []
+        if odoo_user_count == 0:
+            suggestions.append("No Odoo users have been synced yet. Ask an administrator to run an Odoo sync first.")
+        else:
+            suggestions.append(f"Found {odoo_user_count} Odoo users in sync, but none matched your profile.")
+            suggestions.append(f"Ensure your work email in Odoo matches: {user_email}")
+            suggestions.append("Contact an administrator to manually link your account if needed.")
+        
+        return {
+            "success": False,
+            "message": "No Odoo match found",
+            "attempted_email": user_email,
+            "attempted_name": user_name,
+            "suggestions": suggestions
+        }
+

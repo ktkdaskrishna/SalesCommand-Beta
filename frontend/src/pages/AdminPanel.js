@@ -10,11 +10,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import RoleConfigurationPanel from '../components/RoleConfigurationPanel';
 import IncentiveConfiguration from '../components/IncentiveConfiguration';
+import BlueSheetConfiguration from '../components/BlueSheetConfiguration';
+import SalesTargetsConfiguration from '../components/SalesTargetsConfiguration';
 import { configAPI } from '../services/api';
 import {
   Users, Shield, Building2, Settings, ChevronRight,
   Plus, Edit2, Trash2, Check, X, Search, AlertCircle,
-  Loader2, Save, Cloud, ChevronDown, ChevronUp, DollarSign, LayoutDashboard
+  Loader2, Save, Cloud, ChevronDown, ChevronUp, DollarSign, LayoutDashboard, Brain, Target
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
@@ -297,6 +299,27 @@ const AdminPanel = () => {
     }
   };
 
+  const deleteUser = async (userId) => {
+    if (!confirm('Are you sure you want to PERMANENTLY delete this user? This will allow them to re-register via Microsoft SSO. This action cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}?permanent=true`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess('User permanently deleted');
+        fetchData();
+      } else {
+        setError(data.detail || 'Failed to delete user');
+      }
+    } catch (err) {
+      setError('Failed to delete user');
+    }
+  };
+
   // ===================== AZURE SYNC =====================
   const syncAzureUsers = async () => {
     setSyncingAzure(true);
@@ -327,6 +350,8 @@ const AdminPanel = () => {
     { id: 'roles', label: 'Roles & Permissions', icon: Shield },
     { id: 'role-config', label: 'Role Configuration', icon: LayoutDashboard },
     { id: 'incentives', label: 'Incentive Config', icon: DollarSign },
+    { id: 'targets', label: 'Sales Targets', icon: Target },
+    { id: 'bluesheet', label: 'Deal Confidence', icon: Brain },
     { id: 'departments', label: 'Departments', icon: Building2 },
     { id: 'permissions', label: 'All Permissions', icon: Settings },
   ];
@@ -455,16 +480,16 @@ const AdminPanel = () => {
                   </div>
                 </div>
 
-                <div className="card overflow-hidden">
-                  <table className="w-full">
+                <div className="card overflow-x-auto">
+                  <table className="w-full min-w-[900px]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Approval Status</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[200px]">User</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[100px]">Role</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[120px]">Department</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[120px]">Approval Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[80px]">Status</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider w-36 min-w-[140px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -478,6 +503,16 @@ const AdminPanel = () => {
                           <td className="px-4 py-3">
                             <p className="font-medium text-slate-900">{u.name || 'No name'}</p>
                             <p className="text-slate-500 text-sm">{u.email}</p>
+                            {/* Azure AD Details */}
+                            {(u.job_title || u.ad_department || u.company_name) && (
+                              <div className="mt-1 text-xs text-slate-400">
+                                {u.job_title && <span>{u.job_title}</span>}
+                                {u.job_title && u.ad_department && <span> • </span>}
+                                {u.ad_department && <span>{u.ad_department}</span>}
+                                {(u.job_title || u.ad_department) && u.company_name && <span> @ </span>}
+                                {u.company_name && <span>{u.company_name}</span>}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             {editingUser?.id === u.id ? (
@@ -526,6 +561,17 @@ const AdminPanel = () => {
                                 Approved
                               </span>
                             )}
+                            {/* Odoo Match Status */}
+                            {u.odoo_matched && (
+                              <span className="ml-2 px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200" title={`Odoo: ${u.odoo_department_name || u.odoo_salesperson_name || 'Linked'}`}>
+                                🔗 Odoo
+                              </span>
+                            )}
+                            {u.odoo_match_status && !u.odoo_matched && u.approval_status === 'approved' && (
+                              <span className="ml-2 px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-600 border border-amber-200" title="User not found in Odoo">
+                                ⚠️ No Odoo
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
@@ -534,7 +580,7 @@ const AdminPanel = () => {
                               {u.is_active !== false ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right w-32 min-w-[120px]">
                             {u.approval_status === 'pending' ? (
                               <div className="flex justify-end gap-2">
                                 <Button 
@@ -565,9 +611,20 @@ const AdminPanel = () => {
                                 </Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900">
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex justify-end gap-2 flex-nowrap">
+                                <Button size="sm" variant="ghost" onClick={() => setEditingUser({ id: u.id, role_id: u.role_id, department_id: u.department_id })} className="text-slate-600 hover:text-slate-900" title="Edit user">
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  onClick={() => deleteUser(u.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -705,6 +762,16 @@ const AdminPanel = () => {
             {/* ===================== INCENTIVES TAB ===================== */}
             {activeTab === 'incentives' && (
               <IncentiveConfiguration />
+            )}
+
+            {/* ===================== BLUE SHEET CONFIG TAB ===================== */}
+            {activeTab === 'bluesheet' && (
+              <BlueSheetConfiguration />
+            )}
+
+            {/* ===================== SALES TARGETS TAB ===================== */}
+            {activeTab === 'targets' && (
+              <SalesTargetsConfiguration />
             )}
 
             {/* ===================== PERMISSIONS TAB ===================== */}

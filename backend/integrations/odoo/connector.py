@@ -30,6 +30,8 @@ class OdooConnector(BaseConnector):
         "opportunity": "crm.lead",
         "activity": "mail.activity",
         "user": "res.users",
+        "employee": "hr.employee",
+        "department": "hr.department",
     }
     
     def __init__(self, config: Dict[str, Any]):
@@ -287,17 +289,18 @@ class OdooConnector(BaseConnector):
         base_fields = ['id', 'name', 'create_date', 'write_date', 'active']
         
         if model == 'res.partner':
+            # Note: 'title' and 'team_id' fields removed for Odoo 19.0 compatibility
             return base_fields + [
-                'email', 'phone', 'mobile', 'website',
+                'email', 'phone', 'website',
                 'street', 'city', 'state_id', 'country_id', 'zip',
-                'is_company', 'parent_id', 'function', 'title',
-                'user_id', 'team_id', 'category_id',
+                'is_company', 'parent_id', 'function',
+                'user_id', 'category_id',
                 'comment', 'industry_id', 'employee'
             ]
         
         elif model == 'crm.lead':
             return base_fields + [
-                'email_from', 'phone', 'mobile',
+                'email_from', 'phone',
                 'partner_id', 'contact_name',
                 'expected_revenue', 'probability',
                 'stage_id', 'type', 'priority',
@@ -320,4 +323,532 @@ class OdooConnector(BaseConnector):
                 'groups_id', 'company_id'
             ]
         
+        elif model == 'hr.department':
+            return base_fields + [
+                'complete_name', 'parent_id', 'manager_id',
+                'company_id', 'member_ids', 'note'
+            ]
+        
+        elif model == 'hr.employee':
+            return base_fields + [
+                'work_email', 'work_phone', 'mobile_phone',
+                'department_id', 'job_id', 'job_title',
+                'parent_id', 'coach_id', 'user_id',
+                'company_id', 'resource_calendar_id'
+            ]
+        
         return base_fields
+
+    async def fetch_departments(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all departments from Odoo hr.department model.
+        Departments are the source of truth from Odoo.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'hr.department'
+        fields = self._get_fields_for_model(model, 'department')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            departments = []
+            for rec in records:
+                departments.append({
+                    'odoo_id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'complete_name': rec.get('complete_name'),
+                    'parent_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'parent_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'manager_id': rec.get('manager_id')[0] if rec.get('manager_id') else None,
+                    'manager_name': rec.get('manager_id')[1] if rec.get('manager_id') else None,
+                    'active': rec.get('active', True),
+                    'source': 'odoo',
+                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                })
+            
+            logger.info(f"Fetched {len(departments)} departments from Odoo")
+            return departments
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch departments from Odoo: {e}")
+            raise
+
+    async def fetch_users(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all users from Odoo hr.employee model (preferred) or res.users.
+        Users in CRM must originate from Odoo.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        # Try hr.employee first (richer data), fallback to res.users
+        model = 'hr.employee'
+        fields = self._get_fields_for_model(model, 'employee')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            users = []
+            for rec in records:
+                users.append({
+                    'odoo_employee_id': rec.get('id'),
+                    'odoo_user_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'name': rec.get('name'),
+                    'email': rec.get('work_email'),
+                    'phone': rec.get('work_phone') or rec.get('mobile_phone'),
+                    'job_title': rec.get('job_title') or (rec.get('job_id')[1] if rec.get('job_id') else None),
+                    'department_odoo_id': rec.get('department_id')[0] if rec.get('department_id') else None,
+                    'department_name': rec.get('department_id')[1] if rec.get('department_id') else None,
+                    'manager_odoo_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'manager_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'active': rec.get('active', True),
+                    'source': 'odoo',
+                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                })
+            
+            logger.info(f"Fetched {len(users)} employees from Odoo hr.employee")
+            return users
+            
+        except Exception as e:
+            logger.warning(f"hr.employee fetch failed: {e}, trying res.users fallback")
+            return await self._fetch_users_fallback()
+
+    async def _fetch_users_fallback(self) -> List[Dict[str, Any]]:
+        """Fallback to res.users if hr.employee is not available"""
+        model = 'res.users'
+        fields = ['id', 'name', 'login', 'email', 'partner_id', 'active', 'company_id']
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        records = await loop.run_in_executor(
+            None,
+            lambda: self._models.execute_kw(
+                self.database, self._uid, self.api_key,
+                model, 'search_read',
+                [domain],
+                {'fields': fields}
+            )
+        )
+        
+        users = []
+        for rec in records:
+            users.append({
+                'odoo_employee_id': None,
+                'odoo_user_id': rec.get('id'),
+                'name': rec.get('name'),
+                'email': rec.get('email') or rec.get('login'),
+                'phone': None,
+                'job_title': None,
+                'department_odoo_id': None,
+                'department_name': None,
+                'manager_odoo_id': None,
+                'manager_name': None,
+                'active': rec.get('active', True),
+                'source': 'odoo',
+                'synced_at': datetime.now(timezone.utc).isoformat(),
+            })
+        
+        logger.info(f"Fetched {len(users)} users from Odoo (fallback)")
+        return users
+
+    async def fetch_accounts(self) -> List[Dict[str, Any]]:
+        """Fetch all accounts (companies) from Odoo res.partner model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'res.partner'
+        fields = self._get_fields_for_model(model, 'account')
+        domain = [('is_company', '=', True), ('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            accounts = []
+            for rec in records:
+                accounts.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email': rec.get('email'),
+                    'phone': rec.get('phone'),
+                    'mobile': rec.get('mobile'),
+                    'website': rec.get('website'),
+                    'street': rec.get('street'),
+                    'city': rec.get('city'),
+                    'state_name': rec.get('state_id')[1] if rec.get('state_id') else None,
+                    'country_name': rec.get('country_id')[1] if rec.get('country_id') else None,
+                    'zip': rec.get('zip'),
+                    'industry': rec.get('industry_id')[1] if rec.get('industry_id') else None,
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'team_id': rec.get('team_id')[0] if rec.get('team_id') else None,
+                    'team_name': rec.get('team_id')[1] if rec.get('team_id') else None,
+                    'comment': rec.get('comment'),
+                    'active': rec.get('active', True),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(accounts)} accounts from Odoo")
+            return accounts
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch accounts from Odoo: {e}")
+            raise
+
+    async def fetch_opportunities(self) -> List[Dict[str, Any]]:
+        """Fetch all opportunities from Odoo crm.lead model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'crm.lead'
+        fields = self._get_fields_for_model(model, 'opportunity')
+        domain = [('active', '=', True)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            opportunities = []
+            for rec in records:
+                opportunities.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email_from': rec.get('email_from'),
+                    'phone': rec.get('phone'),
+                    'contact_name': rec.get('contact_name'),
+                    'partner_id': rec.get('partner_id')[0] if rec.get('partner_id') else None,
+                    'partner_name': rec.get('partner_id')[1] if rec.get('partner_id') else None,
+                    'expected_revenue': rec.get('expected_revenue', 0),
+                    'probability': rec.get('probability', 0),
+                    'stage_id': rec.get('stage_id')[0] if rec.get('stage_id') else None,
+                    'stage_name': rec.get('stage_id')[1] if rec.get('stage_id') else 'New',
+                    'type': rec.get('type'),
+                    'priority': rec.get('priority'),
+                    'date_deadline': rec.get('date_deadline'),
+                    'date_closed': rec.get('date_closed'),
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'team_id': rec.get('team_id')[0] if rec.get('team_id') else None,
+                    'team_name': rec.get('team_id')[1] if rec.get('team_id') else None,
+                    'description': rec.get('description'),
+                    'active': rec.get('active', True),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(opportunities)} opportunities from Odoo")
+            return opportunities
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch opportunities from Odoo: {e}")
+            raise
+
+    async def fetch_invoices(self) -> List[Dict[str, Any]]:
+        """Fetch all invoices from Odoo account.move model."""
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'account.move'
+        fields = ['id', 'name', 'partner_id', 'invoice_date', 'invoice_date_due', 
+                  'amount_total', 'amount_residual', 'state', 'payment_state',
+                  'move_type', 'currency_id', 'create_date', 'write_date']
+        domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]  # Customer invoices only
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields}
+                )
+            )
+            
+            invoices = []
+            for rec in records:
+                invoices.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'partner_id': rec.get('partner_id')[0] if rec.get('partner_id') else None,
+                    'partner_name': rec.get('partner_id')[1] if rec.get('partner_id') else None,
+                    'invoice_date': rec.get('invoice_date'),
+                    'due_date': rec.get('invoice_date_due'),
+                    'amount_total': rec.get('amount_total', 0),
+                    'amount_due': rec.get('amount_residual', 0),
+                    'state': rec.get('state'),
+                    'payment_state': rec.get('payment_state'),
+                    'move_type': rec.get('move_type'),
+                    'currency': rec.get('currency_id')[1] if rec.get('currency_id') else 'USD',
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(invoices)} invoices from Odoo")
+            return invoices
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch invoices from Odoo: {e}")
+            raise
+
+
+    async def fetch_activities(self) -> List[Dict[str, Any]]:
+        """
+        Fetch activities from Odoo mail.activity model.
+        These are business activities like calls, meetings, tasks, etc.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'mail.activity'
+        fields = ['id', 'activity_type_id', 'summary', 'note', 'date_deadline', 
+                  'user_id', 'res_model', 'res_id', 'res_name', 'state',
+                  'create_date', 'write_date']
+        domain = []  # Fetch all activities
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 1000}
+                )
+            )
+            
+            activities = []
+            for rec in records:
+                activities.append({
+                    'id': rec.get('id'),
+                    'activity_type': rec.get('activity_type_id')[1] if rec.get('activity_type_id') else 'Task',
+                    'activity_type_id': rec.get('activity_type_id')[0] if rec.get('activity_type_id') else None,
+                    'summary': rec.get('summary'),
+                    'note': rec.get('note') if rec.get('note') != False else None,
+                    'due_date': rec.get('date_deadline'),
+                    'user_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'user_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'res_model': rec.get('res_model'),
+                    'res_id': rec.get('res_id'),
+                    'res_name': rec.get('res_name'),
+                    'state': rec.get('state'),
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(activities)} activities from Odoo")
+            return activities
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch activities from Odoo: {e}")
+            # Return empty list instead of raising - activities are optional
+
+
+    async def fetch_messages(self, res_model: str = None, res_ids: List[int] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch chatter messages/communication logs from Odoo mail.message model.
+        These are past communications, notes, emails - NOT scheduled activities.
+        
+        Args:
+            res_model: Filter by model (e.g., 'crm.lead' for opportunities)
+            res_ids: Filter by specific record IDs
+        
+        Returns:
+            List of message records with communication history
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'mail.message'
+        fields = [
+            'id', 'body', 'date', 'message_type', 'subtype_id',
+            'author_id', 'email_from', 'subject', 'model',  # ← 'model' not 'res_model'
+            'res_id', 'record_name', 'tracking_value_ids'
+        ]
+        
+        # Build domain filter
+        domain = [
+            ('message_type', '!=', 'user_notification'),  # Exclude notifications
+        ]
+        
+        if res_model:
+            domain.append(('model', '=', res_model))
+        if res_ids and len(res_ids) > 0:
+            domain.append(('res_id', 'in', res_ids))
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 5000, 'order': 'date desc'}
+                )
+            )
+            
+            messages = []
+            for rec in records:
+                # Extract author info
+                author = rec.get('author_id')
+                author_id = author[0] if isinstance(author, list) and len(author) > 0 else None
+                author_name = author[1] if isinstance(author, list) and len(author) > 1 else "System"
+                
+                # Extract subtype (for message classification)
+                subtype = rec.get('subtype_id')
+                subtype_name = subtype[1] if isinstance(subtype, list) and len(subtype) > 1 else None
+                
+                messages.append({
+                    'id': rec.get('id'),
+                    'body': rec.get('body') if rec.get('body') != False else '',
+                    'date': rec.get('date'),
+                    'message_type': rec.get('message_type', 'comment'),
+                    'subtype_name': subtype_name,
+                    'author_id': author_id,
+                    'author_name': author_name,
+                    'email_from': rec.get('email_from'),
+                    'subject': rec.get('subject') if rec.get('subject') != False else None,
+                    'res_model': rec.get('model'),  # ← Use 'model' field
+                    'res_id': rec.get('res_id'),
+                    'record_name': rec.get('record_name'),
+                })
+            
+            logger.info(f"Fetched {len(messages)} messages from Odoo mail.message")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch messages from Odoo: {e}")
+            raise
+
+            return []
+
+    async def fetch_contacts(self) -> List[Dict[str, Any]]:
+        """
+        Fetch contacts from Odoo res.partner model.
+        Contacts are individuals (not companies) linked to accounts.
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'res.partner'
+        # Note: 'title' field removed for Odoo 19.0 compatibility (field renamed/deprecated)
+        fields = ['id', 'name', 'email', 'phone', 'mobile', 'function',
+                  'parent_id', 'street', 'city', 'country_id', 'is_company',
+                  'user_id', 'create_date', 'write_date']
+        # Only fetch individual contacts (not companies)
+        domain = [('is_company', '=', False), ('parent_id', '!=', False)]
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 2000}
+                )
+            )
+            
+            contacts = []
+            for rec in records:
+                contacts.append({
+                    'id': rec.get('id'),
+                    'name': rec.get('name'),
+                    'email': rec.get('email') if rec.get('email') != False else None,
+                    'phone': rec.get('phone') if rec.get('phone') != False else None,
+                    'mobile': rec.get('mobile') if rec.get('mobile') != False else None,
+                    'job_title': rec.get('function') if rec.get('function') != False else None,
+                    'account_id': rec.get('parent_id')[0] if rec.get('parent_id') else None,
+                    'account_name': rec.get('parent_id')[1] if rec.get('parent_id') else None,
+                    'street': rec.get('street') if rec.get('street') != False else None,
+                    'city': rec.get('city') if rec.get('city') != False else None,
+                    'country': rec.get('country_id')[1] if rec.get('country_id') else None,
+                    'salesperson_id': rec.get('user_id')[0] if rec.get('user_id') else None,
+                    'salesperson_name': rec.get('user_id')[1] if rec.get('user_id') else None,
+                    'create_date': rec.get('create_date'),
+                    'write_date': rec.get('write_date'),
+                })
+            
+            logger.info(f"Fetched {len(contacts)} contacts from Odoo")
+            return contacts
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch contacts from Odoo: {e}")
+            # Return empty list instead of raising - contacts are optional
+            return []

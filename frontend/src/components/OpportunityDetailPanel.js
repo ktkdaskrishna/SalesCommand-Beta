@@ -1,0 +1,622 @@
+/**
+ * Opportunity Detail Panel
+ * Slide-over panel for viewing full opportunity details
+ * Preserves navigation state and provides quick access to all related data
+ */
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
+import { formatCurrency, formatDate, cn } from '../lib/utils';
+import { StageBadge, PriorityBadge } from './Badge';
+import {
+  X,
+  Building2,
+  DollarSign,
+  Calendar,
+  User,
+  Phone,
+  Mail,
+  Target,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  MessageSquare,
+  Sparkles,
+  ChevronRight,
+  Edit2,
+  ExternalLink,
+  Loader2,
+  Activity,
+  Users,
+  Tag,
+  Percent,
+} from 'lucide-react';
+
+// Tab component
+const Tab = ({ active, onClick, children, icon: Icon }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px",
+      active 
+        ? "text-indigo-600 border-indigo-600" 
+        : "text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300"
+    )}
+  >
+    {Icon && <Icon className="w-4 h-4" />}
+    {children}
+  </button>
+);
+
+// Info Row component
+const InfoRow = ({ icon: Icon, label, value, className = "" }) => (
+  <div className={cn("flex items-start gap-3 py-2", className)}>
+    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+      <Icon className="w-4 h-4 text-slate-500" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-sm font-medium text-slate-900 break-words">{value || '—'}</p>
+    </div>
+  </div>
+);
+
+// Activity Item component
+const ActivityItem = ({ activity }) => {
+  const statusIcons = {
+    pending: Clock,
+    completed: CheckCircle2,
+    overdue: AlertCircle,
+  };
+  const StatusIcon = statusIcons[activity.status] || Clock;
+  
+  // Extract activity details
+  const activityType = activity.activity_type || activity.type || 'Task';
+  const summary = activity.summary || activity.title || activityType;
+  const assignedTo = activity.user_name || activity.assigned_to?.name || 'Unassigned';
+  const dueDate = activity.due_date || activity.date_deadline;
+  const notes = activity.note || activity.notes || '';
+  const cleanNotes = notes ? notes.replace(/<[^>]*>/g, ' ').trim() : '';
+  
+  return (
+    <div className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all">
+      {/* Icon */}
+      <div className={cn(
+        "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+        activity.status === 'completed' ? 'bg-emerald-100' :
+        activity.status === 'overdue' ? 'bg-red-100' : 
+        'bg-amber-100'
+      )}>
+        <StatusIcon className={cn(
+          "w-5 h-5",
+          activity.status === 'completed' ? 'text-emerald-600' :
+          activity.status === 'overdue' ? 'text-red-600' :
+          'text-amber-600'
+        )} />
+      </div>
+      
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex-1">
+            <h4 className="font-semibold text-slate-900">{summary}</h4>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-medium",
+                activityType === 'Call' ? 'bg-purple-100 text-purple-700' :
+                activityType === 'Email' ? 'bg-blue-100 text-blue-700' :
+                activityType === 'Meeting' ? 'bg-indigo-100 text-indigo-700' :
+                activityType === 'Document' ? 'bg-cyan-100 text-cyan-700' :
+                'bg-slate-100 text-slate-700'
+              )}>
+                {activityType}
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-medium",
+                activity.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                activity.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              )}>
+                {activity.state || activity.status}
+              </span>
+            </div>
+          </div>
+          
+          {/* Due Date */}
+          {dueDate && (
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs text-slate-500">Due</p>
+              <p className="text-sm font-medium text-slate-900">
+                {formatDate(dueDate)}
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Description */}
+        {cleanNotes && cleanNotes.length > 0 && (
+          <p className="text-sm text-slate-600 mb-2 line-clamp-2">
+            {cleanNotes}
+          </p>
+        )}
+        
+        {/* Assigned To */}
+        <div className="flex items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <User className="w-3 h-3" />
+            Assigned to: {assignedTo}
+          </span>
+          {!dueDate && (
+            <span className="text-amber-600 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              No due date
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSheet }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [messages, setMessages] = useState([]); // NEW: Chatter messages
+
+  useEffect(() => {
+    if (isOpen && opportunity?.id) {
+      fetchRelatedData();
+    }
+  }, [isOpen, opportunity?.id]);
+
+  const fetchRelatedData = async () => {
+    setLoading(true);
+    try {
+      // Fetch activities AND messages from both local and Odoo sources
+      const [localActivities, odooActivities, odooMessages] = await Promise.all([
+        api.get(`/activities?opportunity_id=${opportunity.id}`).catch((err) => {
+          console.error('Failed to fetch local activities:', err);
+          return { data: [] };
+        }),
+        api.get(`/activities/opportunity/${opportunity.odoo_id || opportunity.id}`).catch((err) => {
+          console.error('Failed to fetch Odoo activities:', err);
+          return { data: { activities: [] } };
+        }),
+        // NEW: Fetch chatter messages
+        api.get(`/opportunities/${opportunity.odoo_id || opportunity.id}/messages`).catch((err) => {
+          console.error('Failed to fetch chatter messages:', err);
+          return { data: { messages: [] } };
+        }),
+      ]);
+      
+      // Combine and dedupe activities
+      const localActs = localActivities.data || [];
+      const odooActs = (odooActivities.data?.activities || []).map(a => ({
+        ...a,
+        source: 'odoo',
+        // Map Odoo state to our status
+        status: a.status || (a.state === 'done' ? 'completed' : 'pending'),
+        title: a.summary || a.activity_type,
+        due_date: a.date_deadline,  // FIXED: Use date_deadline from backend
+        notes: a.note,
+        type: a.activity_type,
+      }));
+      
+      console.log(`Fetched ${localActs.length} local + ${odooActs.length} Odoo activities`);
+      
+      // Merge both sources, removing duplicates by id
+      const seenIds = new Set();
+      const mergedActivities = [...localActs, ...odooActs].filter(a => {
+        const key = a.id || a.odoo_id || `${a.type}-${a.due_date}`;
+        if (seenIds.has(key)) return false;
+        seenIds.add(key);
+        return true;
+      });
+      
+      console.log(`Total merged activities: ${mergedActivities.length}`, mergedActivities);
+      setActivities(mergedActivities);
+      
+      // Set chatter messages
+      const chatMessages = odooMessages.data?.messages || [];
+      console.log(`Fetched ${chatMessages.length} chatter messages`);
+      setMessages(chatMessages);
+    } catch (err) {
+      console.error('Failed to fetch related data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const pendingActivities = activities.filter(a => a.status === 'pending');
+  const completedActivities = activities.filter(a => a.status === 'completed');
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
+        onClick={onClose}
+      />
+      
+      {/* Panel */}
+      <div 
+        className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out overflow-hidden flex flex-col"
+        data-testid="opportunity-detail-panel"
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-blue-50 flex-shrink-0">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2 mb-2">
+                <StageBadge stage={opportunity.stage} />
+                {opportunity.priority && <PriorityBadge priority={opportunity.priority} />}
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 truncate">
+                {opportunity.name}
+              </h2>
+              <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                <Building2 className="w-4 h-4" />
+                {opportunity.account_name || 'No account'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(opportunity)}
+                  className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-colors"
+                  title="Edit"
+                >
+                  <Edit2 className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="flex items-center gap-6 mt-4">
+            <div>
+              <p className="text-xs text-slate-500 uppercase">Value</p>
+              <p className="text-lg font-bold text-slate-900">{formatCurrency(opportunity.value)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase">Probability</p>
+              <p className="text-lg font-bold text-indigo-600">{opportunity.probability || 0}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase">Expected Close</p>
+              <p className="text-lg font-bold text-slate-900">
+                {opportunity.close_date ? formatDate(opportunity.close_date) : '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="border-b border-slate-200 flex-shrink-0">
+          <div className="flex px-6">
+            <Tab 
+              active={activeTab === 'overview'} 
+              onClick={() => setActiveTab('overview')}
+              icon={FileText}
+            >
+              Overview
+            </Tab>
+            <Tab 
+              active={activeTab === 'activities'} 
+              onClick={() => setActiveTab('activities')}
+              icon={Activity}
+            >
+              Activities ({activities.length})
+            </Tab>
+            <Tab 
+              active={activeTab === 'history'} 
+              onClick={() => setActiveTab('history')}
+              icon={MessageSquare}
+            >
+              Communication ({messages.length})
+            </Tab>
+            <Tab 
+              active={activeTab === 'bluesheet'} 
+              onClick={() => setActiveTab('bluesheet')}
+              icon={Sparkles}
+            >
+              Deal Confidence
+            </Tab>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            </div>
+          ) : (
+            <>
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
+                <div className="space-y-6">
+                  {/* Key Details */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Key Details</h3>
+                    <div className="grid grid-cols-2 gap-x-6">
+                      <InfoRow icon={DollarSign} label="Deal Value" value={formatCurrency(opportunity.value)} />
+                      <InfoRow icon={Percent} label="Probability" value={`${opportunity.probability || 0}%`} />
+                      <InfoRow icon={Calendar} label="Close Date" value={opportunity.close_date ? formatDate(opportunity.close_date) : 'Not set'} />
+                      <InfoRow icon={Calendar} label="Created" value={formatDate(opportunity.created_at)} />
+                      <InfoRow icon={User} label="Owner" value={opportunity.owner_name || opportunity.salesperson_name || 'Unassigned'} />
+                      <InfoRow icon={Tag} label="Product Line" value={opportunity.product_line || opportunity.segment || '—'} />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {opportunity.description && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 mb-2">Description</h3>
+                      <p className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">
+                        {opportunity.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Account Info */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Account</h3>
+                    <div className="bg-slate-50 rounded-lg p-4">
+                      {opportunity.account_linked && opportunity.account_name ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">{opportunity.account_name}</p>
+                            <p className="text-xs text-indigo-600">Account ID: {opportunity.account_id}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 text-slate-400">
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <p>No account linked</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Source Info (if from Odoo) */}
+                  {opportunity.source === 'odoo' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-xs text-blue-600 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        Synced from Odoo • Last updated: {opportunity.synced_at ? formatDate(opportunity.synced_at) : 'Unknown'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Activities Tab */}
+              {activeTab === 'activities' && (
+                <div className="space-y-6">
+                  {/* Pending Activities */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                      Pending ({pendingActivities.length})
+                    </h3>
+                    {pendingActivities.length > 0 ? (
+                      <div className="space-y-2">
+                        {pendingActivities.map(activity => (
+                          <ActivityItem key={activity.id} activity={activity} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 bg-slate-50 rounded-lg p-4 text-center">
+                        No pending activities
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Completed Activities */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Completed ({completedActivities.length})
+                    </h3>
+                    {completedActivities.length > 0 ? (
+                      <div className="space-y-2">
+                        {completedActivities.slice(0, 5).map(activity => (
+                          <ActivityItem key={activity.id} activity={activity} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 bg-slate-50 rounded-lg p-4 text-center">
+                        No completed activities
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
+              {/* Communication History Tab - NEW */}
+              {activeTab === 'history' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-indigo-500" />
+                      Chatter & Communication Log ({messages.length})
+                    </h3>
+                  </div>
+                  
+                  {messages.length > 0 ? (
+                    <div className="space-y-3">
+                      {messages.map((msg, idx) => (
+                        <div 
+                          key={msg.id || idx}
+                          className="border-l-4 border-indigo-300 bg-slate-50 p-4 rounded-r-lg hover:bg-slate-100 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-slate-500" />
+                              <span className="font-medium text-slate-900">
+                                {msg.author_name || 'System'}
+                              </span>
+                              {msg.message_type && (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-xs font-medium",
+                                  msg.message_type === 'email' ? 'bg-blue-100 text-blue-700' :
+                                  msg.message_type === 'comment' ? 'bg-green-100 text-green-700' :
+                                  'bg-slate-100 text-slate-700'
+                                )}>
+                                  {msg.message_type}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-400">
+                              {msg.date ? formatDate(msg.date) : ''}
+                            </span>
+                          </div>
+                          
+                          {msg.subject && (
+                            <p className="font-medium text-sm text-slate-800 mb-1">
+                              {msg.subject}
+                            </p>
+                          )}
+                          
+                          {msg.body && (
+                            <div 
+                              className="text-sm text-slate-600 prose prose-sm max-w-none"
+                              dangerouslySetInnerHTML={{ 
+                                __html: msg.body.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                              }}
+                            />
+                          )}
+                          
+                          {msg.email_from && (
+                            <p className="text-xs text-slate-400 mt-2">
+                              From: {msg.email_from}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                      <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-600 font-medium">No communication history</p>
+                      <p className="text-slate-400 text-sm mt-1">
+                        Messages, notes, and emails will appear here
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
+              {/* Blue Sheet Tab */}
+              {activeTab === 'bluesheet' && (
+                <div className="space-y-6">
+                  {/* Current Confidence */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 text-center">
+                    <p className="text-sm text-slate-600 mb-2">Current Deal Confidence</p>
+                    <p className={cn(
+                      "text-4xl font-bold",
+                      opportunity.probability >= 70 ? "text-emerald-600" :
+                      opportunity.probability >= 40 ? "text-amber-600" : "text-red-600"
+                    )}>
+                      {opportunity.probability >= 70 ? 'High' :
+                       opportunity.probability >= 40 ? 'Medium' : 'Low'}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">{opportunity.probability || 0}% score</p>
+                  </div>
+
+                  {/* Blue Sheet Analysis Summary */}
+                  {opportunity.blue_sheet_analysis && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Last Analysis</h3>
+                      <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className={cn(
+                            "w-4 h-4",
+                            opportunity.blue_sheet_analysis.economic_buyer_identified ? "text-emerald-500" : "text-slate-300"
+                          )} />
+                          <span className="text-sm text-slate-700">Economic Buyer Identified</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className={cn(
+                            "w-4 h-4",
+                            opportunity.blue_sheet_analysis.coach_identified ? "text-emerald-500" : "text-slate-300"
+                          )} />
+                          <span className="text-sm text-slate-700">Coach Identified</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className={cn(
+                            "w-4 h-4",
+                            opportunity.blue_sheet_analysis.clear_business_results ? "text-emerald-500" : "text-slate-300"
+                          )} />
+                          <span className="text-sm text-slate-700">Clear Business Results</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Run Analysis Button */}
+                  <button
+                    onClick={() => onBlueSheet && onBlueSheet(opportunity)}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                    data-testid="run-bluesheet-btn"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Run Deal Confidence Analysis
+                  </button>
+
+                  <p className="text-xs text-slate-500 text-center">
+                    Based on configurable factors. Use as guidance, not prediction.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className="btn-secondary"
+            >
+              Close
+            </button>
+            {onEdit && (
+              <button
+                onClick={() => onEdit(opportunity)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit Opportunity
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default OpportunityDetailPanel;

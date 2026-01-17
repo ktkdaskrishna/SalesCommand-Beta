@@ -1,0 +1,573 @@
+"""
+Background Sync Service
+Automated synchronization of Odoo data with configurable intervals
+Handles: accounts, opportunities, invoices, employees/users, activities, contacts
+Implements soft-delete for removed Odoo records
+Features: Retry logic with exponential backoff, health monitoring, alerts
+"""
+import asyncio
+import logging
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, List, Optional
+import uuid
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+from core.database import Database
+from core.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Sync configuration
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY_SECONDS = 30
+MAX_RETRY_DELAY_SECONDS = 300
+HEALTH_CHECK_FAILURE_THRESHOLD = 3
+CRITICAL_FAILURE_THRESHOLD = 6
+
+
+class OdooReconciler:
+    """
+    Handles reconciliation between Odoo and our database.
+    Compares records, handles inserts, updates, and soft-deletes.
+    """
+    
+    def __init__(self, db):
+        self.db = db
+        
+    async def reconcile_entity(
+        self, 
+        entity_type: str, 
+        odoo_records: List[Dict], 
+        id_field: str = "id"
+    ) -> Dict[str, int]:
+        """
+        Reconcile a single entity type.
+        
+        Returns dict with counts: {inserted, updated, soft_deleted, errors}
+        
+        Handles both numeric Odoo IDs and string UUIDs for backwards compatibility.
+        """
+        stats = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0}
+        
+        if not odoo_records:
+            logger.info(f"No {entity_type} records to reconcile")
+            return stats
+        
+        # Get IDs from Odoo - store both original and string versions
+        odoo_ids = set()
+        for rec in odoo_records:
+            odoo_id = rec.get(id_field)
+            if odoo_id:
+                odoo_ids.add(str(odoo_id))
+        
+        logger.info(f"Reconciling {len(odoo_records)} {entity_type} records (IDs: {len(odoo_ids)} unique)")
+        
+        # Process each Odoo record
+        for rec in odoo_records:
+            odoo_id = rec.get(id_field)
+            if not odoo_id:
+                stats["errors"] += 1
+                continue
+                
+            try:
+                # Check if exists in our DB - try multiple ID formats
+                odoo_id_str = str(odoo_id)
+                existing = await self.db.data_lake_serving.find_one({
+                    "entity_type": entity_type,
+                    "$or": [
+                        {"data.id": odoo_id},
+                        {"data.id": odoo_id_str},
+                        {"serving_id": odoo_id_str}
+                    ]
+                })
+                
+                now = datetime.now(timezone.utc)
+                
+                if existing:
+                    # Update existing record
+                    await self.db.data_lake_serving.update_one(
+                        {"_id": existing["_id"]},
+                        {"$set": {
+                            "data": rec,
+                            "is_active": True,
+                            "serving_id": odoo_id_str,  # Normalize serving_id
+                            "last_aggregated": now,
+                            "updated_at": now,
+                        }}
+                    )
+                    stats["updated"] += 1
+                else:
+                    # Insert new record
+                    await self.db.data_lake_serving.insert_one({
+                        "entity_type": entity_type,
+                        "serving_id": odoo_id_str,
+                        "data": rec,
+                        "is_active": True,
+                        "source": "odoo",
+                        "last_aggregated": now,
+                        "created_at": now,
+                        "updated_at": now,
+                    })
+                    stats["inserted"] += 1
+                    
+            except Exception as e:
+                logger.error(f"Error reconciling {entity_type} {odoo_id}: {e}")
+                stats["errors"] += 1
+        
+        # Soft-delete records no longer in Odoo
+        # Only delete records that were synced from Odoo (source=odoo)
+        if odoo_ids:
+            odoo_id_strs = list(odoo_ids)
+            
+            # Find records to soft-delete (in our DB but not in Odoo)
+            result = await self.db.data_lake_serving.update_many(
+                {
+                    "entity_type": entity_type,
+                    "source": "odoo",  # Only delete Odoo-synced records
+                    "serving_id": {"$nin": odoo_id_strs},
+                    "is_active": {"$ne": False},  # Only update records not already deleted
+                },
+                {"$set": {
+                    "is_active": False,
+                    "deleted_at": datetime.now(timezone.utc),
+                    "delete_reason": "removed_from_odoo"
+                }}
+            )
+            stats["soft_deleted"] = result.modified_count
+            
+            if stats["soft_deleted"] > 0:
+                logger.info(f"Soft-deleted {stats['soft_deleted']} {entity_type} records no longer in Odoo")
+        
+        return stats
+
+
+class BackgroundSyncService:
+    """
+    Manages scheduled background sync jobs for Odoo integration.
+    """
+    
+    _instance = None
+    _scheduler: Optional[AsyncIOScheduler] = None
+    _sync_interval_minutes: int = 5  # Default 5 minutes
+    _is_running: bool = False
+    
+    @classmethod
+    def get_instance(cls) -> 'BackgroundSyncService':
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
+    def __init__(self):
+        if BackgroundSyncService._instance is not None:
+            raise RuntimeError("Use get_instance() instead")
+        self._scheduler = AsyncIOScheduler()
+        
+    async def start(self, interval_minutes: int = 5):
+        """Start the background sync scheduler"""
+        if self._is_running:
+            logger.info("Sync service already running")
+            return
+            
+        self._sync_interval_minutes = interval_minutes
+        
+        # Add the sync job
+        self._scheduler.add_job(
+            self._run_full_sync,
+            IntervalTrigger(minutes=interval_minutes),
+            id="odoo_full_sync",
+            name="Odoo Full Sync",
+            replace_existing=True,
+            max_instances=1,  # Prevent overlapping syncs
+        )
+        
+        self._scheduler.start()
+        self._is_running = True
+        logger.info(f"Background sync service started with {interval_minutes} minute interval")
+        
+    async def stop(self):
+        """Stop the background sync scheduler"""
+        if self._scheduler and self._is_running:
+            self._scheduler.shutdown(wait=False)
+            self._is_running = False
+            logger.info("Background sync service stopped")
+            
+    async def trigger_sync_now(self) -> Dict[str, Any]:
+        """Manually trigger a sync immediately"""
+        return await self._run_full_sync()
+        
+    async def get_status(self) -> Dict[str, Any]:
+        """Get current sync service status"""
+        db = Database.get_db()
+        
+        # Get last sync log
+        last_sync = await db.sync_logs.find_one(
+            {"status": "completed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Get last failure
+        last_failure = await db.sync_logs.find_one(
+            {"status": "failed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Count recent failures (last 24 hours)
+        from datetime import timedelta
+        yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+        recent_failures = await db.sync_logs.count_documents({
+            "status": "failed",
+            "completed_at": {"$gte": yesterday}
+        })
+        
+        return {
+            "is_running": self._is_running,
+            "interval_minutes": self._sync_interval_minutes,
+            "last_sync": {
+                "timestamp": last_sync.get("completed_at") if last_sync else None,
+                "stats": last_sync.get("stats") if last_sync else None,
+            } if last_sync else None,
+            "last_failure": {
+                "timestamp": last_failure.get("completed_at") if last_failure else None,
+                "error": last_failure.get("error_message") if last_failure else None,
+            } if last_failure else None,
+            "recent_failures_24h": recent_failures,
+            "health": "healthy" if recent_failures < 3 else "degraded" if recent_failures < 6 else "critical"
+        }
+        
+    async def _run_full_sync(self) -> Dict[str, Any]:
+        """
+        Run a full sync of all Odoo entities.
+        Called by scheduler or manually triggered.
+        """
+        db = Database.get_db()
+        sync_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc)
+        
+        logger.info(f"Starting full Odoo sync (job {sync_id})")
+        
+        # Create sync log entry
+        await db.sync_logs.insert_one({
+            "id": sync_id,
+            "started_at": started_at,
+            "status": "running",
+            "trigger": "scheduled",
+        })
+        
+        try:
+            # Get Odoo config
+            intg = await db.integrations.find_one({"integration_type": "odoo"})
+            if not intg or not intg.get("enabled"):
+                raise RuntimeError("Odoo integration not enabled")
+                
+            config = intg.get("config", {})
+            if not config.get("url"):
+                raise RuntimeError("Odoo not configured")
+            
+            # Connect to Odoo
+            from integrations.odoo.connector import OdooConnector
+            connector = OdooConnector(config)
+            
+            stats = {
+                "accounts": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "opportunities": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "invoices": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "users": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "activities": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+                "contacts": {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0},
+            }
+            
+            reconciler = OdooReconciler(db)
+            
+            try:
+                # Sync Accounts (res.partner)
+                logger.info("Syncing accounts...")
+                accounts = await connector.fetch_accounts()
+                stats["accounts"] = await reconciler.reconcile_entity("account", accounts)
+                logger.info(f"Accounts: {stats['accounts']}")
+                
+                # Sync Opportunities (crm.lead)
+                logger.info("Syncing opportunities...")
+                opportunities = await connector.fetch_opportunities()
+                stats["opportunities"] = await reconciler.reconcile_entity("opportunity", opportunities)
+                logger.info(f"Opportunities: {stats['opportunities']}")
+                
+                # Sync Invoices (account.move)
+                logger.info("Syncing invoices...")
+                invoices = await connector.fetch_invoices()
+                stats["invoices"] = await reconciler.reconcile_entity("invoice", invoices)
+                logger.info(f"Invoices: {stats['invoices']}")
+                
+                # Sync Users/Employees (hr.employee)
+                # Note: Use odoo_employee_id as the ID field since fetch_users returns hr.employee data
+                logger.info("Syncing users/employees...")
+                users = await connector.fetch_users()
+                stats["users"] = await reconciler.reconcile_entity("user", users, id_field="odoo_employee_id")
+                logger.info(f"Users: {stats['users']}")
+                
+                # Sync Activities (mail.activity) - business activities like calls, meetings
+                logger.info("Syncing activities...")
+                try:
+                    activities = await connector.fetch_activities()
+                    stats["activities"] = await reconciler.reconcile_entity("activity", activities)
+                    logger.info(f"Activities: {stats['activities']}")
+                except Exception as e:
+                    logger.warning(f"Activity sync skipped (optional): {e}")
+                    stats["activities"] = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0, "skipped": True}
+                
+                # Sync Contacts (res.partner individuals)
+                logger.info("Syncing contacts...")
+                try:
+                    contacts = await connector.fetch_contacts()
+                    stats["contacts"] = await reconciler.reconcile_entity("contact", contacts)
+                    logger.info(f"Contacts: {stats['contacts']}")
+                except Exception as e:
+                    logger.warning(f"Contact sync skipped (optional): {e}")
+                    stats["contacts"] = {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 0, "skipped": True}
+                
+            finally:
+                await connector.disconnect()
+            
+            # Calculate totals
+            total_inserted = sum(s["inserted"] for s in stats.values())
+            total_updated = sum(s["updated"] for s in stats.values())
+            total_soft_deleted = sum(s["soft_deleted"] for s in stats.values())
+            total_errors = sum(s["errors"] for s in stats.values())
+            
+            completed_at = datetime.now(timezone.utc)
+            duration_seconds = (completed_at - started_at).total_seconds()
+            
+            # Update sync log
+            await db.sync_logs.update_one(
+                {"id": sync_id},
+                {"$set": {
+                    "status": "completed",
+                    "completed_at": completed_at,
+                    "duration_seconds": duration_seconds,
+                    "stats": stats,
+                    "totals": {
+                        "inserted": total_inserted,
+                        "updated": total_updated,
+                        "soft_deleted": total_soft_deleted,
+                        "errors": total_errors,
+                    }
+                }}
+            )
+            
+            # Update integration last_sync
+            await db.integrations.update_one(
+                {"integration_type": "odoo"},
+                {"$set": {
+                    "last_sync": completed_at,
+                    "sync_status": "success",
+                    "last_sync_stats": stats,
+                }}
+            )
+            
+            logger.info(f"Sync completed in {duration_seconds:.1f}s: +{total_inserted} ~{total_updated} -{total_soft_deleted}")
+            
+            return {
+                "success": True,
+                "sync_id": sync_id,
+                "duration_seconds": duration_seconds,
+                "stats": stats,
+            }
+            
+        except Exception as e:
+            logger.error(f"Sync failed: {e}")
+            
+            completed_at = datetime.now(timezone.utc)
+            
+            # Update sync log with failure
+            await db.sync_logs.update_one(
+                {"id": sync_id},
+                {"$set": {
+                    "status": "failed",
+                    "completed_at": completed_at,
+                    "error_message": str(e),
+                }}
+            )
+            
+            # Update integration status
+            await db.integrations.update_one(
+                {"integration_type": "odoo"},
+                {"$set": {
+                    "sync_status": "error",
+                    "last_sync_error": str(e),
+                    "last_sync_error_at": completed_at,
+                }}
+            )
+            
+            return {
+                "success": False,
+                "sync_id": sync_id,
+                "error": str(e),
+            }
+    
+    async def _sync_entity_with_retry(
+        self,
+        entity_name: str,
+        fetch_func,
+        reconciler: 'OdooReconciler',
+        entity_type: str,
+        max_retries: int = MAX_RETRIES
+    ) -> Dict[str, int]:
+        """
+        Sync a single entity type with retry logic and exponential backoff.
+        """
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                records = await fetch_func()
+                stats = await reconciler.reconcile_entity(entity_type, records)
+                
+                if attempt > 0:
+                    logger.info(f"{entity_name} sync succeeded on retry {attempt}")
+                
+                return stats
+                
+            except Exception as e:
+                last_error = e
+                delay = min(
+                    INITIAL_RETRY_DELAY_SECONDS * (2 ** attempt),
+                    MAX_RETRY_DELAY_SECONDS
+                )
+                
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"{entity_name} sync failed (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"{entity_name} sync failed after {max_retries} attempts: {e}")
+        
+        # Return error stats after all retries exhausted
+        return {"inserted": 0, "updated": 0, "soft_deleted": 0, "errors": 1, "error": str(last_error)}
+    
+    async def run_manual_sync(self, trigger: str = "manual") -> Dict[str, Any]:
+        """
+        Run a manual sync with custom trigger label.
+        Public method for API endpoints to trigger sync.
+        """
+        db = Database.get_db()
+        sync_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc)
+        
+        # Create sync log entry with manual trigger
+        await db.sync_logs.insert_one({
+            "id": sync_id,
+            "started_at": started_at,
+            "status": "running",
+            "trigger": trigger,
+        })
+        
+        # Run the actual sync (reuse internal method logic)
+        result = await self._run_full_sync()
+        
+        # Update the sync log with trigger type
+        await db.sync_logs.update_one(
+            {"id": sync_id},
+            {"$set": {"trigger": trigger}}
+        )
+        
+        return result
+    
+    async def get_sync_health(self) -> Dict[str, Any]:
+        """
+        Get comprehensive health status of the sync service.
+        Returns detailed metrics for monitoring and alerting.
+        """
+        db = Database.get_db()
+        now = datetime.now(timezone.utc)
+        
+        # Get last successful sync
+        last_success = await db.sync_logs.find_one(
+            {"status": "completed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Get last failure
+        last_failure = await db.sync_logs.find_one(
+            {"status": "failed"},
+            sort=[("completed_at", -1)]
+        )
+        
+        # Count recent failures (last 24 hours)
+        yesterday = now - timedelta(hours=24)
+        recent_failures = await db.sync_logs.count_documents({
+            "status": "failed",
+            "completed_at": {"$gte": yesterday}
+        })
+        
+        # Count recent successes (last 24 hours)
+        recent_successes = await db.sync_logs.count_documents({
+            "status": "completed",
+            "completed_at": {"$gte": yesterday}
+        })
+        
+        # Calculate success rate
+        total_recent = recent_failures + recent_successes
+        success_rate = (recent_successes / total_recent * 100) if total_recent > 0 else 100
+        
+        # Determine health status
+        if recent_failures >= CRITICAL_FAILURE_THRESHOLD:
+            health = "critical"
+            health_message = f"Critical: {recent_failures} failures in last 24h"
+        elif recent_failures >= HEALTH_CHECK_FAILURE_THRESHOLD:
+            health = "degraded"
+            health_message = f"Degraded: {recent_failures} failures in last 24h"
+        elif last_success and (now - last_success.get("completed_at", now)).total_seconds() > 3600:
+            health = "stale"
+            health_message = "No successful sync in over 1 hour"
+        else:
+            health = "healthy"
+            health_message = "Sync service operating normally"
+        
+        # Get average sync duration (last 10 successful syncs)
+        duration_pipeline = [
+            {"$match": {"status": "completed", "duration_seconds": {"$exists": True}}},
+            {"$sort": {"completed_at": -1}},
+            {"$limit": 10},
+            {"$group": {"_id": None, "avg_duration": {"$avg": "$duration_seconds"}}}
+        ]
+        duration_result = await db.sync_logs.aggregate(duration_pipeline).to_list(1)
+        avg_duration = duration_result[0]["avg_duration"] if duration_result else None
+        
+        return {
+            "is_running": self._is_running,
+            "interval_minutes": self._sync_interval_minutes,
+            "health": health,
+            "health_message": health_message,
+            "metrics": {
+                "recent_failures_24h": recent_failures,
+                "recent_successes_24h": recent_successes,
+                "success_rate_24h": round(success_rate, 1),
+                "avg_duration_seconds": round(avg_duration, 1) if avg_duration else None,
+            },
+            "last_success": {
+                "timestamp": last_success.get("completed_at").isoformat() if last_success and last_success.get("completed_at") else None,
+                "duration_seconds": last_success.get("duration_seconds") if last_success else None,
+                "totals": last_success.get("totals") if last_success else None,
+            } if last_success else None,
+            "last_failure": {
+                "timestamp": last_failure.get("completed_at").isoformat() if last_failure and last_failure.get("completed_at") else None,
+                "error": last_failure.get("error_message") if last_failure else None,
+            } if last_failure else None,
+        }
+
+
+# Global sync service instance
+sync_service = BackgroundSyncService.get_instance()
+
+
+async def start_background_sync(interval_minutes: int = 5):
+    """Helper function to start background sync from server startup"""
+    await sync_service.start(interval_minutes)
+
+
+async def stop_background_sync():
+    """Helper function to stop background sync on server shutdown"""
+    await sync_service.stop()

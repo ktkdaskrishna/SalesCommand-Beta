@@ -344,6 +344,130 @@ async def test_ms365_connection(
         )
 
 
+# ===================== ODOO DEPARTMENT & USER SYNC =====================
+
+class DepartmentSyncResponse(BaseModel):
+    synced: int
+    created: int
+    updated: int
+    deactivated: int
+    errors: List[str] = []
+
+class UserSyncResponse(BaseModel):
+    synced: int
+    created: int
+    updated: int
+    deactivated: int
+    errors: List[str] = []
+
+@router.post("/odoo/sync-departments", response_model=DepartmentSyncResponse)
+async def sync_departments_from_odoo(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Sync departments from Odoo hr.department.
+    Departments are SOURCE OF TRUTH from Odoo - CRM departments are read-only.
+    """
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
+    
+    db = Database.get_db()
+    pipeline = OdooSyncPipelineService(db)
+    
+    try:
+        result = await pipeline.sync_departments(user_id=token_data["id"])
+        
+        return DepartmentSyncResponse(
+            synced=result.synced,
+            created=result.created,
+            updated=result.updated,
+            deactivated=result.deactivated,
+            errors=result.errors
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/odoo/sync-users", response_model=UserSyncResponse)
+async def sync_users_from_odoo(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Sync users from Odoo hr.employee.
+    Users are SOURCE OF TRUTH from Odoo - manual user creation is blocked.
+    Users synced here are set to 'pending' approval status.
+    """
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
+    
+    db = Database.get_db()
+    pipeline = OdooSyncPipelineService(db)
+    
+    try:
+        result = await pipeline.sync_users(user_id=token_data["id"])
+        
+        return UserSyncResponse(
+            synced=result.synced,
+            created=result.created,
+            updated=result.updated,
+            deactivated=result.deactivated,
+            errors=result.errors
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class OdooFullSyncResponse(BaseModel):
+    """Response for full Odoo sync"""
+    success: bool
+    message: str
+    synced_entities: Dict[str, int] = {}
+    errors: List[str] = []
+    duration_seconds: float = 0
+
+
+@router.post("/odoo/sync-all", response_model=OdooFullSyncResponse)
+async def sync_all_from_odoo(
+    background_tasks: BackgroundTasks,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
+):
+    """
+    Trigger a full sync of all entities from Odoo.
+    Syncs: Accounts (Partners), Opportunities (CRM Leads), Invoices, Users to data_lake_serving.
+    """
+    from services.odoo.sync_pipeline import OdooSyncPipelineService
+    
+    db = Database.get_db()
+    pipeline = OdooSyncPipelineService(db)
+    
+    try:
+        result = await pipeline.sync_data_lake(user_id=token_data["id"])
+        
+        return OdooFullSyncResponse(
+            success=result["success"],
+            message=result["message"],
+            synced_entities=result["synced_entities"],
+            errors=result["errors"],
+            duration_seconds=result["duration_seconds"]
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/departments")
+async def get_synced_departments(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """Get all departments (synced from Odoo)"""
+    db = Database.get_db()
+    departments = await db.departments.find({"active": True}, {"_id": 0}).to_list(100)
+    return departments
+
+
 # ===================== FIELD MAPPING ROUTES =====================
 
 @router.get("/mappings/{integration_type}/{entity_type}")
@@ -553,6 +677,141 @@ async def get_sync_status(
     return {"jobs": jobs}
 
 
+# ===================== BACKGROUND SYNC SERVICE =====================
+
+# User-level rate limiting for sync requests
+_user_sync_timestamps = {}
+
+@router.post("/user-sync/refresh")
+async def user_trigger_sync_refresh(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    User-accessible sync trigger with rate limiting.
+    Any approved user can trigger a data refresh (max once per 30 seconds).
+    """
+    import time
+    from services.sync.background_sync import sync_service
+    
+    user_id = token_data.get("id")
+    current_time = time.time()
+    
+    # Check rate limit (30 seconds between syncs per user)
+    last_sync = _user_sync_timestamps.get(user_id, 0)
+    if current_time - last_sync < 30:
+        remaining = int(30 - (current_time - last_sync))
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Please wait {remaining} seconds before syncing again."
+        )
+    
+    # Update timestamp
+    _user_sync_timestamps[user_id] = current_time
+    
+    # Trigger sync
+    result = await sync_service.trigger_sync_now()
+    result["triggered_by"] = token_data.get("email")
+    result["rate_limit_remaining"] = 30
+    
+    return result
+
+
+@router.get("/background-sync/status")
+async def get_background_sync_status(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get status of the background sync service.
+    Available to all authenticated users.
+    """
+    from services.sync.background_sync import sync_service
+    return await sync_service.get_status()
+
+
+@router.post("/background-sync/trigger")
+async def trigger_background_sync(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.ADMIN]))
+):
+    """
+    Manually trigger a background sync immediately.
+    Admin-only endpoint.
+    """
+    from services.sync.background_sync import sync_service
+    result = await sync_service.trigger_sync_now()
+    return result
+
+
+@router.post("/background-sync/start")
+async def start_background_sync_service(
+    interval_minutes: int = 5,
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Start the background sync service.
+    Super Admin only.
+    """
+    from services.sync.background_sync import sync_service
+    await sync_service.start(interval_minutes)
+    return {"message": f"Background sync started with {interval_minutes} minute interval"}
+
+
+@router.post("/background-sync/stop")
+async def stop_background_sync_service(
+    token_data: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """
+    Stop the background sync service.
+    Super Admin only.
+    """
+    from services.sync.background_sync import sync_service
+    await sync_service.stop()
+    return {"message": "Background sync stopped"}
+
+
+@router.get("/background-sync/health")
+async def get_background_sync_health(
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get comprehensive health status of the background sync service.
+    Includes metrics, failure counts, and health assessment.
+    Available to all authenticated users.
+    """
+    from services.sync.background_sync import sync_service
+    return await sync_service.get_sync_health()
+
+
+@router.get("/sync/logs")
+async def get_sync_logs(
+    limit: int = 20,
+    status: Optional[str] = None,
+    token_data: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get recent sync logs for monitoring.
+    Optional status filter: 'completed', 'failed', 'running'
+    """
+    db = Database.get_db()
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    logs = await db.sync_logs.find(
+        query,
+        {"_id": 0}
+    ).sort("started_at", -1).limit(limit).to_list(limit)
+    
+    # Convert datetime to ISO strings
+    for log in logs:
+        if log.get("started_at"):
+            log["started_at"] = log["started_at"].isoformat()
+        if log.get("completed_at"):
+            log["completed_at"] = log["completed_at"].isoformat()
+    
+    return {"logs": logs, "count": len(logs)}
+
+
 @router.get("/sync/{job_id}")
 async def get_sync_job(
     job_id: str,
@@ -566,3 +825,4 @@ async def get_sync_job(
         raise HTTPException(status_code=404, detail="Sync job not found")
     
     return job
+

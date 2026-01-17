@@ -1,10 +1,62 @@
 /**
  * API Service
- * Handles all API calls to the backend
+ * Handles all API calls to the backend with automatic token refresh
  */
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+// Token refresh configuration
+const TOKEN_REFRESH_THRESHOLD_MS = 30 * 60 * 1000; // Refresh when 30 mins left
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+// Subscribe to token refresh
+const subscribeTokenRefresh = (cb) => {
+  refreshSubscribers.push(cb);
+};
+
+// Notify all subscribers with new token
+const onTokenRefreshed = (token) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
+// Check if token needs refresh (decode JWT and check exp)
+const shouldRefreshToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expTime = payload.exp * 1000; // Convert to ms
+    const now = Date.now();
+    const timeLeft = expTime - now;
+    
+    // Refresh if less than threshold time remaining
+    return timeLeft > 0 && timeLeft < TOKEN_REFRESH_THRESHOLD_MS;
+  } catch (e) {
+    return false;
+  }
+};
+
+// Refresh the token
+const refreshToken = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No token to refresh');
+  
+  const response = await axios.post(
+    `${API_URL}/api/auth/refresh`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  
+  const { access_token, user } = response.data;
+  localStorage.setItem('token', access_token);
+  localStorage.setItem('user', JSON.stringify(user));
+  
+  return access_token;
+};
 
 // Create axios instance
 const api = axios.create({
@@ -14,27 +66,77 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and check for refresh
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      
+      // Check if token needs refresh (but don't block the request)
+      if (shouldRefreshToken() && !isRefreshing && !config.url.includes('/auth/refresh')) {
+        isRefreshing = true;
+        try {
+          const newToken = await refreshToken();
+          config.headers.Authorization = `Bearer ${newToken}`;
+          onTokenRefreshed(newToken);
+          console.log('Token refreshed proactively');
+        } catch (err) {
+          console.warn('Proactive token refresh failed:', err.message);
+        } finally {
+          isRefreshing = false;
+        }
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor for error handling and token refresh on 401
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If 401 and not already retrying, try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Wait for ongoing refresh
+        return new Promise((resolve) => {
+          subscribeTokenRefresh((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+      
+      originalRequest._retry = true;
+      isRefreshing = true;
+      
+      try {
+        const newToken = await refreshToken();
+        onTokenRefreshed(newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    
+    // For other 401 errors (like invalid token), redirect to login
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );
@@ -46,6 +148,7 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   getUsers: () => api.get('/auth/users'),
+  refreshToken: () => api.post('/auth/refresh'),
 };
 
 // ===================== DATA LAKE API =====================
@@ -84,8 +187,14 @@ export const integrationsAPI = {
   // Sync
   triggerSync: (integrationType, entityTypes) => 
     api.post(`/integrations/sync/${integrationType}`, { entity_types: entityTypes }),
+  syncAllFromOdoo: () => api.post('/integrations/odoo/sync-all'),
   getSyncStatus: () => api.get('/integrations/sync/status'),
   getSyncJob: (jobId) => api.get(`/integrations/sync/${jobId}`),
+  
+  // CQRS Sync
+  triggerCQRSSync: () => api.post('/integrations/cqrs/sync/trigger'),
+  getCQRSSyncStatus: (jobId) => api.get(`/integrations/cqrs/sync/status/${jobId}`),
+  getCQRSHealth: () => api.get('/integrations/cqrs/health'),
 };
 
 // ===================== OPPORTUNITIES API =====================
@@ -133,6 +242,15 @@ export const activitiesAPI = {
 
 export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
+  
+  // CQRS v2 endpoints (new, optimized)
+  getV2Dashboard: () => api.get('/v2/dashboard/'),
+  getV2Opportunities: () => api.get('/v2/dashboard/opportunities'),
+  getV2Profile: () => api.get('/v2/dashboard/users/profile'),
+  getV2Hierarchy: () => api.get('/v2/dashboard/users/hierarchy'),
+  
+  // Legacy v1 endpoints (fallback)
+  getDashboard: () => api.get('/sales/dashboard/real'),
 };
 
 // ===================== SALES METRICS API =====================

@@ -400,21 +400,122 @@ const MyOutlook = () => {
       {!loading && activeTab === 'calendar' && (
         <div className="space-y-4">
           {filteredCalendar.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-              <Calendar className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-              <p className="text-zinc-400">
-                {calendar.length === 0 ? 'No calendar events found' : `No events for ${dateFilter === 'today' ? 'today' : dateFilter === 'week' ? 'this week' : dateFilter === 'month' ? 'this month' : 'selected period'}`}
-              </p>
-              <p className="text-zinc-600 text-sm mt-1">
-                {calendar.length === 0 ? 'Click Sync to fetch your calendar' : 'Try selecting a different date range'}
-              </p>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center space-y-6">
+              <div>
+                <Calendar className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
+                <p className="text-zinc-300 text-lg font-medium mb-2">
+                  {calendar.length === 0 ? 'No calendar events synced yet' : `No events for ${dateFilter === 'today' ? 'today' : dateFilter === 'week' ? 'this week' : dateFilter === 'month' ? 'this month' : 'selected period'}`}
+                </p>
+                <p className="text-zinc-500 text-sm">
+                  {calendar.length === 0 ? 'Sync your calendar to see upcoming meetings and events' : 'Try selecting a different date range or sync again'}
+                </p>
+              </div>
+              
+              {/* ENHANCED: Action CTAs */}
+              {calendar.length === 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Button
+                    onClick={syncData}
+                    disabled={syncing || !connectionStatus?.connected}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-6"
+                  >
+                    {syncing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync Calendar Now
+                      </>
+                    )}
+                  </Button>
+                  
+                  <a
+                    href="https://outlook.office365.com/calendar"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors border border-zinc-700"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open Outlook Calendar
+                  </a>
+                </div>
+              )}
+              
+              {/* Date Range Selector */}
+              {calendar.length > 0 && (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-zinc-500 text-sm">Try a different range:</span>
+                  <div className="inline-flex gap-2 bg-zinc-800 p-1 rounded-lg">
+                    {['today', 'week', 'month', 'all'].map(range => (
+                      <button
+                        key={range}
+                        onClick={() => setDateFilter(range)}
+                        className={cn(
+                          "px-3 py-1 rounded text-sm font-medium transition-colors capitalize",
+                          dateFilter === range 
+                            ? "bg-emerald-600 text-white" 
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700"
+                        )}
+                      >
+                        {range}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <>
+              {/* Calendar Summary */}
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Total Events</p>
+                  <p className="text-2xl font-bold text-white">{filteredCalendar.length}</p>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Online Meetings</p>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {filteredCalendar.filter(e => e.online_meeting_url).length}
+                  </p>
+                </div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Today</p>
+                  <p className="text-2xl font-bold text-emerald-400">
+                    {filteredCalendar.filter(e => new Date(e.start_time).toDateString() === new Date().toDateString()).length}
+                  </p>
+                </div>
+              </div>
+              
               <p className="text-sm text-zinc-500">
                 Showing {filteredCalendar.length} of {calendar.length} events
               </p>
-              {filteredCalendar.map((event, idx) => (
+              
+              {/* Group events by date */}
+              {(() => {
+                const grouped = filteredCalendar.reduce((acc, event) => {
+                  const date = new Date(event.start_time).toDateString();
+                  if (!acc[date]) acc[date] = [];
+                  acc[date].push(event);
+                  return acc;
+                }, {});
+                
+                return Object.entries(grouped).map(([dateStr, events]) => {
+                  const date = new Date(dateStr);
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                  const dayLabel = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+                  
+                  return (
+                    <div key={dateStr} className="space-y-2">
+                      <div className={`sticky top-0 z-10 py-2 px-3 rounded-lg ${isToday ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-300'}`}>
+                        <span className="font-semibold">{dayLabel}</span>
+                        <span className="text-sm opacity-70 ml-2">({events.length} event{events.length !== 1 ? 's' : ''})</span>
+                      </div>
+                      
+                      {events.map((event, idx) => (
               <div
                 key={event.ms_event_id || idx}
                 className={`bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors ${
@@ -486,7 +587,11 @@ const MyOutlook = () => {
                   </div>
                 </div>
               </div>
-            ))}
+                      ))}
+                    </div>
+                  );
+                });
+              })()}
             </>
           )}
         </div>

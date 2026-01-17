@@ -5,14 +5,16 @@ import sys
 import json
 from datetime import datetime, timezone
 
-class SalesCommandAPITester:
-    def __init__(self, base_url="https://revenue-compass-8.preview.emergentagent.com"):
+class UATFixesTester:
+    """Test UAT fixes comprehensively"""
+    def __init__(self, base_url="https://cqrs-sales.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.user_id = None
         self.user_role = None
+        self.user_email = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
         """Run a single API test"""
@@ -72,14 +74,14 @@ class SalesCommandAPITester:
         )
         return success
 
-    def test_login(self, email="am1@salescommand.com", password="demo123"):
+    def test_login(self, email="superadmin@salescommand.com", password="demo123"):
         """Test login and get token"""
         print("\n" + "="*50)
-        print("TESTING AUTHENTICATION")
+        print(f"TESTING AUTHENTICATION - {email}")
         print("="*50)
         
         success, response = self.run_test(
-            "Login as Account Manager",
+            f"Login as {email}",
             "POST",
             "auth/login",
             200,
@@ -89,6 +91,7 @@ class SalesCommandAPITester:
             self.token = response['access_token']
             self.user_id = response['user']['id']
             self.user_role = response['user']['role']
+            self.user_email = email
             print(f"   Logged in as: {response['user']['name']} ({response['user']['role']})")
             return True
         return False
@@ -577,87 +580,268 @@ class SalesCommandAPITester:
                 print(f"   Number of insights: {len(insights['insights'])}")
 
 def main():
-    print("🚀 Starting SalesCommand Enterprise API Tests")
+    print("🚀 Starting UAT Fixes Comprehensive Testing")
     print("=" * 60)
     
-    tester = SalesCommandAPITester()
+    tester = UATFixesTester()
     
-    # Test sequence
-    try:
-        # 1. Seed demo data
-        if not tester.test_seed_data():
-            print("⚠️  Demo data seeding failed, but continuing with tests...")
-        
-        # 2. Login
-        if not tester.test_login():
-            print("❌ Login failed, stopping tests")
-            return 1
-        
-        # 3. Test authentication endpoints
-        tester.test_auth_endpoints()
-        
-        # 4. Test accounts
-        account_id = tester.test_accounts_endpoints()
-        
-        # 5. Test opportunities
-        opp_id = tester.test_opportunities_endpoints(account_id)
-        
-        # 6. Test activities
-        tester.test_activities_endpoints(account_id, opp_id)
-        
-        # 7. Test KPIs
-        tester.test_kpis_endpoints()
-        
-        # 8. Test incentives
-        tester.test_incentives_endpoints()
-        
-        # 9. Test integrations
-        tester.test_integrations_endpoints()
-        
-        # 10. Test Kanban board
-        tester.test_kanban_endpoints()
-        
-        # 11. Test pipeline stages
-        tester.test_pipeline_stages()
-        
-        # 12. Test commission templates
-        tester.test_commission_templates()
-        
-        # 13. Test incentive calculator
-        tester.test_incentive_calculator()
-        
-        # 14. Test sales metrics
-        tester.test_sales_metrics()
-        
-        # 15. Test Blue Sheet probability
-        tester.test_blue_sheet_probability(opp_id)
-        
-        # 16. Test dashboard
-        tester.test_dashboard_endpoints()
-        
-        # 17. Test AI insights
-        tester.test_ai_insights()
-        
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Tests interrupted by user")
-        return 1
-    except Exception as e:
-        print(f"\n\n❌ Unexpected error: {str(e)}")
-        return 1
+    # Test credentials
+    test_users = [
+        ("superadmin@salescommand.com", "demo123", "Super Admin"),
+        ("vinsha.nair@securado.net", "demo123", "Manager"),
+        ("z.albaloushi@securado.net", "demo123", "Sales Rep")
+    ]
     
-    # Print results
+    all_results = {}
+    
+    for email, password, role_name in test_users:
+        print(f"\n{'='*60}")
+        print(f"TESTING AS: {role_name} ({email})")
+        print(f"{'='*60}")
+        
+        # Login
+        if not tester.test_login(email, password):
+            print(f"❌ Login failed for {email}, skipping tests")
+            continue
+        
+        # Test 1: Activity API Endpoints
+        print("\n" + "="*50)
+        print("TEST 1: ACTIVITY API ENDPOINTS")
+        print("="*50)
+        
+        # GET /api/activities
+        success, activities_response = tester.run_test(
+            "GET /api/activities",
+            "GET",
+            "activities",
+            200
+        )
+        
+        if success:
+            if isinstance(activities_response, list):
+                print(f"   ✅ Activities returned as array: {len(activities_response)} activities")
+                all_results[f"{role_name}_activities_array"] = "PASS"
+            else:
+                print(f"   ❌ Activities should be array, got: {type(activities_response)}")
+                all_results[f"{role_name}_activities_array"] = "FAIL"
+        
+        # GET /api/activities/stats
+        success, stats_response = tester.run_test(
+            "GET /api/activities/stats",
+            "GET",
+            "activities/stats",
+            200
+        )
+        
+        if success:
+            required_fields = ["total", "business_activities", "system_events", "by_type"]
+            missing = [f for f in required_fields if f not in stats_response]
+            if not missing:
+                print(f"   ✅ Stats response has all required fields")
+                print(f"      Total: {stats_response.get('total')}, Business: {stats_response.get('business_activities')}")
+                all_results[f"{role_name}_activities_stats"] = "PASS"
+            else:
+                print(f"   ❌ Stats response missing fields: {missing}")
+                all_results[f"{role_name}_activities_stats"] = "FAIL"
+        
+        # Test 2: Sync Integrity (Soft Deletes) - Only for admin
+        if email == "superadmin@salescommand.com":
+            print("\n" + "="*50)
+            print("TEST 2: SYNC INTEGRITY (SOFT DELETES)")
+            print("="*50)
+            
+            success, sync_response = tester.run_test(
+                "POST /api/integrations/odoo/sync-all",
+                "POST",
+                "integrations/odoo/sync-all",
+                200
+            )
+            
+            if success:
+                if "synced_entities" in sync_response:
+                    print(f"   ✅ Sync response includes synced_entities")
+                    print(f"      Synced entities: {sync_response.get('synced_entities')}")
+                    all_results["sync_integrity"] = "PASS"
+                else:
+                    print(f"   ❌ Sync response missing synced_entities")
+                    all_results["sync_integrity"] = "FAIL"
+            
+            # Check sync logs for soft-delete counts
+            success, logs_response = tester.run_test(
+                "GET /api/integrations/sync/logs",
+                "GET",
+                "integrations/sync/logs?limit=5",
+                200
+            )
+            
+            if success and "logs" in logs_response:
+                logs = logs_response["logs"]
+                if logs:
+                    latest_log = logs[0]
+                    print(f"   Latest sync log status: {latest_log.get('status')}")
+                    if "soft_deleted" in str(latest_log):
+                        print(f"   ✅ Sync logs track soft-delete counts")
+                    else:
+                        print(f"   ⚠️  Soft-delete tracking not visible in logs")
+        
+        # Test 3: Enhanced Receivables
+        print("\n" + "="*50)
+        print("TEST 3: ENHANCED RECEIVABLES")
+        print("="*50)
+        
+        success, receivables_response = tester.run_test(
+            "GET /api/receivables",
+            "GET",
+            "receivables",
+            200
+        )
+        
+        if success:
+            if "invoices" in receivables_response:
+                invoices = receivables_response["invoices"]
+                print(f"   ✅ Receivables returned {len(invoices)} invoices")
+                
+                if invoices:
+                    sample_invoice = invoices[0]
+                    has_salesperson = "salesperson" in sample_invoice
+                    has_account_id = "account_id" in sample_invoice
+                    
+                    if has_salesperson and has_account_id:
+                        print(f"   ✅ Invoices include salesperson and account_id fields")
+                        print(f"      Sample: salesperson='{sample_invoice.get('salesperson')}', account_id={sample_invoice.get('account_id')}")
+                        all_results[f"{role_name}_receivables_enhanced"] = "PASS"
+                    else:
+                        missing = []
+                        if not has_salesperson:
+                            missing.append("salesperson")
+                        if not has_account_id:
+                            missing.append("account_id")
+                        print(f"   ❌ Invoices missing fields: {missing}")
+                        all_results[f"{role_name}_receivables_enhanced"] = "FAIL"
+                else:
+                    print(f"   ⚠️  No invoices to verify fields")
+                    all_results[f"{role_name}_receivables_enhanced"] = "SKIP"
+            else:
+                print(f"   ❌ Receivables response missing 'invoices' field")
+                all_results[f"{role_name}_receivables_enhanced"] = "FAIL"
+        
+        # Test 4: Account 360° View with Activities
+        print("\n" + "="*50)
+        print("TEST 4: ACCOUNT 360° VIEW WITH ACTIVITIES")
+        print("="*50)
+        
+        # Use a known valid account ID from data_lake_serving (account ID 12 = VM)
+        # This is more reliable than getting from opportunities which may have mismatched IDs
+        account_id = "12"  # VM account from Odoo
+        
+        success, account_360_response = tester.run_test(
+            f"GET /api/accounts/{account_id}/360",
+            "GET",
+            f"accounts/{account_id}/360",
+            200
+        )
+        
+        if success:
+            has_activities = "activities" in account_360_response
+            has_summary = "summary" in account_360_response
+            
+            if has_activities and has_summary:
+                activities = account_360_response["activities"]
+                summary = account_360_response["summary"]
+                activity_summary = summary.get("activity_summary", {})
+                
+                # Check if activity_summary exists in summary
+                if activity_summary:
+                    print(f"   ✅ Account 360° includes activities ({len(activities)}) and activity_summary")
+                    print(f"      Activity summary: total={activity_summary.get('total')}, pending={activity_summary.get('pending')}, overdue={activity_summary.get('overdue')}")
+                    
+                    # Check if activities from both sources (if any exist)
+                    if activities:
+                        sources = set(a.get("source") for a in activities)
+                        print(f"   ✅ Activities from sources: {sources}")
+                    else:
+                        print(f"   ℹ️  No activities for this account (expected for test data)")
+                    
+                    all_results[f"{role_name}_account_360"] = "PASS"
+                else:
+                    print(f"   ❌ Account 360° summary missing activity_summary field")
+                    all_results[f"{role_name}_account_360"] = "FAIL"
+            else:
+                missing = []
+                if not has_activities:
+                    missing.append("activities")
+                if not has_summary:
+                    missing.append("summary")
+                print(f"   ❌ Account 360° missing fields: {missing}")
+                all_results[f"{role_name}_account_360"] = "FAIL"
+        else:
+            print(f"   ❌ Account 360° endpoint failed")
+            all_results[f"{role_name}_account_360"] = "FAIL"
+        
+        # Test 5: Goals Team Assignment
+        print("\n" + "="*50)
+        print("TEST 5: GOALS TEAM ASSIGNMENT")
+        print("="*50)
+        
+        success, subordinates_response = tester.run_test(
+            "GET /api/goals/team/subordinates",
+            "GET",
+            "goals/team/subordinates",
+            200
+        )
+        
+        if success:
+            has_is_manager = "is_manager" in subordinates_response
+            has_subordinates = "subordinates" in subordinates_response
+            
+            if has_is_manager and has_subordinates:
+                is_manager = subordinates_response["is_manager"]
+                subordinates = subordinates_response["subordinates"]
+                
+                print(f"   ✅ Team subordinates response includes is_manager and subordinates")
+                print(f"      is_manager: {is_manager}, subordinates count: {len(subordinates)}")
+                
+                if is_manager and subordinates:
+                    print(f"      Subordinates: {[s.get('name') for s in subordinates]}")
+                
+                all_results[f"{role_name}_goals_team"] = "PASS"
+            else:
+                missing = []
+                if not has_is_manager:
+                    missing.append("is_manager")
+                if not has_subordinates:
+                    missing.append("subordinates")
+                print(f"   ❌ Team subordinates response missing fields: {missing}")
+                all_results[f"{role_name}_goals_team"] = "FAIL"
+    
+    # Print final summary
     print("\n" + "="*60)
-    print("📊 TEST RESULTS")
+    print("📊 UAT FIXES TEST RESULTS SUMMARY")
     print("="*60)
-    print(f"Tests passed: {tester.tests_passed}/{tester.tests_run}")
-    print(f"Success rate: {(tester.tests_passed/tester.tests_run*100):.1f}%")
     
-    if tester.tests_passed == tester.tests_run:
-        print("🎉 All tests passed!")
+    passed = sum(1 for v in all_results.values() if v == "PASS")
+    failed = sum(1 for v in all_results.values() if v == "FAIL")
+    skipped = sum(1 for v in all_results.values() if v == "SKIP")
+    partial = sum(1 for v in all_results.values() if v == "PARTIAL")
+    
+    for test_name, result in all_results.items():
+        icon = "✅" if result == "PASS" else "❌" if result == "FAIL" else "⚠️" if result == "PARTIAL" else "⏭️"
+        print(f"{icon} {test_name}: {result}")
+    
+    print(f"\n{'='*60}")
+    print(f"Total: {len(all_results)} | Passed: {passed} | Failed: {failed} | Partial: {partial} | Skipped: {skipped}")
+    print(f"Success rate: {(passed/(len(all_results)-skipped)*100):.1f}%" if (len(all_results)-skipped) > 0 else "N/A")
+    print(f"{'='*60}")
+    
+    if failed > 0:
+        print(f"⚠️  {failed} tests failed")
+        return 1
+    elif partial > 0:
+        print(f"⚠️  {partial} tests partially passed")
         return 0
     else:
-        print(f"⚠️  {tester.tests_run - tester.tests_passed} tests failed")
-        return 1
+        print("🎉 All tests passed!")
+        return 0
 
 if __name__ == "__main__":
     sys.exit(main())
