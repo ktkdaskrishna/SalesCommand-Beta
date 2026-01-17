@@ -188,10 +188,25 @@ async def get_opportunities(
     user_id = token_data["id"]
     user_email = token_data.get("email", "").lower()
     
-    # Get user details
-    user_doc = await db.users.find_one({"id": user_id})
-    is_super_admin = user_doc.get("is_super_admin", False) if user_doc else False
-    odoo_user_id = user_doc.get("odoo_user_id") if user_doc else None
+    # Get user profile from CQRS for proper access control
+    user_profile = await db.user_profiles.find_one({"email": user_email}, {"_id": 0})
+    
+    if not user_profile:
+        # User not in CQRS system
+        return []
+    
+    cqrs_user_id = user_profile["id"]
+    is_super_admin = user_profile.get("is_super_admin", False)
+    
+    # Get access matrix for proper multi-level hierarchy support
+    access_matrix = await db.user_access_matrix.find_one({"user_id": cqrs_user_id}, {"_id": 0})
+    
+    if not access_matrix and not is_super_admin:
+        logger.warning(f"No access matrix for user {user_email}")
+        return []
+    
+    # Get accessible opportunity IDs from access matrix
+    accessible_opp_ids = access_matrix.get("accessible_opportunities", []) if access_matrix else []
     
     # Fetch from data_lake_serving
     opportunities = []
@@ -206,15 +221,19 @@ async def get_opportunities(
         # Use universal mapper for proper field extraction
         canonical_opp = mapper.map_opportunity(opp_data)
         
-        # Access control filtering (keep existing logic)
+        # Access control: Check if user can see this opportunity
         if not is_super_admin:
-            owner_id = canonical_opp.get("owner_id")
+            opp_odoo_id = canonical_opp.get("odoo_id")
             
-            # Match by odoo_user_id
-            if odoo_user_id and owner_id and odoo_user_id == owner_id:
-                pass  # User has access
-            else:
-                continue  # Skip this opportunity
+            # Convert to int for comparison if needed
+            try:
+                opp_odoo_id_int = int(opp_odoo_id) if opp_odoo_id else None
+            except:
+                opp_odoo_id_int = None
+            
+            # Check if opportunity is in accessible list
+            if opp_odoo_id not in accessible_opp_ids and opp_odoo_id_int not in accessible_opp_ids:
+                continue  # User can't access this opportunity
         
         # Map stage to internal format (keep existing logic)
         stage_name_lower = canonical_opp.get("stage_name", "").lower()
