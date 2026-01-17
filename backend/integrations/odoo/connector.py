@@ -708,6 +708,89 @@ class OdooConnector(BaseConnector):
         except Exception as e:
             logger.error(f"Failed to fetch activities from Odoo: {e}")
             # Return empty list instead of raising - activities are optional
+
+
+    async def fetch_messages(self, res_model: str = None, res_ids: List[int] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch chatter messages/communication logs from Odoo mail.message model.
+        These are past communications, notes, emails - NOT scheduled activities.
+        
+        Args:
+            res_model: Filter by model (e.g., 'crm.lead' for opportunities)
+            res_ids: Filter by specific record IDs
+        
+        Returns:
+            List of message records with communication history
+        """
+        if not self._connected:
+            await self.connect()
+        
+        if not self._connected:
+            raise RuntimeError("Cannot connect to Odoo")
+        
+        model = 'mail.message'
+        fields = [
+            'id', 'body', 'date', 'message_type', 'subtype_id',
+            'author_id', 'email_from', 'subject', 'res_model',
+            'res_id', 'record_name', 'tracking_value_ids'
+        ]
+        
+        # Build domain filter
+        domain = [
+            ('message_type', '!=', 'user_notification'),  # Exclude notifications
+        ]
+        
+        if res_model:
+            domain.append(('model', '=', res_model))
+        if res_ids and len(res_ids) > 0:
+            domain.append(('res_id', 'in', res_ids))
+        
+        loop = asyncio.get_event_loop()
+        
+        try:
+            records = await loop.run_in_executor(
+                None,
+                lambda: self._models.execute_kw(
+                    self.database, self._uid, self.api_key,
+                    model, 'search_read',
+                    [domain],
+                    {'fields': fields, 'limit': 5000, 'order': 'date desc'}
+                )
+            )
+            
+            messages = []
+            for rec in records:
+                # Extract author info
+                author = rec.get('author_id')
+                author_id = author[0] if isinstance(author, list) and len(author) > 0 else None
+                author_name = author[1] if isinstance(author, list) and len(author) > 1 else "System"
+                
+                # Extract subtype (for message classification)
+                subtype = rec.get('subtype_id')
+                subtype_name = subtype[1] if isinstance(subtype, list) and len(subtype) > 1 else None
+                
+                messages.append({
+                    'id': rec.get('id'),
+                    'body': rec.get('body') if rec.get('body') != False else '',
+                    'date': rec.get('date'),
+                    'message_type': rec.get('message_type', 'comment'),
+                    'subtype_name': subtype_name,
+                    'author_id': author_id,
+                    'author_name': author_name,
+                    'email_from': rec.get('email_from'),
+                    'subject': rec.get('subject') if rec.get('subject') != False else None,
+                    'res_model': rec.get('res_model'),
+                    'res_id': rec.get('res_id'),
+                    'record_name': rec.get('record_name'),
+                })
+            
+            logger.info(f"Fetched {len(messages)} messages from Odoo mail.message")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch messages from Odoo: {e}")
+            raise
+
             return []
 
     async def fetch_contacts(self) -> List[Dict[str, Any]]:
