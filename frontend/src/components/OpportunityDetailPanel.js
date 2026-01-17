@@ -286,15 +286,24 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">Account</h3>
                     <div className="bg-slate-50 rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-indigo-600" />
+                      {opportunity.account_linked && opportunity.account_name ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">{opportunity.account_name}</p>
+                            <p className="text-xs text-indigo-600">Account ID: {opportunity.account_id}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{opportunity.account_name || 'No account linked'}</p>
-                          <p className="text-sm text-slate-500">{opportunity.account_industry || ''}</p>
+                      ) : (
+                        <div className="flex items-center gap-3 text-slate-400">
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <p>No account linked</p>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 
