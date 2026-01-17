@@ -5,7 +5,8 @@ import sys
 import json
 from datetime import datetime, timezone
 
-class SalesCommandAPITester:
+class UATFixesTester:
+    """Test UAT fixes comprehensively"""
     def __init__(self, base_url="https://cqrs-sales.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
@@ -13,6 +14,7 @@ class SalesCommandAPITester:
         self.tests_passed = 0
         self.user_id = None
         self.user_role = None
+        self.user_email = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
         """Run a single API test"""
