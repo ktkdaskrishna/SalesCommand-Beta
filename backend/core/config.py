@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     
     # Redis (for background jobs)
     REDIS_URL: Optional[str] = Field(default=None, description="Redis connection URL")
+
+    # ClickHouse Data Lake
+    CLICKHOUSE_URL: Optional[str] = Field(default=None, description="ClickHouse HTTP URL")
+    CLICKHOUSE_DATABASE: str = Field(default="salesintel", description="ClickHouse database name")
+    CLICKHOUSE_USER: Optional[str] = Field(default=None, description="ClickHouse username")
+    CLICKHOUSE_PASSWORD: Optional[str] = Field(default=None, description="ClickHouse password")
     
     # AI Configuration - BYOK (Bring Your Own Key)
     EMERGENT_LLM_KEY: Optional[str] = Field(default=None, description="Emergent LLM API key")
