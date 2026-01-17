@@ -217,12 +217,13 @@ const SalesDashboard = () => {
               return (
                 <div
                   key={idx}
-                  className={`p-4 rounded-lg border transition-all hover:shadow-md cursor-pointer ${
+                  className={`p-4 rounded-lg border transition-all hover:shadow-md cursor-pointer group ${
                     isSubordinateOpp 
                       ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-300' 
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
-                  onClick={() => navigate(`/opportunities/${opp.id}`)}
+                  onClick={() => navigate('/opportunities')} 
+                  data-testid={`dashboard-opp-card-${opp.odoo_id || opp.id || idx}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
