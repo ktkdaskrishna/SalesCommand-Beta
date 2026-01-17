@@ -586,7 +586,7 @@ const Opportunities = () => {
 
   useEffect(() => {
     fetchData();
-  }, [stageFilter]);
+  }, []); // Removed stageFilter dependency - using unified search now
 
   const fetchData = async () => {
     try {
