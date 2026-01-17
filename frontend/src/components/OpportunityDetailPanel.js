@@ -389,6 +389,82 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
                 </div>
               )}
 
+
+              {/* Communication History Tab - NEW */}
+              {activeTab === 'history' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-indigo-500" />
+                      Chatter & Communication Log ({messages.length})
+                    </h3>
+                  </div>
+                  
+                  {messages.length > 0 ? (
+                    <div className="space-y-3">
+                      {messages.map((msg, idx) => (
+                        <div 
+                          key={msg.id || idx}
+                          className="border-l-4 border-indigo-300 bg-slate-50 p-4 rounded-r-lg hover:bg-slate-100 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-slate-500" />
+                              <span className="font-medium text-slate-900">
+                                {msg.author_name || 'System'}
+                              </span>
+                              {msg.message_type && (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-xs font-medium",
+                                  msg.message_type === 'email' ? 'bg-blue-100 text-blue-700' :
+                                  msg.message_type === 'comment' ? 'bg-green-100 text-green-700' :
+                                  'bg-slate-100 text-slate-700'
+                                )}>
+                                  {msg.message_type}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-400">
+                              {msg.date ? formatDate(msg.date) : ''}
+                            </span>
+                          </div>
+                          
+                          {msg.subject && (
+                            <p className="font-medium text-sm text-slate-800 mb-1">
+                              {msg.subject}
+                            </p>
+                          )}
+                          
+                          {msg.body && (
+                            <div 
+                              className="text-sm text-slate-600 prose prose-sm max-w-none"
+                              dangerouslySetInnerHTML={{ 
+                                __html: msg.body.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                              }}
+                            />
+                          )}
+                          
+                          {msg.email_from && (
+                            <p className="text-xs text-slate-400 mt-2">
+                              From: {msg.email_from}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                      <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-600 font-medium">No communication history</p>
+                      <p className="text-slate-400 text-sm mt-1">
+                        Messages, notes, and emails will appear here
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
               {/* Blue Sheet Tab */}
               {activeTab === 'bluesheet' && (
                 <div className="space-y-6">
