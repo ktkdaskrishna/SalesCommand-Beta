@@ -691,11 +691,19 @@ const Opportunities = () => {
     );
   };
 
-  // Apply search filter to all opportunities
-  const filteredOpportunities = opportunities.filter((opp) =>
-    opp.name.toLowerCase().includes(search.toLowerCase()) ||
-    (opp.account_name && opp.account_name.toLowerCase().includes(search.toLowerCase()))
-  );
+  // Apply search filter to all opportunities (including salesperson/owner)
+  const filteredOpportunities = opportunities.filter((opp) => {
+    const query = search.toLowerCase();
+    
+    // Search in multiple fields
+    const matchesName = opp.name?.toLowerCase().includes(query);
+    const matchesAccount = opp.account_name?.toLowerCase().includes(query);
+    const matchesSalesperson = opp.salesperson_name?.toLowerCase().includes(query);
+    const matchesOwnerEmail = opp.owner_email?.toLowerCase().includes(query);
+    const matchesStage = opp.stage?.toLowerCase().includes(query);
+    
+    return matchesName || matchesAccount || matchesSalesperson || matchesOwnerEmail || matchesStage;
+  });
 
   const getKanbanData = () => {
     const data = {};
