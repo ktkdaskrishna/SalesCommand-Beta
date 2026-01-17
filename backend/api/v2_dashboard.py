@@ -76,10 +76,34 @@ async def get_dashboard_v2(
         "is_active": True
     }, {"_id": 0}).to_list(1000)
     
-    # CRITICAL: Convert odoo_id to string for frontend drag & drop compatibility
+    # CRITICAL: Convert odoo_id to string and extract owner/account info from CQRS projections
     for opp in opportunities:
+        # Convert odoo_id to string
         if "odoo_id" in opp and isinstance(opp["odoo_id"], (int, float)):
             opp["odoo_id"] = str(int(opp["odoo_id"]))
+        
+        # Extract owner info from salesperson object (CQRS format)
+        salesperson = opp.get("salesperson") or {}
+        if isinstance(salesperson, dict):
+            opp["owner_id"] = salesperson.get("odoo_user_id") or salesperson.get("user_id")
+            opp["owner_name"] = salesperson.get("name", "Unassigned")
+            opp["owner_email"] = salesperson.get("email", "")
+            opp["owner_assigned"] = salesperson.get("odoo_user_id") is not None
+        else:
+            opp["owner_name"] = "Unassigned"
+            opp["owner_assigned"] = False
+        
+        # Extract account info from account object (CQRS format)
+        account = opp.get("account") or {}
+        if isinstance(account, dict) and account.get("odoo_id"):
+            opp["account_id"] = account.get("odoo_id")
+            opp["account_name"] = account.get("name", "")
+            opp["account_linked"] = True
+        else:
+            # Fallback: Some opportunities might not have account object
+            opp["account_id"] = None
+            opp["account_name"] = ""
+            opp["account_linked"] = False
     
     # ENHANCED: Aggregate activity counts for each opportunity
     logger.info(f"Aggregating activities for {len(opportunities)} opportunities...")
