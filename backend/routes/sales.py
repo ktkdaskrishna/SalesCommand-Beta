@@ -1133,59 +1133,48 @@ async def get_activities_for_opportunity(
 ):
     """
     Get activities linked to a specific opportunity.
-    Searches both local activities collection and Odoo-synced activities in data_lake_serving.
-    
-    Args:
-        opp_id: Opportunity ID (can be local UUID or Odoo numeric ID)
+    Returns Odoo mail.activity records for this opportunity.
     """
+    from services.field_mapper import get_field_mapper
+    
     db = Database.get_db()
+    mapper = get_field_mapper()
     
     activities = []
     
-    # Search Odoo activities in data_lake_serving
-    # Odoo activities are linked via res_model='crm.lead' and res_id matching the opportunity
+    # Try to parse as integer for Odoo matching
     try:
-        # Try to parse as integer for Odoo matching
-        odoo_id = int(opp_id) if opp_id.isdigit() else None
-        
-        if odoo_id:
-            odoo_activities = await db.data_lake_serving.find({
-                "entity_type": "activity",
-                "is_active": {"$ne": False},
-                "$or": [
-                    {"data.res_id": odoo_id, "data.res_model": "crm.lead"},
-                    {"data.res_id": str(odoo_id), "data.res_model": "crm.lead"},
-                ]
-            }, {"_id": 0}).to_list(100)
-            
-            for act in odoo_activities:
-                data = act.get("data", {})
-                activities.append({
-                    "id": f"odoo_{data.get('id')}",
-                    "odoo_id": data.get("id"),
-                    "activity_type": data.get("activity_type", "Task"),
-                    "summary": data.get("summary"),
-                    "note": data.get("note"),
-                    "due_date": data.get("due_date"),
-                    "state": data.get("state"),
-                    "user_id": data.get("user_id"),
-                    "user_name": data.get("user_name"),
-                    "res_model": data.get("res_model"),
-                    "res_id": data.get("res_id"),
-                    "res_name": data.get("res_name"),
-                    "source": "odoo",
-                    "created_at": data.get("create_date"),
-                })
+        odoo_id = int(opp_id) if opp_id.isdigit() else int(opp_id)
     except (ValueError, TypeError):
-        pass
+        odoo_id = None
     
-    # Also search local activities collection
-    local_activities = await db.activities.find(
-        {"opportunity_id": opp_id},
-        {"_id": 0}
-    ).to_list(100)
-    
-    activities.extend(local_activities)
+    if odoo_id:
+        # Query Odoo activities from data_lake_serving
+        odoo_activities = await db.data_lake_serving.find({
+            "entity_type": "activity",
+            "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+            "data.res_model": "crm.lead",
+            "data.res_id": odoo_id
+        }).to_list(100)
+        
+        for act_doc in odoo_activities:
+            data = act_doc.get("data", {})
+            
+            # Use mapper to properly extract activity fields
+            canonical_activity = mapper.map_activity(data)
+            
+            # Map state to status for frontend
+            state = canonical_activity.get("state", "planned")
+            if state == "done":
+                status = "completed"
+            elif state in ["overdue", "today"]:
+                status = "pending"
+            else:
+                status = "pending"
+            
+            canonical_activity["status"] = status
+            
+            activities.append(canonical_activity)
     
     return {
         "opportunity_id": opp_id,
