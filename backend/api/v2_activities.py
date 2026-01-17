@@ -116,18 +116,16 @@ async def get_activity_dashboard_summary(
             query["activity_type"] = {"$nin": system_event_types}
         
         if not is_super_admin:
-            # Get accessible user IDs
-            access_matrix = await db.user_access_matrix.find_one(
-                {"user_id": current_user_id},
-                {"_id": 0, "accessible_user_ids": 1}
+            # Get user's CQRS ID for proper matching
+            user_profile = await db.user_profiles.find_one(
+                {"email": token_data["email"].lower()},
+                {"_id": 0, "id": 1}
             )
             
-            if access_matrix:
-                accessible_ids = access_matrix.get("accessible_user_ids", [])
-                accessible_ids.append(current_user_id)
-                query["owner_user_id"] = {"$in": accessible_ids}
-            else:
-                query["owner_user_id"] = current_user_id
+            cqrs_user_id = user_profile["id"] if user_profile else current_user_id
+            
+            # Use pre-computed visible_to_user_ids
+            query["visible_to_user_ids"] = cqrs_user_id
         
         # Get all activities
         activities = await db.activity_view.find(query, {"_id": 0}).to_list(1000)
