@@ -915,6 +915,22 @@ const Opportunities = () => {
             </button>
           </div>
         </div>
+        
+        {/* Search Filter Feedback */}
+        {search && (
+          <div className="flex items-center gap-2 text-sm text-slate-600 mt-3 pt-3 border-t border-slate-100">
+            <Filter className="w-4 h-4" />
+            <span>
+              Showing {filteredOpportunities.length} of {opportunities.length} opportunities
+            </span>
+            <button 
+              onClick={() => setSearch('')}
+              className="text-indigo-600 hover:text-indigo-700 font-medium ml-2"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
