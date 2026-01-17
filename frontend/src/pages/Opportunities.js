@@ -691,18 +691,35 @@ const Opportunities = () => {
     );
   };
 
-  // Apply search filter to all opportunities (including salesperson/owner)
+  // ENHANCED: Odoo-style unified search - searches ALL opportunity fields
   const filteredOpportunities = opportunities.filter((opp) => {
-    const query = search.toLowerCase();
+    if (!search) return true;
     
-    // Search in multiple fields
-    const matchesName = opp.name?.toLowerCase().includes(query);
-    const matchesAccount = opp.account_name?.toLowerCase().includes(query);
-    const matchesSalesperson = opp.salesperson_name?.toLowerCase().includes(query);
-    const matchesOwnerEmail = opp.owner_email?.toLowerCase().includes(query);
-    const matchesStage = opp.stage?.toLowerCase().includes(query);
+    const query = search.toLowerCase().trim();
     
-    return matchesName || matchesAccount || matchesSalesperson || matchesOwnerEmail || matchesStage;
+    // Convert all searchable fields to strings safely
+    const name = String(opp.name || '').toLowerCase();
+    const accountName = String(opp.account_name || '').toLowerCase();
+    const salespersonName = String(opp.salesperson_name || opp.salesperson || '').toLowerCase();
+    const ownerEmail = String(opp.owner_email || '').toLowerCase();
+    const stage = String(opp.stage || '').toLowerCase();
+    const value = String(opp.value || '').toLowerCase();
+    const probability = String(opp.probability || '').toLowerCase();
+    const description = String(opp.description || '').toLowerCase();
+    const productLines = String(opp.product_lines?.join(' ') || '').toLowerCase();
+    
+    // Search across ALL fields (like Odoo)
+    return (
+      name.includes(query) ||
+      accountName.includes(query) ||
+      salespersonName.includes(query) ||
+      ownerEmail.includes(query) ||
+      stage.includes(query) ||
+      value.includes(query) ||
+      probability.includes(query) ||
+      description.includes(query) ||
+      productLines.includes(query)
+    );
   });
 
   const getKanbanData = () => {
