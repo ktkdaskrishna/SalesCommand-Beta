@@ -144,6 +144,7 @@ const DateGroup = ({ date, activities }) => {
 const ActivityTimeline = () => {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
+  const [stats, setStats] = useState(null); // FIXED: Add missing stats state
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -156,21 +157,40 @@ const ActivityTimeline = () => {
   const fetchActivities = async () => {
     setLoading(true);
     try {
-      // FIXED: Use CQRS v2 endpoint
-      const response = await api.get('/v2/activities/');
-      const data = response.data || [];
+      // FIXED: Use correct endpoint /activities (not /v2/activities/)
+      const response = await api.get('/activities');
       
-      // Also fetch activity stats from v2
+      // DEFENSIVE: Ensure activities is always an array
+      let activitiesData = response.data;
+      
+      // Handle different response structures
+      if (activitiesData && typeof activitiesData === 'object') {
+        if (Array.isArray(activitiesData)) {
+          activitiesData = activitiesData;
+        } else if (activitiesData.activities && Array.isArray(activitiesData.activities)) {
+          activitiesData = activitiesData.activities;
+        } else if (activitiesData.data && Array.isArray(activitiesData.data)) {
+          activitiesData = activitiesData.data;
+        } else {
+          console.warn('Unexpected activities response shape:', activitiesData);
+          activitiesData = [];
+        }
+      } else {
+        activitiesData = [];
+      }
+      
+      // FIXED: Fetch stats from correct endpoint /activities/stats
       try {
-        const statsResponse = await api.get('/v2/activities/stats');
+        const statsResponse = await api.get('/activities/stats');
         setStats(statsResponse.data);
         console.log('Activity stats:', statsResponse.data);
       } catch (e) {
-        console.log('Could not fetch activity stats');
+        console.warn('Could not fetch activity stats:', e.message);
+        setStats(null);
       }
       
-      // If no business activities, show helpful message instead of mock data
-      if (data.length === 0) {
+      // If no business activities, show helpful message
+      if (activitiesData.length === 0) {
         setActivities([
           {
             id: 'placeholder-1',
@@ -183,17 +203,18 @@ const ActivityTimeline = () => {
           }
         ]);
       } else {
-        setActivities(data);
+        setActivities(activitiesData);
       }
     } catch (error) {
       console.error('Error fetching activities:', error);
-      // Use helpful placeholder instead of mock data
+      console.error('Response data:', error.response?.data);
+      // Use helpful placeholder on error
       setActivities([
         {
           id: 'error-1',
           title: 'Could not load activities',
           activity_type: 'error',
-          description: 'Please refresh the page to try again.',
+          description: `Please refresh the page to try again. Error: ${error.message}`,
           timestamp: new Date().toISOString(),
           type_label: 'Error',
           user_name: 'System',
