@@ -641,11 +641,20 @@ const Opportunities = () => {
     const { draggableId, destination } = result;
     const newStage = destination.droppableId;
     
+    // Find the opportunity being dragged
+    const draggedOpp = opportunities.find(opp => String(opp.id) === String(draggableId));
+    
+    // CRITICAL: Prevent updating Odoo-synced opportunities
+    if (draggedOpp && (draggedOpp.source === "odoo" || draggedOpp.odoo_id)) {
+      alert("Cannot update Odoo-synced opportunities. This data is read-only and managed in Odoo ERP.");
+      return;
+    }
+    
     // Optimistic update
     const previousOpportunities = [...opportunities];
     setOpportunities(prev => 
       prev.map(opp => 
-        opp.id === draggableId 
+        String(opp.id) === String(draggableId)
           ? { ...opp, stage: newStage }
           : opp
       )
