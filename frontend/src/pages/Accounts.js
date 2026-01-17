@@ -361,7 +361,7 @@ const Accounts = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
                   <span className="flex items-center gap-1">
                     <DollarSign className="w-3 h-3" />
                     {metrics.activeOpps} active opportunities
@@ -372,6 +372,24 @@ const Accounts = () => {
                     </span>
                   )}
                 </div>
+                
+                {/* ENHANCED: Activity Summary with Risk Indicators */}
+                {(account.activity_count > 0 || account.pending_activities > 0) && (
+                  <div className="flex items-center gap-2 text-xs mb-2">
+                    {account.pending_activities > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 rounded border border-amber-200">
+                        <Activity className="w-3 h-3" />
+                        {account.pending_activities} pending
+                      </span>
+                    )}
+                    {account.overdue_activities > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded border border-red-200">
+                        <AlertCircle className="w-3 h-3" />
+                        {account.overdue_activities} overdue
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {account.website && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
