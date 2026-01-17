@@ -269,32 +269,20 @@ const Accounts = () => {
         </Button>
       </div>
 
-      {/* Filters Bar */}
+      {/* Odoo-Style Unified Search */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Search accounts..."
+                placeholder="Search by: name, industry, city, country, phone, email, pipeline..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
                 data-testid="search-accounts"
               />
             </div>
-            
-            <select
-              value={filterIndustry}
-              onChange={(e) => setFilterIndustry(e.target.value)}
-              className="input w-auto min-w-[140px]"
-              data-testid="industry-filter"
-            >
-              <option value="">All Industries</option>
-              {industries.map(ind => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
           </div>
 
           {/* View Toggle */}
