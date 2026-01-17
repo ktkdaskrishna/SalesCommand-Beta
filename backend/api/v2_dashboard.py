@@ -81,6 +81,65 @@ async def get_dashboard_v2(
         if "odoo_id" in opp and isinstance(opp["odoo_id"], (int, float)):
             opp["odoo_id"] = str(int(opp["odoo_id"]))
     
+    # ENHANCED: Aggregate activity counts for each opportunity
+    logger.info(f"Aggregating activities for {len(opportunities)} opportunities...")
+    
+    for opp in opportunities:
+        try:
+            # Query activities from data_lake_serving for this opportunity
+            activity_query = {
+                "entity_type": "activity",
+                "$or": [
+                    {"is_active": True},
+                    {"is_active": {"$exists": False}}
+                ],
+                "data.res_model": "crm.lead",
+                "data.res_id": opp.get("odoo_id")  # Link by Odoo opportunity ID
+            }
+            
+            activity_docs = await db.data_lake_serving.find(activity_query).to_list(100)
+            
+            # Count by status
+            activities_data = [doc.get("data", {}) for doc in activity_docs]
+            completed = len([a for a in activities_data if a.get("state") == "done"])
+            pending = len([a for a in activities_data if a.get("state") != "done"])
+            
+            # Calculate overdue
+            now = datetime.now(timezone.utc)
+            overdue = 0
+            last_activity_date = None
+            
+            for a in activities_data:
+                due_date_str = a.get("date_deadline")
+                if due_date_str and a.get("state") != "done":
+                    try:
+                        due_date = datetime.fromisoformat(str(due_date_str).replace('Z', '+00:00'))
+                        if due_date < now:
+                            overdue += 1
+                        # Track last activity
+                        if not last_activity_date or due_date > last_activity_date:
+                            last_activity_date = due_date
+                    except:
+                        pass
+            
+            # Add to opportunity object
+            opp["completed_activities"] = completed
+            opp["pending_activities"] = pending
+            opp["overdue_activities"] = overdue
+            opp["total_activities"] = len(activities_data)
+            opp["last_activity_date"] = last_activity_date.isoformat() if last_activity_date else None
+            
+        except Exception as e:
+            logger.error(f"Error aggregating activities for opportunity {opp.get('odoo_id')}: {e}")
+            # Set defaults on error
+            opp["completed_activities"] = 0
+            opp["pending_activities"] = 0
+            opp["overdue_activities"] = 0
+            opp["total_activities"] = 0
+            opp["last_activity_date"] = None
+    
+    logger.info(f"Activity aggregation complete")
+    
     # STEP 5: Get pre-computed metrics
     metrics = await db.dashboard_metrics.find_one(
         {"user_id": cqrs_user_id},
