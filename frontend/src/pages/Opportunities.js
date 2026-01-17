@@ -591,7 +591,7 @@ const Opportunities = () => {
   const fetchData = async () => {
     try {
       const [oppsRes, accountsRes] = await Promise.all([
-        opportunitiesAPI.getAll({ stage: stageFilter || undefined }),
+        opportunitiesAPI.getAll(), // Removed stage filter - using unified search
         accountsAPI.getAll(),
       ]);
       setOpportunities(oppsRes.data);
