@@ -305,3 +305,66 @@ agent_communication:
     message: "Comprehensive CQRS testing completed. 31/31 tests passed (100% success rate). All critical functionality working: Manager visibility ✅, Data isolation ✅, Access control ✅, Performance ✅ (36-42ms). Only 1 minor issue found: Manual sync trigger has database comparison bug (line 34 in sync_handler.py). This doesn't affect core CQRS functionality as system is already populated and working. Data integrity verified: 58 events, 20 user profiles, 23 opportunities, 4 access matrices."
   - agent: "testing"
     message: "COMPREHENSIVE FRONTEND TESTING COMPLETE - All 7 test scenarios executed. Results: ✅ Manager View (Vinsha): 4 opportunities, team hierarchy visible, all metrics correct. ✅ Data Isolation (Zakariya): 2 opportunities only, no manager section, security verified. ✅ Superadmin View: 23 opportunities, admin panel accessible. ❌ Manual Sync: 403 permission error (needs 'manage_integrations' permission). ✅ Performance: 377-810ms load times (excellent). ✅ UI Elements: All present and working. ⚠️ Minor console warnings (MSAL, sync 403). CRITICAL FIX APPLIED: Added missing triggerCQRSSync() method to frontend/src/services/api.js. Overall: 6/7 tests passed, 1 permission configuration issue."
+  - task: "UAT Fix - Activity API Endpoints"
+    implemented: true
+    working: true
+    file: "backend/routes/sales.py, backend/api/v2_activities.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - GET /api/activities returns array of activities correctly. GET /api/activities/stats returns stats object with all required fields (total, business_activities, system_events, by_type). Tested with 3 users (superadmin, manager, sales rep). All users can access endpoints and receive proper responses."
+  
+  - task: "UAT Fix - Sync Integrity (Soft Deletes)"
+    implemented: true
+    working: true
+    file: "backend/routes/integrations.py, backend/services/odoo/sync_pipeline.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - POST /api/integrations/odoo/sync-all returns synced_entities counts correctly. Response includes: {'accounts': 8, 'opportunities': 11, 'invoices': 2, 'users': 4}. Sync logs track soft-delete counts and are accessible via GET /api/integrations/sync/logs. Latest sync status: completed."
+  
+  - task: "UAT Fix - Enhanced Receivables"
+    implemented: true
+    working: true
+    file: "backend/routes/sales.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - GET /api/receivables returns invoices with salesperson and account_id fields. Tested with 3 users, all received 4 invoices. Sample invoice includes: salesperson field (extracted from Odoo invoice_user_id) and account_id field (extracted from partner_id). Filtering works correctly."
+  
+  - task: "UAT Fix - Account 360° View with Activities"
+    implemented: true
+    working: true
+    file: "backend/routes/sales.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - GET /api/accounts/{account_id}/360 returns complete 360° view. Response includes: activities array (from both local DB and Odoo data_lake_serving), activity_summary object inside summary with counts (total, pending, completed, overdue, due_soon). Tested with account ID 12 (VM). Activities are properly sourced from both 'crm' and 'odoo' sources. Activity summary correctly calculates metrics."
+  
+  - task: "UAT Fix - Goals Team Assignment"
+    implemented: true
+    working: true
+    file: "backend/routes/goals.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - GET /api/goals/team/subordinates returns correct team hierarchy. Response includes: is_manager flag (boolean) and subordinates list (array of team members). Tested with 3 users: superadmin (is_manager=false, 0 subordinates), vinsha.nair (is_manager=true, 1 subordinate: Zakariya), z.albaloushi (is_manager=false, 0 subordinates). Team hierarchy correctly reflects manager-subordinate relationships from CQRS user_profiles."
+
+agent_communication:
+  - agent: "testing"
+    message: "UAT FIXES COMPREHENSIVE TESTING COMPLETE - All 5 UAT fixes tested successfully across 3 user roles (superadmin, manager, sales rep). Results: 16/16 tests PASSED (100% success rate). Test coverage: (1) Activity API endpoints - array response and stats object verified, (2) Sync integrity - synced_entities counts and soft-delete tracking confirmed, (3) Enhanced receivables - salesperson and account_id fields present in all invoices, (4) Account 360° view - activities from both sources and activity_summary metrics working, (5) Goals team assignment - is_manager flag and subordinates list correctly populated. No critical issues found. All endpoints return proper response structures with required fields."
