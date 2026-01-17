@@ -113,7 +113,7 @@ async def get_dashboard_v2(
                     canonical = mapper.map_opportunity(raw_data)
                     opp["account_id"] = canonical.get("account_id")
                     opp["account_name"] = canonical.get("account_name")
-                    opp["account_linked"] = canonical.get("account_linked", False)
+                    opp["account_linked"] = canonical.get("account_linked", False) and canonical.get("account_id") is not None
                 else:
                     opp["account_id"] = None
                     opp["account_name"] = ""
