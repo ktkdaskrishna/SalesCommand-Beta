@@ -186,12 +186,38 @@ const Accounts = () => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
   };
 
-  // Filter accounts - preserved from original
+  // ENHANCED: Odoo-style unified search - searches ALL fields
   const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         account.industry?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIndustry = !filterIndustry || account.industry === filterIndustry;
-    return matchesSearch && matchesIndustry;
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Convert all searchable fields to strings safely
+    const name = String(account.name || '').toLowerCase();
+    const industry = String(account.industry || '').toLowerCase();
+    const city = String(account.city || '').toLowerCase();
+    const country = String(account.country || '').toLowerCase();
+    const website = String(account.website || '').toLowerCase();
+    const phone = String(account.phone || '').toLowerCase();
+    const email = String(account.email || '').toLowerCase();
+    
+    // Get metrics for searching by pipeline/revenue
+    const metrics = getAccountMetrics(account);
+    const pipelineValue = String(metrics.pipelineValue || '').toLowerCase();
+    const wonValue = String(metrics.wonValue || '').toLowerCase();
+    
+    // Search across ALL fields
+    return (
+      name.includes(query) ||
+      industry.includes(query) ||
+      city.includes(query) ||
+      country.includes(query) ||
+      website.includes(query) ||
+      phone.includes(query) ||
+      email.includes(query) ||
+      pipelineValue.includes(query) ||
+      wonValue.includes(query)
+    );
   });
 
   // Get health badge styling
