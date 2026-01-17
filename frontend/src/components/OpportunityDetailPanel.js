@@ -103,6 +103,7 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
   const [activities, setActivities] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [messages, setMessages] = useState([]); // NEW: Chatter messages
 
   useEffect(() => {
     if (isOpen && opportunity?.id) {
@@ -113,8 +114,8 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
   const fetchRelatedData = async () => {
     setLoading(true);
     try {
-      // Fetch activities from both local and Odoo sources
-      const [localActivities, odooActivities] = await Promise.all([
+      // Fetch activities AND messages from both local and Odoo sources
+      const [localActivities, odooActivities, odooMessages] = await Promise.all([
         api.get(`/activities?opportunity_id=${opportunity.id}`).catch((err) => {
           console.error('Failed to fetch local activities:', err);
           return { data: [] };
@@ -122,6 +123,11 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
         api.get(`/activities/opportunity/${opportunity.odoo_id || opportunity.id}`).catch((err) => {
           console.error('Failed to fetch Odoo activities:', err);
           return { data: { activities: [] } };
+        }),
+        // NEW: Fetch chatter messages
+        api.get(`/opportunities/${opportunity.odoo_id || opportunity.id}/messages`).catch((err) => {
+          console.error('Failed to fetch chatter messages:', err);
+          return { data: { messages: [] } };
         }),
       ]);
       
