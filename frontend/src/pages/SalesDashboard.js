@@ -169,7 +169,7 @@ const SalesDashboard = () => {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Your Team</h3>
-              <p className="text-sm text-indigo-600">Manager view - showing your team's opportunities</p>
+              <p className="text-sm text-indigo-600">Manager view - showing your team&apos;s opportunities</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
