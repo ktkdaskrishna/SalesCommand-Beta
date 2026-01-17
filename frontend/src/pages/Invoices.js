@@ -136,10 +136,16 @@ const Receivables = () => {
 
   // Filter invoices with enhanced filters
   const filteredInvoices = data?.invoices?.filter(inv => {
+    // DEFENSIVE: Convert all fields to strings safely
+    const invoiceNum = String(inv.invoice_number || '').toLowerCase();
+    const customerName = String(inv.customer_name || '').toLowerCase();
+    const salesperson = String(inv.salesperson || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+    
     const matchesSearch = !searchQuery || 
-      inv.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.salesperson?.toLowerCase().includes(searchQuery.toLowerCase());
+      invoiceNum.includes(query) ||
+      customerName.includes(query) ||
+      salesperson.includes(query);
     
     const matchesStatus = filterStatus === 'all' || inv.payment_status === filterStatus;
     const matchesSalesperson = filterSalesperson === 'all' || inv.salesperson === filterSalesperson;
