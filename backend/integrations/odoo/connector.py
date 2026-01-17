@@ -779,7 +779,7 @@ class OdooConnector(BaseConnector):
                     'author_name': author_name,
                     'email_from': rec.get('email_from'),
                     'subject': rec.get('subject') if rec.get('subject') != False else None,
-                    'res_model': rec.get('res_model'),
+                    'res_model': rec.get('model'),  # ← Use 'model' field
                     'res_id': rec.get('res_id'),
                     'record_name': rec.get('record_name'),
                 })
