@@ -2192,6 +2192,8 @@ async def get_account_360_view(
             "total_activities": len(activities),
             "pending_activities": len([a for a in activities if a["status"] == "pending"]),
             "total_contacts": len(contacts),
+            # ENHANCED: Activity summary with risk indicators
+            "activity_summary": activity_summary,
         },
         "opportunities": sorted(opportunities, key=lambda x: x.get("value", 0), reverse=True),
         "invoices": sorted(invoices, key=lambda x: x.get("invoice_date") or "", reverse=True),
