@@ -361,7 +361,7 @@ const ActivityTimeline = () => {
       </div>
 
       {/* Activity Dashboard - Summary with Risk Indicators */}
-      <ActivityDashboard />
+      <ActivityDashboard stats={stats} />
 
       {/* Activity Timeline */}
       <div className="card p-6">
