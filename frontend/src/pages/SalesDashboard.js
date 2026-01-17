@@ -7,6 +7,7 @@ import { dashboardAPI, integrationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
+import OpportunityDetailPanel from '../components/OpportunityDetailPanel'; // NEW
 import {
   TrendingUp,
   DollarSign,
@@ -17,6 +18,9 @@ import {
   ChevronRight,
   User,
   ArrowUpRight,
+  Activity,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,6 +32,8 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [useV2, setUseV2] = useState(true); // Use CQRS v2 by default
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null); // NEW: For detail panel
+  const [showDetailPanel, setShowDetailPanel] = useState(false); // NEW
 
   useEffect(() => {
     fetchDashboard();
