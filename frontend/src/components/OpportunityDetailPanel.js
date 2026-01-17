@@ -157,6 +157,11 @@ const OpportunityDetailPanel = ({ opportunity, isOpen, onClose, onEdit, onBlueSh
       
       console.log(`Total merged activities: ${mergedActivities.length}`, mergedActivities);
       setActivities(mergedActivities);
+      
+      // Set chatter messages
+      const chatMessages = odooMessages.data?.messages || [];
+      console.log(`Fetched ${chatMessages.length} chatter messages`);
+      setMessages(chatMessages);
     } catch (err) {
       console.error('Failed to fetch related data:', err);
     } finally {
