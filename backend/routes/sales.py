@@ -272,6 +272,31 @@ async def get_opportunities(
         }
         opportunities.append(opp)
     
+    # ENHANCED: Aggregate activity counts for each opportunity
+    for opp in opportunities:
+        try:
+            # Query activities for this opportunity
+            activity_docs = await db.data_lake_serving.find({
+                "entity_type": "activity",
+                "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                "data.res_model": "crm.lead",
+                "data.res_id": opp.get("id")
+            }).to_list(100)
+            
+            # Count by status
+            activities = [doc.get("data", {}) for doc in activity_docs]
+            completed = len([a for a in activities if a.get("state") == "done"])
+            pending = len([a for a in activities if a.get("state") != "done"])
+            
+            opp["completed_activities"] = completed
+            opp["pending_activities"] = pending
+            opp["total_activities"] = len(activities)
+            
+        except:
+            opp["completed_activities"] = 0
+            opp["pending_activities"] = 0
+            opp["total_activities"] = 0
+    
     return opportunities
 
 @router.get("/opportunities/kanban")
