@@ -134,24 +134,38 @@ const Receivables = () => {
   const salespersons = [...new Set(data?.invoices?.map(i => i.salesperson).filter(Boolean))] || [];
   const accounts = [...new Set(data?.invoices?.map(i => i.customer_name).filter(Boolean))] || [];
 
-  // Filter invoices with enhanced filters
+  // ENHANCED: Odoo-style unified search - filters across ALL fields intelligently
   const filteredInvoices = data?.invoices?.filter(inv => {
-    // DEFENSIVE: Convert all fields to strings safely
+    // If no search query, show all
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // DEFENSIVE: Convert all searchable fields to strings safely
     const invoiceNum = String(inv.invoice_number || '').toLowerCase();
     const customerName = String(inv.customer_name || '').toLowerCase();
     const salesperson = String(inv.salesperson || '').toLowerCase();
-    const query = searchQuery.toLowerCase();
+    const status = String(inv.payment_status || '').toLowerCase();
+    const amountTotal = String(inv.total_amount || '').toLowerCase();
+    const amountDue = String(inv.amount_due || '').toLowerCase();
+    const invoiceDate = String(inv.invoice_date || '').toLowerCase();
+    const dueDate = String(inv.due_date || '').toLowerCase();
     
-    const matchesSearch = !searchQuery || 
+    // Search across ALL fields (Odoo-style)
+    return (
       invoiceNum.includes(query) ||
       customerName.includes(query) ||
-      salesperson.includes(query);
-    
-    const matchesStatus = filterStatus === 'all' || inv.payment_status === filterStatus;
-    const matchesSalesperson = filterSalesperson === 'all' || inv.salesperson === filterSalesperson;
-    const matchesAccount = filterAccount === 'all' || inv.customer_name === filterAccount;
-    
-    return matchesSearch && matchesStatus && matchesSalesperson && matchesAccount;
+      salesperson.includes(query) ||
+      status.includes(query) ||
+      amountTotal.includes(query) ||
+      amountDue.includes(query) ||
+      invoiceDate.includes(query) ||
+      dueDate.includes(query) ||
+      // Also support friendly status names
+      (status === 'paid' && 'paid'.includes(query)) ||
+      (status === 'pending' && 'pending'.includes(query)) ||
+      (status === 'overdue' && 'overdue'.includes(query))
+    );
   }) || [];
 
   if (loading) {
