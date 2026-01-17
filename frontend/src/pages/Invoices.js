@@ -127,10 +127,6 @@ const Receivables = () => {
     }
   };
 
-  // Get unique salespersons and accounts for filters
-  const salespersons = [...new Set(data?.invoices?.map(i => i.salesperson).filter(Boolean))] || [];
-  const accounts = [...new Set(data?.invoices?.map(i => i.customer_name).filter(Boolean))] || [];
-
   // ENHANCED: Odoo-style unified search - filters across ALL fields intelligently
   const filteredInvoices = data?.invoices?.filter(inv => {
     // If no search query, show all
