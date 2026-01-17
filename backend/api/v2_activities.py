@@ -92,10 +92,13 @@ async def get_activities(
 
 @router.get("/dashboard-summary")
 async def get_activity_dashboard_summary(
+    include_system: bool = False,  # NEW: Filter system events by default
     token_data: dict = Depends(get_current_user_from_token)
 ):
     """
     Get activity summary for dashboard.
+    
+    By default, excludes system events to show only business activities.
     
     Returns counts by status for the current user's accessible activities.
     """
@@ -103,9 +106,19 @@ async def get_activity_dashboard_summary(
     current_user_id = token_data["id"]
     is_super_admin = token_data.get("role") == UserRole.SUPER_ADMIN
     
+    # Define system event types
+    system_event_types = [
+        "user_login", "data_synced", "system",
+        "user_created", "user_updated", "sync_completed"
+    ]
+    
     try:
         # Build base query
         query = {"is_active": True}
+        
+        # Filter out system events by default
+        if not include_system:
+            query["activity_type"] = {"$nin": system_event_types}
         
         if not is_super_admin:
             # Get accessible user IDs
