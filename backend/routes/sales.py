@@ -1218,6 +1218,56 @@ async def create_activity(
     }
     
     await db.activities.insert_one(activity)
+
+
+
+@router.get("/opportunities/{opp_id}/messages")
+async def get_opportunity_messages(
+    opp_id: str,
+    token_data: dict = Depends(require_approved())
+):
+    """
+    Get chatter messages/communication history for an opportunity.
+    Shows notes, emails, status changes from Odoo.
+    """
+    db = Database.get_db()
+    
+    # Convert to int for Odoo ID matching
+    try:
+        opp_odoo_id = int(opp_id)
+    except (ValueError, TypeError):
+        opp_odoo_id = opp_id
+    
+    # Query messages from data_lake_serving
+    message_docs = await db.data_lake_serving.find({
+        "entity_type": "message",
+        "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+        "data.res_model": "crm.lead",
+        "data.res_id": opp_odoo_id
+    }).sort([("data.date", -1)]).to_list(100)
+    
+    messages = []
+    for doc in message_docs:
+        msg = doc.get("data", {})
+        
+        messages.append({
+            "id": msg.get("id"),
+            "body": msg.get("body", ""),
+            "date": msg.get("date"),
+            "message_type": msg.get("message_type"),
+            "subtype_name": msg.get("subtype_name"),
+            "author_name": msg.get("author_name", "System"),
+            "author_id": msg.get("author_id"),
+            "email_from": msg.get("email_from"),
+            "subject": msg.get("subject"),
+        })
+    
+    return {
+        "messages": messages,
+        "count": len(messages),
+        "opportunity_id": opp_id
+    }
+
     activity.pop("_id", None)
     return activity
 
