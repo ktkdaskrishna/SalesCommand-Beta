@@ -76,7 +76,10 @@ async def get_dashboard_v2(
         "is_active": True
     }, {"_id": 0}).to_list(1000)
     
-    # CRITICAL: Convert odoo_id to string and extract owner/account info from CQRS projections
+    # CRITICAL: Convert odoo_id to string and enrich with proper account/owner data
+    from services.field_mapper import get_field_mapper
+    mapper = get_field_mapper()
+    
     for opp in opportunities:
         # Convert odoo_id to string
         if "odoo_id" in opp and isinstance(opp["odoo_id"], (int, float)):
@@ -93,17 +96,38 @@ async def get_dashboard_v2(
             opp["owner_name"] = "Unassigned"
             opp["owner_assigned"] = False
         
-        # Extract account info from account object (CQRS format)
-        account = opp.get("account") or {}
-        if isinstance(account, dict) and account.get("odoo_id"):
-            opp["account_id"] = account.get("odoo_id")
-            opp["account_name"] = account.get("name", "")
-            opp["account_linked"] = True
+        # ENHANCED: Get account from data_lake_serving if not in projection
+        account_obj = opp.get("account")
+        if not account_obj or not account_obj.get("odoo_id"):
+            # Projection didn't populate account, get from raw data
+            try:
+                # Get original record from data_lake_serving
+                raw_opp = await db.data_lake_serving.find_one({
+                    "entity_type": "opportunity",
+                    "data.id": int(opp.get("odoo_id")) if opp.get("odoo_id", "").isdigit() else opp.get("odoo_id")
+                })
+                
+                if raw_opp:
+                    raw_data = raw_opp.get("data", {})
+                    # Use mapper to extract account properly
+                    canonical = mapper.map_opportunity(raw_data)
+                    opp["account_id"] = canonical.get("account_id")
+                    opp["account_name"] = canonical.get("account_name")
+                    opp["account_linked"] = canonical.get("account_linked", False)
+                else:
+                    opp["account_id"] = None
+                    opp["account_name"] = ""
+                    opp["account_linked"] = False
+            except Exception as e:
+                logger.warning(f"Could not enrich account for opp {opp.get('name')}: {e}")
+                opp["account_id"] = None
+                opp["account_name"] = ""
+                opp["account_linked"] = False
         else:
-            # Fallback: Some opportunities might not have account object
-            opp["account_id"] = None
-            opp["account_name"] = ""
-            opp["account_linked"] = False
+            # Use account from projection
+            opp["account_id"] = account_obj.get("odoo_id")
+            opp["account_name"] = account_obj.get("name", "")
+            opp["account_linked"] = True
     
     # ENHANCED: Aggregate activity counts for each opportunity
     logger.info(f"Aggregating activities for {len(opportunities)} opportunities...")
