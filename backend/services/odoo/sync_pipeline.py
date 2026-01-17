@@ -454,13 +454,16 @@ class OdooSyncPipelineService:
             # 2. Sync Opportunities (crm.lead)
             try:
                 opportunities = await connector.fetch_opportunities()
+                opp_odoo_ids = [opp.get('id') for opp in opportunities if opp.get('id')]
+                
                 for opp in opportunities:
                     serving_doc = {
                         "entity_type": "opportunity",
                         "serving_id": f"odoo_opportunity_{opp.get('id')}",
                         "source": "odoo",
                         "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                        "data": opp
+                        "data": opp,
+                        "is_active": True  # Mark as active
                     }
                     await self.db.data_lake_serving.update_one(
                         {"serving_id": serving_doc["serving_id"]},
@@ -468,7 +471,25 @@ class OdooSyncPipelineService:
                         upsert=True
                     )
                 synced_entities["opportunities"] = len(opportunities)
-                logger.info(f"Synced {len(opportunities)} opportunities")
+                
+                # Soft-delete opportunities no longer in Odoo
+                delete_result = await self.db.data_lake_serving.update_many(
+                    {
+                        "entity_type": "opportunity",
+                        "source": "odoo",
+                        "is_active": True,
+                        "data.id": {"$nin": opp_odoo_ids}
+                    },
+                    {
+                        "$set": {
+                            "is_active": False,
+                            "deleted_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }
+                )
+                deleted_opps = delete_result.modified_count
+                
+                logger.info(f"Synced {len(opportunities)} opportunities, soft-deleted {deleted_opps}")
             except Exception as e:
                 error_msg = f"Opportunity sync error: {str(e)}"
                 errors.append(error_msg)
@@ -477,13 +498,16 @@ class OdooSyncPipelineService:
             # 3. Sync Invoices (account.move)
             try:
                 invoices = await connector.fetch_invoices()
+                invoice_odoo_ids = [inv.get('id') for inv in invoices if inv.get('id')]
+                
                 for inv in invoices:
                     serving_doc = {
                         "entity_type": "invoice",
                         "serving_id": f"odoo_invoice_{inv.get('id')}",
                         "source": "odoo",
                         "last_aggregated": datetime.now(timezone.utc).isoformat(),
-                        "data": inv
+                        "data": inv,
+                        "is_active": True  # Mark as active
                     }
                     await self.db.data_lake_serving.update_one(
                         {"serving_id": serving_doc["serving_id"]},
@@ -491,7 +515,25 @@ class OdooSyncPipelineService:
                         upsert=True
                     )
                 synced_entities["invoices"] = len(invoices)
-                logger.info(f"Synced {len(invoices)} invoices")
+                
+                # Soft-delete invoices no longer in Odoo
+                delete_result = await self.db.data_lake_serving.update_many(
+                    {
+                        "entity_type": "invoice",
+                        "source": "odoo",
+                        "is_active": True,
+                        "data.id": {"$nin": invoice_odoo_ids}
+                    },
+                    {
+                        "$set": {
+                            "is_active": False,
+                            "deleted_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }
+                )
+                deleted_invoices = delete_result.modified_count
+                
+                logger.info(f"Synced {len(invoices)} invoices, soft-deleted {deleted_invoices}")
             except Exception as e:
                 error_msg = f"Invoice sync error: {str(e)}"
                 errors.append(error_msg)
