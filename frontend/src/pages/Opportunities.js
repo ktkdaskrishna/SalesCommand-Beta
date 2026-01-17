@@ -563,8 +563,7 @@ const Opportunities = () => {
   const [opportunities, setOpportunities] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
+  const [search, setSearch] = useState(""); // Odoo-style unified search
   const [viewMode, setViewMode] = useState("kanban");
   const [showModal, setShowModal] = useState(false);
   const [blueSheetOpp, setBlueSheetOpp] = useState(null);
