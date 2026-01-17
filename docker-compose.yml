@@ -41,6 +41,28 @@ services:
     networks:
       - salesintel_network
 
+  # ClickHouse Data Lake
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: salesintel_clickhouse
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_DB=${CLICKHOUSE_DATABASE:-salesintel}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - salesintel_network
+
   # FastAPI Backend
   backend:
     build:
@@ -54,6 +76,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-salescommand-enterprise-secret-key-2025-secure}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:8123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DATABASE:-salesintel}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
       - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
       # Microsoft 365 SSO
       - MS365_CLIENT_ID=${MS365_CLIENT_ID:-}
@@ -73,6 +99,8 @@ services:
       mongo:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      clickhouse:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -126,6 +154,8 @@ volumes:
   mongo_data:
     driver: local
   redis_data:
+    driver: local
+  clickhouse_data:
     driver: local
 
 networks:
