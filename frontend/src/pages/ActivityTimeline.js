@@ -53,6 +53,13 @@ const ActivityItem = ({ activity, onClick }) => {
   const config = ACTIVITY_TYPES[activity.activity_type] || ACTIVITY_TYPES.default;
   const Icon = config.icon;
   
+  // Extract fields from activity_view structure
+  const title = activity.summary || activity.title || 'Activity';
+  const assignedTo = activity.assigned_to?.name || activity.user_name || 'Unassigned';
+  const opportunityName = activity.opportunity?.name || '';
+  const timestamp = activity.created_at || activity.timestamp || new Date().toISOString();
+  const note = activity.note ? activity.note.replace(/<[^>]*>/g, ' ').trim() : ''; // Strip HTML
+  
   return (
     <div 
       className="flex gap-4 py-4 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 px-2 -mx-2 rounded-lg transition-colors cursor-pointer"
@@ -69,10 +76,20 @@ const ActivityItem = ({ activity, onClick }) => {
       
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-slate-900 font-medium">{activity.title}</p>
+        <p className="text-slate-900 font-medium">{title}</p>
+        {opportunityName && (
+          <p className="text-sm text-slate-600 mt-1">
+            Opportunity: {opportunityName}
+          </p>
+        )}
+        {note && (
+          <p className="text-sm text-slate-500 mt-1 line-clamp-2">
+            {note}
+          </p>
+        )}
         <div className="flex items-center gap-3 mt-1.5">
           <span className="text-xs text-slate-500">
-            {new Date(activity.timestamp || activity.created_at).toLocaleTimeString('en-US', {
+            {new Date(timestamp).toLocaleTimeString('en-US', {
               hour: 'numeric',
               minute: '2-digit',
               hour12: true,
@@ -84,6 +101,27 @@ const ActivityItem = ({ activity, onClick }) => {
           )}>
             {activity.type_label || config.label}
           </span>
+          {assignedTo && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs text-slate-500">
+                Assigned to: {assignedTo}
+              </span>
+            </>
+          )}
+          {activity.state && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className={cn(
+                "px-2 py-0.5 rounded text-xs font-medium",
+                activity.state === 'done' ? 'bg-emerald-100 text-emerald-700' :
+                activity.state === 'overdue' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              )}>
+                {activity.state}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
