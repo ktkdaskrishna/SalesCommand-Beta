@@ -245,7 +245,7 @@ const Receivables = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search invoices..."
+            placeholder="Search invoices, customers, salesperson..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input pl-10"
@@ -255,7 +255,7 @@ const Receivables = () => {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="input w-auto"
+          className="input w-auto min-w-[150px]"
           data-testid="filter-status"
         >
           <option value="all">All Statuses</option>
@@ -264,6 +264,36 @@ const Receivables = () => {
           <option value="partial">Partial</option>
           <option value="overdue">Overdue</option>
         </select>
+        
+        {/* ENHANCED: Salesperson Filter */}
+        {salespersons.length > 0 && (
+          <select
+            value={filterSalesperson}
+            onChange={(e) => setFilterSalesperson(e.target.value)}
+            className="input w-auto min-w-[150px]"
+            data-testid="filter-salesperson"
+          >
+            <option value="all">All Salespersons</option>
+            {salespersons.map(sp => (
+              <option key={sp} value={sp}>{sp}</option>
+            ))}
+          </select>
+        )}
+        
+        {/* ENHANCED: Account Filter */}
+        {accounts.length > 1 && (
+          <select
+            value={filterAccount}
+            onChange={(e) => setFilterAccount(e.target.value)}
+            className="input w-auto min-w-[150px]"
+            data-testid="filter-account"
+          >
+            <option value="all">All Accounts</option>
+            {accounts.map(acc => (
+              <option key={acc} value={acc}>{acc}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Invoices Table */}
