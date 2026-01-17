@@ -538,6 +538,52 @@ class OdooSyncPipelineService:
                 error_msg = f"Invoice sync error: {str(e)}"
                 errors.append(error_msg)
                 logger.error(error_msg)
+
+            
+            # 5. Sync Chatter Messages (Communication History)
+            try:
+                messages = await connector.fetch_messages(res_model='crm.lead')
+                message_odoo_ids = [msg.get('id') for msg in messages if msg.get('id')]
+                
+                for msg in messages:
+                    serving_doc = {
+                        "entity_type": "message",
+                        "serving_id": f"odoo_message_{msg.get('id')}",
+                        "source": "odoo",
+                        "last_aggregated": datetime.now(timezone.utc).isoformat(),
+                        "data": msg,
+                        "is_active": True
+                    }
+                    await self.db.data_lake_serving.update_one(
+                        {"serving_id": serving_doc["serving_id"]},
+                        {"$set": serving_doc},
+                        upsert=True
+                    )
+                synced_entities["messages"] = len(messages)
+                
+                # Soft-delete messages no longer in Odoo
+                delete_result = await self.db.data_lake_serving.update_many(
+                    {
+                        "entity_type": "message",
+                        "source": "odoo",
+                        "is_active": True,
+                        "data.id": {"$nin": message_odoo_ids}
+                    },
+                    {
+                        "$set": {
+                            "is_active": False,
+                            "deleted_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }
+                )
+                deleted_messages = delete_result.modified_count
+                
+                logger.info(f"Synced {len(messages)} chatter messages, soft-deleted {deleted_messages}")
+            except Exception as e:
+                error_msg = f"Message sync error: {str(e)}"
+                errors.append(error_msg)
+                logger.error(error_msg)
+
             
             # 4. Sync Users/Employees (for user matching)
             try:
