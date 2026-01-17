@@ -1,6 +1,6 @@
 """
 Goals API Routes
-CRUD operations for goals and objectives tracking
+CRUD operations for goals and objectives tracking with manager team assignment
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
