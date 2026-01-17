@@ -1634,10 +1634,27 @@ async def get_receivables(
     
     for doc in inv_docs:
         inv = doc.get("data", {})
+        
+        # Extract salesperson info (Odoo format: [id, "Name"] or just id)
+        salesperson_id = inv.get("invoice_user_id") or inv.get("user_id")
+        salesperson_name = ""
+        if isinstance(salesperson_id, list) and len(salesperson_id) > 1:
+            salesperson_name = salesperson_id[1]
+        elif isinstance(salesperson_id, str):
+            salesperson_name = salesperson_id
+        
+        # Extract partner/account info
+        partner_id = inv.get("partner_id")
+        partner_name = inv.get("customer_name") or inv.get("partner_name", "")
+        if isinstance(partner_id, list) and len(partner_id) > 1:
+            partner_name = partner_id[1]
+        
         invoices.append({
             "id": inv.get("id"),
             "invoice_number": inv.get("invoice_number", inv.get("name", "")),
-            "customer_name": inv.get("customer_name", inv.get("partner_name", "")),
+            "customer_name": partner_name,
+            "account_id": partner_id[0] if isinstance(partner_id, list) else partner_id,
+            "salesperson": salesperson_name,
             "total_amount": float(inv.get("total_amount", inv.get("amount_total", 0)) or 0),
             "amount_due": float(inv.get("amount_due", inv.get("amount_residual", 0)) or 0),
             "amount_paid": float(inv.get("amount_paid", 0) or 0),
