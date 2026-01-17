@@ -86,23 +86,36 @@ async def get_dashboard_v2(
     
     for opp in opportunities:
         try:
-            # Query activities from data_lake_serving for this opportunity
-            activity_query = {
-                "entity_type": "activity",
-                "$or": [
-                    {"is_active": True},
-                    {"is_active": {"$exists": False}}
-                ],
-                "data.res_model": "crm.lead",
-                "data.res_id": opp.get("odoo_id")  # Link by Odoo opportunity ID
-            }
+            odoo_id = opp.get("odoo_id")
+            
+            # Try to convert to int for matching with Odoo activity res_id
+            try:
+                odoo_id_int = int(odoo_id)
+            except (ValueError, TypeError):
+                odoo_id_int = None
+            
+            # Query activities - try both string and int matching
+            if odoo_id_int:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": odoo_id_int  # Use integer for Odoo matching
+                }
+            else:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": odoo_id
+                }
             
             activity_docs = await db.data_lake_serving.find(activity_query).to_list(100)
             
             # Count by status
             activities_data = [doc.get("data", {}) for doc in activity_docs]
             completed = len([a for a in activities_data if a.get("state") == "done"])
-            pending = len([a for a in activities_data if a.get("state") != "done"])
+            pending = len([a for a in activities_data if a.get("state") not in ["done", "cancel", "cancelled"]])
             
             # Calculate overdue
             now = datetime.now(timezone.utc)
@@ -128,6 +141,9 @@ async def get_dashboard_v2(
             opp["overdue_activities"] = overdue
             opp["total_activities"] = len(activities_data)
             opp["last_activity_date"] = last_activity_date.isoformat() if last_activity_date else None
+            
+            if len(activities_data) > 0:
+                logger.debug(f"Opp {opp.get('name')}: {len(activities_data)} activities ({completed} done, {pending} pending)")
             
         except Exception as e:
             logger.error(f"Error aggregating activities for opportunity {opp.get('odoo_id')}: {e}")
