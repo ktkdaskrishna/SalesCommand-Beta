@@ -275,24 +275,43 @@ async def get_opportunities(
     # ENHANCED: Aggregate activity counts for each opportunity
     for opp in opportunities:
         try:
-            # Query activities for this opportunity
-            activity_docs = await db.data_lake_serving.find({
-                "entity_type": "activity",
-                "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
-                "data.res_model": "crm.lead",
-                "data.res_id": opp.get("id")
-            }).to_list(100)
+            opp_id = opp.get("id")
+            
+            # Convert to int if possible for matching with Odoo res_id
+            try:
+                opp_id_int = int(opp_id)
+            except (ValueError, TypeError):
+                opp_id_int = None
+            
+            # Build activity query - match by res_id (int or string)
+            if opp_id_int:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": opp_id_int
+                }
+            else:
+                activity_query = {
+                    "entity_type": "activity",
+                    "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+                    "data.res_model": "crm.lead",
+                    "data.res_id": opp_id
+                }
+            
+            activity_docs = await db.data_lake_serving.find(activity_query).to_list(100)
             
             # Count by status
             activities = [doc.get("data", {}) for doc in activity_docs]
             completed = len([a for a in activities if a.get("state") == "done"])
-            pending = len([a for a in activities if a.get("state") != "done"])
+            pending = len([a for a in activities if a.get("state") not in ["done", "cancel", "cancelled"]])
             
             opp["completed_activities"] = completed
             opp["pending_activities"] = pending
             opp["total_activities"] = len(activities)
             
-        except:
+        except Exception as e:
+            logger.error(f"Activity aggregation error for {opp.get('id')}: {e}")
             opp["completed_activities"] = 0
             opp["pending_activities"] = 0
             opp["total_activities"] = 0
