@@ -52,25 +52,20 @@ async def get_activities(
             query["activity_type"] = {"$nin": system_event_types}
         
         if not is_super_admin:
-            # Get user's access matrix to check what they can see
-            access_matrix = await db.user_access_matrix.find_one(
-                {"user_id": current_user_id},
-                {"_id": 0, "accessible_user_ids": 1}
+            # Get user's CQRS ID for proper matching
+            user_profile = await db.user_profiles.find_one(
+                {"email": token_data["email"].lower()},
+                {"_id": 0, "id": 1}
             )
             
-            if access_matrix:
-                accessible_ids = access_matrix.get("accessible_user_ids", [])
-                accessible_ids.append(current_user_id)  # Add self
-                
-                # Filter activities to accessible users
-                query["owner_user_id"] = {"$in": accessible_ids}
-            else:
-                # No access matrix - only show own activities
-                query["owner_user_id"] = current_user_id
+            cqrs_user_id = user_profile["id"] if user_profile else current_user_id
+            
+            # Use pre-computed visible_to_user_ids from activity projection
+            query["visible_to_user_ids"] = cqrs_user_id
         
         # If user_id filter provided, apply it
         if user_id:
-            query["owner_user_id"] = user_id
+            query["assigned_to.user_id"] = user_id
         
         # Fetch activities from activity_view
         activities = await db.activity_view.find(
